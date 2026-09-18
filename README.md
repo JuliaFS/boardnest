@@ -2,7 +2,7 @@
 
 Boardnest is a collaborative project management platform for organizing workspaces, projects, and tasks through Kanban boards, role-based permissions, and real-time updates.
 
-> Status: Phase 1 complete — repository foundation and architecture. Database design starts in Phase 2.
+> Status: Phase 2 complete — repository foundation, database design, SQL migrations, RLS, and Supabase setup documentation.
 
 ## Planned features
 
@@ -72,7 +72,7 @@ Variable ownership and security boundaries are documented in [Development](docs/
 
 The schema will be SQL-first. Each table will have an ordered, independently readable migration under `database/migrations/`; SQL will not be embedded in application source files.
 
-No schema is included in Phase 1. See [database/README.md](database/README.md) for the Phase 2 contract.
+The Phase 2 schema is split into ordered migrations, with one file per table and separate files for shared functions, RLS, and grants. See [database/README.md](database/README.md) and [Supabase setup](docs/SUPABASE.md).
 
 ## Architecture
 

@@ -40,7 +40,7 @@ Initial workspace roles are:
 - `member`: normal project and task collaboration
 - `viewer`: read-only access
 
-Project membership can narrow access for private projects, but it cannot elevate a user's workspace role. The exact permission matrix will be approved before Phase 2 SQL.
+Project membership grants access to private projects and can narrow task-editing access, but it cannot elevate a user's workspace role. Workspace owners and admins always retain access to private projects. The complete matrix is documented in `docs/DATABASE.md`.
 
 ### Authentication and authorization
 
@@ -119,6 +119,6 @@ HTTPS terminates at the platform edge. Production WebSocket connections use WSS.
 
 **Trade-off:** State lives in several appropriate places rather than one universal store, so conventions must stay documented.
 
-## Deferred decisions
+## Phase 2 database decisions
 
-Phase 2 will finalize the ERD, deletion behavior, task ordering strategy, invitation lifecycle, audit-event shape, RLS model, and whether projects are workspace-wide or can be private.
+Projects choose `workspace` or `private` visibility independently from the `planned`, `active`, `on_hold`, and `completed` business status. Archival uses a separate timestamp. Tasks use fractional positions, invitations store only token hashes, activity events keep JSON snapshots, and RLS helpers live in a non-exposed schema. Details are documented in `docs/DATABASE.md`.
