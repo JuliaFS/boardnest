@@ -1,19 +1,22 @@
 import { createServer } from './app.js';
+import { createSupabaseAccessTokenVerifier } from './auth/access-token.js';
+import { loadEnvironmentFile, parseEnvironment } from './config/env.js';
 
-const parsedPort = Number.parseInt(process.env.PORT ?? '4000', 10);
+loadEnvironmentFile();
 
-if (
-  !Number.isSafeInteger(parsedPort) ||
-  parsedPort < 1 ||
-  parsedPort > 65_535
-) {
-  throw new Error('PORT must be an integer between 1 and 65535');
-}
+const environment = parseEnvironment();
+const verifyAccessToken = createSupabaseAccessTokenVerifier(
+  environment.SUPABASE_URL,
+  environment.SUPABASE_PUBLISHABLE_KEY,
+);
 
-const server = createServer();
+const server = createServer({
+  corsOrigin: environment.CORS_ORIGIN,
+  verifyAccessToken,
+});
 
-server.listen(parsedPort, () => {
-  console.info(`Boardnest API listening on port ${parsedPort}`);
+server.listen(environment.PORT, () => {
+  console.info(`Boardnest API listening on port ${environment.PORT}`);
 });
 
 function shutdown(signal: NodeJS.Signals): void {

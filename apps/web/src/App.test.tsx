@@ -1,17 +1,31 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { MemoryRouter } from 'react-router';
+import { describe, expect, it, vi } from 'vitest';
 
 import { App } from './App';
 
-describe('App', () => {
-  it('identifies the product and current foundation state', () => {
-    render(<App />);
+const { authState } = vi.hoisted(() => ({
+  authState: {
+    isLoading: false,
+    session: null,
+    signIn: vi.fn(),
+    signOut: vi.fn(),
+    signUp: vi.fn(),
+  },
+}));
 
-    expect(
-      screen.getByRole('heading', {
-        name: 'Plan together. Move work forward.',
-      }),
-    ).toBeTruthy();
-    expect(screen.getByText('Boardnest')).toBeTruthy();
+vi.mock('./features/auth/AuthProvider', () => ({
+  useAuth: () => authState,
+}));
+
+describe('App routing', () => {
+  it('redirects an anonymous visitor from a protected page to sign in', () => {
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('heading', { name: 'Sign in' })).toBeTruthy();
   });
 });

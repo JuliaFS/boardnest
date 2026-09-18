@@ -16,5 +16,11 @@
     "typescript": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.116.0",
+    "dotenv": "^17.4.2",
+    "jose": "^6.2.12",
+    "zod": "^4.6.5"
   }
 }
