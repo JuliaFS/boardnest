@@ -1,0 +1,32 @@
+{
+  "name": "boardnest",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Real-time, multi-tenant project management platform",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24.21.0 <25",
+    "pnpm": ">=12.4.2 <13"
+  },
+  "packageManager": "pnpm@12.4.2",
+  "scripts": {
+    "build": "pnpm --recursive --if-present build",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "dev": "pnpm --parallel --filter @boardnest/api --filter @boardnest/web dev",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint . --max-warnings 0",
+    "test": "pnpm --recursive --if-present test",
+    "typecheck": "pnpm --recursive --if-present typecheck"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.0",
+    "eslint": "^10.10.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^16.4.0",
+    "prettier": "3.9.7",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.70.0"
+  }
+}

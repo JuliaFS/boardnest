@@ -1,0 +1,6 @@
+{
+  "name": "@boardnest/graphql-types",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Generated GraphQL operations and schema types"
+}

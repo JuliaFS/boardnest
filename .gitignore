@@ -141,3 +141,13 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Vitest
+.vitest/
+
+# Playwright
+playwright-report/
+test-results/
+
+# Local Supabase tooling
+.supabase/
