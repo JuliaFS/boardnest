@@ -1,18 +1,20 @@
 import { createServer } from './app.js';
-import { createSupabaseAccessTokenVerifier } from './auth/access-token.js';
+import { createSupabaseAuthService } from './auth/auth-service.js';
 import { loadEnvironmentFile, parseEnvironment } from './config/env.js';
 
 loadEnvironmentFile();
 
 const environment = parseEnvironment();
-const verifyAccessToken = createSupabaseAccessTokenVerifier(
-  environment.SUPABASE_URL,
-  environment.SUPABASE_PUBLISHABLE_KEY,
-);
+const authService = createSupabaseAuthService({
+  callbackUrl: `${environment.API_URL}/auth/callback`,
+  publishableKey: environment.SUPABASE_PUBLISHABLE_KEY,
+  supabaseUrl: environment.SUPABASE_URL,
+});
 
 const server = createServer({
+  authService,
   corsOrigin: environment.CORS_ORIGIN,
-  verifyAccessToken,
+  secureCookies: environment.NODE_ENV === 'production',
 });
 
 server.listen(environment.PORT, () => {

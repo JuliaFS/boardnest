@@ -24,8 +24,8 @@ export function RegisterPage() {
 
     try {
       const needsEmailConfirmation = await signUp({
+        displayName: values.displayName,
         email: values.email,
-        options: { data: { display_name: values.displayName } },
         password: values.password,
       });
 

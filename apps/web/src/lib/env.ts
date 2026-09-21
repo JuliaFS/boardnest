@@ -2,8 +2,6 @@ import { z } from 'zod';
 
 const publicEnvironmentSchema = z.object({
   VITE_API_URL: z.url(),
-  VITE_SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
-  VITE_SUPABASE_URL: z.url(),
 });
 
 export type PublicEnvironment = z.infer<typeof publicEnvironmentSchema>;
@@ -22,4 +20,6 @@ export function parsePublicEnvironment(
   return result.data;
 }
 
-export const publicEnvironment = parsePublicEnvironment(import.meta.env);
+export const publicEnvironment = parsePublicEnvironment({
+  VITE_API_URL: import.meta.env.VITE_API_URL,
+});

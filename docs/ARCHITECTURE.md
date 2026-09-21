@@ -7,14 +7,13 @@ Boardnest is a portfolio-grade, multi-tenant project management SaaS. The archit
 ## System context
 
 ```text
-Browser
-  ├─ Supabase Auth ──────────────> Supabase Auth
-  └─ HTTP / WebSocket ───────────> Node.js GraphQL API
-                                      ├─ SQL ─────> Supabase PostgreSQL
-                                      └─ Pub/Sub ─> Redis
+Browser ── HTTP-only session cookie ──> Node.js API
+                                          ├─ Auth ───> Supabase Auth
+                                          ├─ SQL ────> Supabase PostgreSQL
+                                          └─ Pub/Sub > Redis
 ```
 
-The browser uses Supabase for authentication and sends the resulting access token to the API. Business data goes through GraphQL. This creates one application authorization boundary and avoids coupling UI components directly to database tables.
+The browser uses the Node API as an authentication backend-for-frontend. The API exchanges credentials with Supabase Auth and keeps access and refresh tokens in `HttpOnly` cookies. Business data goes through GraphQL. This creates one application authorization boundary and avoids exposing tokens to browser JavaScript or coupling UI components directly to database tables.
 
 ## Repository boundaries
 
@@ -44,7 +43,7 @@ Project membership grants access to private projects and can narrow task-editing
 
 ### Authentication and authorization
 
-Supabase Auth owns credentials and sessions. `auth.users` is not duplicated, and no password is stored by Boardnest. A public `profiles` row will reference the Auth user UUID.
+Supabase Auth owns credentials and sessions. `auth.users` is not duplicated, and no password is stored by Boardnest. A public `profiles` row references the Auth user UUID. The Node API owns the browser-facing login, registration, refresh, callback, and logout endpoints; session cookies are `HttpOnly`, `SameSite=Lax`, and `Secure` outside local development.
 
 The API will validate Supabase JWTs and enforce permissions at resolver/service boundaries. PostgreSQL RLS will provide defense in depth and safe access for any narrowly approved direct Supabase operations. The service-role key is server-only because it bypasses RLS.
 

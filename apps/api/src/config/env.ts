@@ -2,6 +2,7 @@ import { config as loadDotEnv } from 'dotenv';
 import { z } from 'zod';
 
 const environmentSchema = z.object({
+  API_URL: z.url(),
   CORS_ORIGIN: z.url(),
   NODE_ENV: z
     .enum(['development', 'test', 'production'])

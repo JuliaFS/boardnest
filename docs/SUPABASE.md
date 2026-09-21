@@ -51,12 +51,12 @@ Create a temporary user through Supabase Authentication and verify that a matchi
 
 The Dashboard project settings provide:
 
-- Project URL → `VITE_SUPABASE_URL` and backend `SUPABASE_URL`
-- Public publishable key → `VITE_SUPABASE_PUBLISHABLE_KEY` and backend `SUPABASE_PUBLISHABLE_KEY`
+- Project URL → backend `SUPABASE_URL`
+- Public publishable key → backend `SUPABASE_PUBLISHABLE_KEY`
 - Server secret/service-role key → backend `SUPABASE_SERVICE_ROLE_KEY`
 - PostgreSQL connection string → backend `DATABASE_URL`
 
-Boardnest uses the current `sb_publishable_...` key format. Use the public browser-safe publishable key in both public-key variables and a server-only secret key only for future privileged backend operations.
+Boardnest uses the current `sb_publishable_...` key format on the API server. The browser does not receive a Supabase client or key. Use a server-only secret key only for future privileged backend operations.
 
 ## 5. Secret boundaries
 

@@ -22,7 +22,7 @@ export function LoginPage() {
     setSubmissionError(null);
 
     try {
-      await signIn(values);
+      await signIn(values.email, values.password);
       const returnPath = getReturnPath(location.state);
       await navigate(returnPath, { replace: true });
     } catch (error) {
@@ -128,7 +128,8 @@ function getReturnPath(state: unknown): string {
     state !== null &&
     'from' in state &&
     typeof state.from === 'string' &&
-    state.from.startsWith('/')
+    state.from.startsWith('/') &&
+    !state.from.startsWith('//')
   ) {
     return state.from;
   }

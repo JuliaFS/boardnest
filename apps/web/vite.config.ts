@@ -8,8 +8,6 @@ export default defineConfig({
     environment: 'jsdom',
     env: {
       VITE_API_URL: 'http://localhost:4000',
-      VITE_SUPABASE_PUBLISHABLE_KEY: 'test-publishable-key',
-      VITE_SUPABASE_URL: 'https://test.supabase.co',
     },
   },
 });

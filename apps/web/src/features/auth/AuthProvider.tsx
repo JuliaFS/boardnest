@@ -6,80 +6,75 @@ import {
   useState,
   type PropsWithChildren,
 } from 'react';
+
 import {
-  type AuthChangeEvent,
-  type Session,
-  type SignInWithPasswordCredentials,
-  type SignUpWithPasswordCredentials,
-} from '@supabase/supabase-js';
+  getSession,
+  login,
+  logout,
+  register,
+  type AuthUser,
+} from './auth-client';
 
-import { supabase } from '../../lib/supabase';
-
-interface AuthClient {
-  onAuthStateChange: (
-    callback: (event: AuthChangeEvent, session: Session | null) => void,
-  ) => {
-    data: { subscription: { unsubscribe: () => void } };
-  };
-  signInWithPassword: (credentials: SignInWithPasswordCredentials) => Promise<{
-    error: Error | null;
-  }>;
-  signOut: () => Promise<{ error: Error | null }>;
-  signUp: (credentials: SignUpWithPasswordCredentials) => Promise<{
-    data: { session: Session | null };
-    error: Error | null;
-  }>;
+interface SignUpInput {
+  displayName: string;
+  email: string;
+  password: string;
 }
 
 interface AuthContextValue {
   isLoading: boolean;
-  session: Session | null;
-  signIn: (credentials: SignInWithPasswordCredentials) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
-  signUp: (credentials: SignUpWithPasswordCredentials) => Promise<boolean>;
+  signUp: (input: SignUpInput) => Promise<boolean>;
+  user: AuthUser | null;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-interface AuthProviderProps extends PropsWithChildren {
-  client?: AuthClient;
-}
-
-export function AuthProvider({
-  children,
-  client = supabase.auth,
-}: AuthProviderProps) {
-  const [session, setSession] = useState<Session | null>(null);
+export function AuthProvider({ children }: PropsWithChildren) {
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const { data } = client.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-      setIsLoading(false);
-    });
+    let active = true;
 
-    return () => data.subscription.unsubscribe();
-  }, [client]);
+    void getSession()
+      .then((currentUser) => {
+        if (active) setUser(currentUser);
+      })
+      .catch(() => {
+        if (active) setUser(null);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       isLoading,
-      session,
-      signIn: async (credentials) => {
-        const { error } = await client.signInWithPassword(credentials);
-        if (error) throw error;
+      signIn: async (email, password) => {
+        setUser(await login(email, password));
       },
       signOut: async () => {
-        const { error } = await client.signOut();
-        if (error) throw error;
+        try {
+          await logout();
+        } finally {
+          setUser(null);
+        }
       },
-      signUp: async (credentials) => {
-        const { data, error } = await client.signUp(credentials);
-        if (error) throw error;
-        return data.session === null;
+      signUp: async (input) => {
+        const result = await register(input);
+        setUser(result.user);
+        return result.confirmationRequired;
       },
+      user,
     }),
-    [client, isLoading, session],
+    [isLoading, user],
   );
 
   return <AuthContext value={value}>{children}</AuthContext>;
@@ -88,9 +83,6 @@ export function AuthProvider({
 export function useAuth(): AuthContextValue {
   const context = useContext(AuthContext);
 
-  if (!context) {
-    throw new Error('useAuth must be used inside AuthProvider');
-  }
-
+  if (!context) throw new Error('useAuth must be used inside AuthProvider');
   return context;
 }

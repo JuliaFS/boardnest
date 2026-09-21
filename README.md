@@ -76,7 +76,7 @@ The Phase 2 schema is split into ordered migrations, with one file per table and
 
 ## Authentication
 
-The browser uses Supabase Auth for credentials and persistent sessions. It sends the access token to the Boardnest API, which independently verifies the claims. See [Authentication](docs/AUTHENTICATION.md) for setup and manual verification.
+The browser sends credentials only to the Boardnest API. The API uses Supabase Auth and stores access and refresh tokens in `HttpOnly` cookies, so browser JavaScript cannot read them. See [Authentication](docs/AUTHENTICATION.md) for setup and manual verification.
 
 ## Architecture
 

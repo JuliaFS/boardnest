@@ -7,10 +7,10 @@ import { App } from './App';
 const { authState } = vi.hoisted(() => ({
   authState: {
     isLoading: false,
-    session: null,
     signIn: vi.fn(),
     signOut: vi.fn(),
     signUp: vi.fn(),
+    user: null,
   },
 }));
 
