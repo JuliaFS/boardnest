@@ -1,4 +1,5 @@
 import { once } from 'node:events';
+import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
 import type { Session } from '@supabase/supabase-js';
@@ -6,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createServer } from './app.js';
 import type { AuthService, PublicAuthUser } from './auth/auth-service.js';
+import type { BoardnestDataService } from './graphql/data-service.js';
 
 const origin = 'http://localhost:5173';
 const user: PublicAuthUser = {
@@ -28,7 +30,7 @@ const session = {
   },
 } as Session;
 
-const servers = new Set<ReturnType<typeof createServer>>();
+const servers = new Set<Server>();
 
 afterEach(async () => {
   await Promise.all(
@@ -56,10 +58,15 @@ function createAuthService(): AuthService {
   };
 }
 
-function startServer(authService = createAuthService()) {
-  const server = createServer({
+async function startServer(
+  authService = createAuthService(),
+  dataService = {} as unknown as BoardnestDataService,
+) {
+  const server = await createServer({
     authService,
     corsOrigin: origin,
+    createDataService: vi.fn(() => dataService),
+    introspection: true,
     secureCookies: false,
   });
   servers.add(server);
@@ -67,7 +74,7 @@ function startServer(authService = createAuthService()) {
   return { authService, server };
 }
 
-async function getUrl(server: ReturnType<typeof createServer>, path: string) {
+async function getUrl(server: Server, path: string) {
   await once(server, 'listening');
   const address = server.address() as AddressInfo;
   return `http://127.0.0.1:${address.port}${path}`;
@@ -75,7 +82,7 @@ async function getUrl(server: ReturnType<typeof createServer>, path: string) {
 
 describe('API server', () => {
   it('reports service health', async () => {
-    const { server } = startServer();
+    const { server } = await startServer();
     const response = await fetch(await getUrl(server, '/health'));
 
     expect(response.status).toBe(200);
@@ -86,7 +93,7 @@ describe('API server', () => {
   });
 
   it('sets HttpOnly cookies without returning tokens on login', async () => {
-    const { server } = startServer();
+    const { server } = await startServer();
     const response = await fetch(await getUrl(server, '/auth/login'), {
       body: JSON.stringify({
         email: 'person@example.com',
@@ -109,7 +116,7 @@ describe('API server', () => {
   });
 
   it('rejects cross-origin auth mutations', async () => {
-    const { authService, server } = startServer();
+    const { authService, server } = await startServer();
     const response = await fetch(await getUrl(server, '/auth/login'), {
       body: JSON.stringify({ email: 'person@example.com', password: 'secret' }),
       headers: {
@@ -124,7 +131,7 @@ describe('API server', () => {
   });
 
   it('authenticates a session from the HttpOnly access cookie', async () => {
-    const { authService, server } = startServer();
+    const { authService, server } = await startServer();
     const response = await fetch(await getUrl(server, '/auth/session'), {
       headers: { cookie: 'boardnest-access=access-token' },
     });
@@ -137,7 +144,7 @@ describe('API server', () => {
   it('rotates cookies through the refresh token when access is invalid', async () => {
     const authService = createAuthService();
     vi.mocked(authService.verify).mockRejectedValue(new Error('expired'));
-    const { server } = startServer(authService);
+    const { server } = await startServer(authService);
     const response = await fetch(await getUrl(server, '/auth/session'), {
       headers: {
         cookie:
@@ -151,7 +158,7 @@ describe('API server', () => {
   });
 
   it('completes the PKCE callback and redirects with session cookies', async () => {
-    const { authService, server } = startServer();
+    const { authService, server } = await startServer();
     const response = await fetch(
       await getUrl(server, '/auth/callback?code=one-time-code'),
       { redirect: 'manual' },
@@ -166,7 +173,7 @@ describe('API server', () => {
   });
 
   it('clears both cookies on logout', async () => {
-    const { authService, server } = startServer();
+    const { authService, server } = await startServer();
     const response = await fetch(await getUrl(server, '/auth/logout'), {
       headers: {
         cookie: 'boardnest-access=access; boardnest-refresh=refresh',
@@ -182,5 +189,104 @@ describe('API server', () => {
         .getSetCookie()
         .every((cookie) => cookie.includes('Max-Age=0')),
     ).toBe(true);
+  });
+
+  it('exposes the authenticated user through GraphQL without exposing tokens', async () => {
+    const { server } = await startServer();
+    const response = await fetch(await getUrl(server, '/graphql'), {
+      body: JSON.stringify({
+        query:
+          'query CurrentUser { currentUser { id email displayName role } }',
+      }),
+      headers: {
+        'content-type': 'application/json',
+        cookie: 'boardnest-access=access-token',
+        origin,
+      },
+      method: 'POST',
+    });
+    const body = (await response.json()) as Record<string, unknown>;
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual({ data: { currentUser: user } });
+    expect(JSON.stringify(body)).not.toContain('access-token');
+  });
+
+  it('rejects protected GraphQL fields without a session', async () => {
+    const { server } = await startServer();
+    const response = await fetch(await getUrl(server, '/graphql'), {
+      body: JSON.stringify({ query: '{ workspaces { nodes { id } } }' }),
+      headers: { 'content-type': 'application/json', origin },
+      method: 'POST',
+    });
+    const body = (await response.json()) as {
+      errors: Array<{ extensions: { code: string } }>;
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.errors[0]?.extensions.code).toBe('UNAUTHENTICATED');
+  });
+
+  it('delegates a validated createProject mutation to the RLS data service', async () => {
+    const project = {
+      archived_at: null,
+      created_at: new Date(0).toISOString(),
+      created_by: user.id,
+      description: null,
+      due_date: null,
+      id: 'f2410cb7-47f6-4af6-8ed9-f1d7a45158fc',
+      name: 'Launch',
+      start_date: null,
+      status: 'active',
+      updated_at: new Date(0).toISOString(),
+      visibility: 'private',
+      workspace_id: '6992c303-a240-4e15-8fcc-461d53756324',
+    };
+    const createProject = vi.fn().mockResolvedValue(project);
+    const dataService = {
+      createProject,
+    } as unknown as BoardnestDataService;
+    const { server } = await startServer(createAuthService(), dataService);
+    const response = await fetch(await getUrl(server, '/graphql'), {
+      body: JSON.stringify({
+        query: `mutation CreateProject($input: CreateProjectInput!) {
+          createProject(input: $input) { id name visibility status }
+        }`,
+        variables: {
+          input: {
+            name: 'Launch',
+            visibility: 'PRIVATE',
+            workspaceId: project.workspace_id,
+          },
+        },
+      }),
+      headers: {
+        'content-type': 'application/json',
+        cookie: 'boardnest-access=access-token',
+        origin,
+      },
+      method: 'POST',
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      data: {
+        createProject: {
+          id: project.id,
+          name: 'Launch',
+          status: 'ACTIVE',
+          visibility: 'PRIVATE',
+        },
+      },
+    });
+    expect(createProject).toHaveBeenCalledWith(
+      {
+        name: 'Launch',
+        status: 'active',
+        visibility: 'private',
+        workspace_id: project.workspace_id,
+      },
+      user.id,
+    );
   });
 });

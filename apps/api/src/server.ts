@@ -1,6 +1,7 @@
 import { createServer } from './app.js';
 import { createSupabaseAuthService } from './auth/auth-service.js';
 import { loadEnvironmentFile, parseEnvironment } from './config/env.js';
+import { createBoardnestDataService } from './graphql/data-service.js';
 
 loadEnvironmentFile();
 
@@ -11,9 +12,16 @@ const authService = createSupabaseAuthService({
   supabaseUrl: environment.SUPABASE_URL,
 });
 
-const server = createServer({
+const server = await createServer({
   authService,
   corsOrigin: environment.CORS_ORIGIN,
+  createDataService: (accessToken) =>
+    createBoardnestDataService(
+      environment.SUPABASE_URL,
+      environment.SUPABASE_PUBLISHABLE_KEY,
+      accessToken,
+    ),
+  introspection: environment.NODE_ENV !== 'production',
   secureCookies: environment.NODE_ENV === 'production',
 });
 

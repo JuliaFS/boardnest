@@ -1,19 +1,27 @@
-import {
-  createServer as createHttpServer,
-  type IncomingMessage,
-  type Server,
-  type ServerResponse,
-} from 'node:http';
+import { createServer as createHttpServer, type Server } from 'node:http';
 
+import { ApolloServer } from '@apollo/server';
+import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer';
+import { expressMiddleware } from '@as-integrations/express5';
+import cors from 'cors';
+import express, {
+  type NextFunction,
+  type Request,
+  type Response,
+} from 'express';
 import { z } from 'zod';
 
-import type { AuthService, PublicAuthUser } from './auth/auth-service.js';
+import type { AuthService } from './auth/auth-service.js';
 import {
   clearSessionCookies,
   PkceCookieStorage,
   readAuthCookies,
   setSessionCookies,
 } from './auth/cookies.js';
+import { resolveRequestSession } from './auth/session.js';
+import type { BoardnestDataService } from './graphql/data-service.js';
+import { type GraphQLContext, resolvers, typeDefs } from './graphql/schema.js';
+import { createMaxDepthRule } from './graphql/security.js';
 
 const credentialsSchema = z.object({
   email: z.email(),
@@ -22,240 +30,208 @@ const credentialsSchema = z.object({
 const registrationSchema = credentialsSchema.extend({
   displayName: z.string().trim().min(2).max(80),
 });
-const healthResponse = JSON.stringify({
-  service: 'boardnest-api',
-  status: 'ok',
-});
 
-interface ServerOptions {
+export interface ServerOptions {
   authService: AuthService;
   corsOrigin: string;
+  createDataService: (accessToken: string) => BoardnestDataService;
+  introspection?: boolean;
   secureCookies: boolean;
 }
 
-export function createServer(options: ServerOptions): Server {
-  return createHttpServer((request, response) => {
-    void handleRequest(request, response, options).catch(() => {
-      if (!response.headersSent) {
-        writeJson(response, 500, { error: 'Internal server error' });
-      } else if (!response.writableEnded) {
-        response.end();
-      }
-    });
+export async function createServer(options: ServerOptions): Promise<Server> {
+  const app = express();
+  const httpServer = createHttpServer(app);
+  const apollo = new ApolloServer<GraphQLContext>({
+    csrfPrevention: true,
+    includeStacktraceInErrorResponses: false,
+    introspection: options.introspection ?? false,
+    plugins: [ApolloServerPluginDrainHttpServer({ httpServer })],
+    resolvers,
+    typeDefs,
+    validationRules: [createMaxDepthRule(10)],
   });
-}
+  await apollo.start();
 
-async function handleRequest(
-  request: IncomingMessage,
-  response: ServerResponse,
-  options: ServerOptions,
-): Promise<void> {
-  setCorsHeaders(response, options.corsOrigin);
-  const url = new URL(request.url ?? '/', 'http://localhost');
+  app.disable('x-powered-by');
+  app.use(
+    cors({
+      credentials: true,
+      methods: ['GET', 'POST', 'OPTIONS'],
+      origin: options.corsOrigin,
+    }),
+  );
 
-  if (request.method === 'OPTIONS') {
-    response.setHeader('access-control-allow-headers', 'content-type');
-    response.setHeader('access-control-allow-methods', 'GET, POST, OPTIONS');
-    response.writeHead(204);
-    response.end();
-    return;
-  }
+  app.get('/health', (_request, response) => {
+    response.json({ service: 'boardnest-api', status: 'ok' });
+  });
 
-  if (request.method === 'GET' && url.pathname === '/health') {
-    response.writeHead(200, { 'content-type': 'application/json' });
-    response.end(healthResponse);
-    return;
-  }
-
-  if (request.method === 'GET' && url.pathname === '/auth/callback') {
-    await handleConfirmationCallback(request, response, url, options);
-    return;
-  }
-
-  if (request.method === 'POST' && url.pathname.startsWith('/auth/')) {
-    if (request.headers.origin !== options.corsOrigin) {
-      writeJson(response, 403, { error: 'Untrusted request origin' });
+  app.get('/auth/callback', async (request, response) => {
+    const code = readQueryString(request.query.code);
+    const flowId = readQueryString(request.query.sb_flow_id);
+    if (!code) {
+      response.redirect(303, `${options.corsOrigin}/login?confirmation=failed`);
       return;
     }
-  }
 
-  if (request.method === 'POST' && url.pathname === '/auth/register') {
     try {
-      const input = registrationSchema.parse(await readJsonBody(request));
       const storage = new PkceCookieStorage(
         request,
         response,
         options.secureCookies,
       );
-      const registration = await options.authService.register({
-        ...input,
+      const result = await options.authService.completeConfirmation({
+        code,
+        ...(flowId ? { flowId } : {}),
         storage,
       });
+      setSessionCookies(response, result.session, options.secureCookies);
+      response.redirect(303, `${options.corsOrigin}/dashboard`);
+    } catch {
+      clearSessionCookies(response, options.secureCookies);
+      response.redirect(303, `${options.corsOrigin}/login?confirmation=failed`);
+    }
+  });
 
-      if (registration.result) {
-        setSessionCookies(
+  app.use('/auth', express.json({ limit: '16kb' }));
+  app.post(
+    '/auth/register',
+    trustedOrigin(options.corsOrigin),
+    async (request, response) => {
+      try {
+        const input = registrationSchema.parse(request.body);
+        const storage = new PkceCookieStorage(
+          request,
           response,
-          registration.result.session,
           options.secureCookies,
         );
+        const registration = await options.authService.register({
+          ...input,
+          storage,
+        });
+        if (registration.result) {
+          setSessionCookies(
+            response,
+            registration.result.session,
+            options.secureCookies,
+          );
+        }
+        response.status(201).json({
+          confirmationRequired: registration.confirmationRequired,
+          user: registration.result?.user ?? null,
+        });
+      } catch (error) {
+        response.status(400).json({ error: authErrorMessage(error) });
       }
+    },
+  );
 
-      writeJson(response, 201, {
-        confirmationRequired: registration.confirmationRequired,
-        user: registration.result?.user ?? null,
-      });
-    } catch (error) {
-      writeJson(response, 400, { error: authErrorMessage(error) });
-    }
-    return;
-  }
+  app.post(
+    '/auth/login',
+    trustedOrigin(options.corsOrigin),
+    async (request, response) => {
+      try {
+        const input = credentialsSchema.parse(request.body);
+        const result = await options.authService.login(
+          input.email,
+          input.password,
+        );
+        setSessionCookies(response, result.session, options.secureCookies);
+        response.json({ user: result.user });
+      } catch (error) {
+        response.status(401).json({ error: authErrorMessage(error) });
+      }
+    },
+  );
 
-  if (request.method === 'POST' && url.pathname === '/auth/login') {
-    try {
-      const input = credentialsSchema.parse(await readJsonBody(request));
-      const result = await options.authService.login(
-        input.email,
-        input.password,
-      );
-      setSessionCookies(response, result.session, options.secureCookies);
-      writeJson(response, 200, { user: result.user });
-    } catch (error) {
-      writeJson(response, 401, { error: authErrorMessage(error) });
-    }
-    return;
-  }
+  app.post(
+    '/auth/logout',
+    trustedOrigin(options.corsOrigin),
+    async (request, response) => {
+      const cookies = readAuthCookies(request);
+      if (cookies.accessToken && cookies.refreshToken) {
+        await options.authService
+          .signOut(cookies.accessToken, cookies.refreshToken)
+          .catch(() => undefined);
+      }
+      clearSessionCookies(response, options.secureCookies);
+      response.status(204).end();
+    },
+  );
 
-  if (request.method === 'POST' && url.pathname === '/auth/logout') {
-    const cookies = readAuthCookies(request);
-    if (cookies.accessToken && cookies.refreshToken) {
-      await options.authService
-        .signOut(cookies.accessToken, cookies.refreshToken)
-        .catch(() => undefined);
-    }
-    clearSessionCookies(response, options.secureCookies);
-    response.writeHead(204);
-    response.end();
-    return;
-  }
-
-  if (
-    request.method === 'GET' &&
-    (url.pathname === '/auth/session' || url.pathname === '/auth/me')
-  ) {
-    const user = await resolveUserSession(request, response, options);
-    if (!user) {
-      writeJson(response, 401, { error: 'Authentication required' });
-      return;
-    }
-    writeJson(response, 200, { user });
-    return;
-  }
-
-  writeJson(response, 404, { error: 'Not found' });
-}
-
-async function handleConfirmationCallback(
-  request: IncomingMessage,
-  response: ServerResponse,
-  url: URL,
-  options: ServerOptions,
-): Promise<void> {
-  const code = url.searchParams.get('code');
-  const flowId = url.searchParams.get('sb_flow_id');
-
-  if (!code) {
-    redirect(response, `${options.corsOrigin}/login?confirmation=failed`);
-    return;
-  }
-
-  try {
-    const storage = new PkceCookieStorage(
+  const sessionHandler = async (request: Request, response: Response) => {
+    const session = await resolveRequestSession(
       request,
       response,
+      options.authService,
       options.secureCookies,
     );
-    const result = await options.authService.completeConfirmation({
-      code,
-      ...(flowId ? { flowId } : {}),
-      storage,
-    });
-    setSessionCookies(response, result.session, options.secureCookies);
-    redirect(response, `${options.corsOrigin}/dashboard`);
-  } catch {
-    clearSessionCookies(response, options.secureCookies);
-    redirect(response, `${options.corsOrigin}/login?confirmation=failed`);
-  }
-}
-
-async function resolveUserSession(
-  request: IncomingMessage,
-  response: ServerResponse,
-  options: ServerOptions,
-): Promise<PublicAuthUser | null> {
-  const cookies = readAuthCookies(request);
-
-  if (cookies.accessToken) {
-    try {
-      return await options.authService.verify(cookies.accessToken);
-    } catch {
-      // An expired token may still be recovered with the refresh cookie.
+    if (!session) {
+      response.status(401).json({ error: 'Authentication required' });
+      return;
     }
-  }
+    response.json({ user: session.user });
+  };
+  app.get('/auth/session', sessionHandler);
+  app.get('/auth/me', sessionHandler);
 
-  if (cookies.refreshToken) {
-    try {
-      const result = await options.authService.refresh(cookies.refreshToken);
-      setSessionCookies(response, result.session, options.secureCookies);
-      return result.user;
-    } catch {
-      // Clear an invalid session below.
+  app.use(
+    '/graphql',
+    trustedOrigin(options.corsOrigin),
+    express.json({ limit: '100kb' }),
+    expressMiddleware(apollo, {
+      context: async ({ req, res }): Promise<GraphQLContext> => {
+        const session = await resolveRequestSession(
+          req,
+          res,
+          options.authService,
+          options.secureCookies,
+        );
+        return {
+          data: session ? options.createDataService(session.accessToken) : null,
+          user: session?.user ?? null,
+        };
+      },
+    }),
+  );
+
+  app.use(
+    (
+      error: unknown,
+      _request: Request,
+      response: Response,
+      next: NextFunction,
+    ) => {
+      void next;
+      if (error instanceof SyntaxError) {
+        response.status(400).json({ error: 'Invalid JSON request body.' });
+        return;
+      }
+      response.status(500).json({ error: 'Internal server error' });
+    },
+  );
+  app.use((_request, response) => {
+    response.status(404).json({ error: 'Not found' });
+  });
+
+  return httpServer;
+}
+
+function trustedOrigin(expectedOrigin: string) {
+  return (request: Request, response: Response, next: NextFunction): void => {
+    if (
+      request.method === 'POST' &&
+      request.headers.origin !== expectedOrigin
+    ) {
+      response.status(403).json({ error: 'Untrusted request origin' });
+      return;
     }
-  }
-
-  clearSessionCookies(response, options.secureCookies);
-  return null;
+    next();
+  };
 }
 
-async function readJsonBody(request: IncomingMessage): Promise<unknown> {
-  const chunks: Buffer[] = [];
-  let size = 0;
-
-  for await (const chunk of request as AsyncIterable<unknown>) {
-    const buffer =
-      typeof chunk === 'string'
-        ? Buffer.from(chunk)
-        : chunk instanceof Uint8Array
-          ? Buffer.from(chunk)
-          : null;
-    if (!buffer) throw new Error('Invalid request body.');
-    size += buffer.length;
-    if (size > 16_384) throw new Error('Request body is too large.');
-    chunks.push(buffer);
-  }
-
-  return JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown;
-}
-
-function setCorsHeaders(response: ServerResponse, corsOrigin: string): void {
-  response.setHeader('access-control-allow-credentials', 'true');
-  response.setHeader('access-control-allow-origin', corsOrigin);
-  response.setHeader('vary', 'Origin');
-}
-
-function writeJson(
-  response: ServerResponse,
-  status: number,
-  body: unknown,
-): void {
-  response.setHeader('cache-control', 'private, no-store');
-  response.writeHead(status, { 'content-type': 'application/json' });
-  response.end(JSON.stringify(body));
-}
-
-function redirect(response: ServerResponse, location: string): void {
-  response.setHeader('cache-control', 'private, no-store');
-  response.writeHead(303, { location });
-  response.end();
+function readQueryString(value: unknown): string | null {
+  return typeof value === 'string' ? value : null;
 }
 
 function authErrorMessage(error: unknown): string {

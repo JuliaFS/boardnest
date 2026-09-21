@@ -3,6 +3,7 @@ packages:
   - packages/*
 
 allowBuilds:
+  '@apollo/protobufjs': false
   esbuild: true
 
 catalog:
