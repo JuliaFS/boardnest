@@ -35,18 +35,19 @@ Copy `.env.example` to `.env`. Do not replace the committed example with real va
 
 Every `VITE_*` variable is bundled into frontend code and must be treated as public:
 
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
+- `VITE_API_URL`
 - `VITE_GRAPHQL_URL`
 - `VITE_WS_URL`
 
-The Supabase anon key is designed to be public; its permissions must be constrained with RLS.
+The frontend has no Supabase key and no JavaScript access to authentication tokens.
 
 ### Server-only variables
 
 These values are read only by the API process:
 
+- `API_URL`
 - `SUPABASE_URL`
+- `SUPABASE_PUBLISHABLE_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `DATABASE_URL`
 - `REDIS_URL`
@@ -54,7 +55,7 @@ These values are read only by the API process:
 - `CORS_ORIGIN`
 - `NODE_ENV`
 
-`SUPABASE_SERVICE_ROLE_KEY` and `DATABASE_URL` are secrets. Never prefix either with `VITE_`, log them, commit them, or send them to a browser.
+`SUPABASE_PUBLISHABLE_KEY` is deliberately public and is also used by the API client to support every Supabase signing-key mode. `SUPABASE_SERVICE_ROLE_KEY` and `DATABASE_URL` are secrets. Never prefix either secret with `VITE_`, log it, commit it, or send it to a browser.
 
 ## Workspace conventions
 
@@ -73,5 +74,7 @@ Use focused commits with Conventional Commit prefixes such as `feat:`, `fix:`, `
 
 - Web: `http://localhost:5173`
 - API health: `http://localhost:4000/health`
+- API session check: `http://localhost:4000/auth/me`
+- API authentication callback: `http://localhost:4000/auth/callback`
 
 GraphQL and WebSocket endpoints are placeholders in `.env.example` until Phase 4 and Phase 7 respectively.

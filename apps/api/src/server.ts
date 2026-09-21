@@ -1,19 +1,24 @@
 import { createServer } from './app.js';
+import { createSupabaseAuthService } from './auth/auth-service.js';
+import { loadEnvironmentFile, parseEnvironment } from './config/env.js';
 
-const parsedPort = Number.parseInt(process.env.PORT ?? '4000', 10);
+loadEnvironmentFile();
 
-if (
-  !Number.isSafeInteger(parsedPort) ||
-  parsedPort < 1 ||
-  parsedPort > 65_535
-) {
-  throw new Error('PORT must be an integer between 1 and 65535');
-}
+const environment = parseEnvironment();
+const authService = createSupabaseAuthService({
+  callbackUrl: `${environment.API_URL}/auth/callback`,
+  publishableKey: environment.SUPABASE_PUBLISHABLE_KEY,
+  supabaseUrl: environment.SUPABASE_URL,
+});
 
-const server = createServer();
+const server = createServer({
+  authService,
+  corsOrigin: environment.CORS_ORIGIN,
+  secureCookies: environment.NODE_ENV === 'production',
+});
 
-server.listen(parsedPort, () => {
-  console.info(`Boardnest API listening on port ${parsedPort}`);
+server.listen(environment.PORT, () => {
+  console.info(`Boardnest API listening on port ${environment.PORT}`);
 });
 
 function shutdown(signal: NodeJS.Signals): void {

@@ -2,11 +2,11 @@
 
 Boardnest is a collaborative project management platform for organizing workspaces, projects, and tasks through Kanban boards, role-based permissions, and real-time updates.
 
-> Status: Phase 2 complete — repository foundation, database design, SQL migrations, RLS, and Supabase setup documentation.
+> Status: Phase 3 complete — Supabase authentication, protected routes, session persistence, and API token verification.
 
 ## Planned features
 
-- Supabase authentication
+- Supabase email/password authentication
 - Multi-tenant workspaces with role-based access control
 - Projects, tasks, labels, comments, and assignments
 - Kanban boards with accessible drag and drop
@@ -47,7 +47,7 @@ cp .env.example .env
 pnpm dev
 ```
 
-The web application runs on `http://localhost:5173`. The API health endpoint runs on `http://localhost:4000/health`.
+The web application runs on `http://localhost:5173`. The API health endpoint runs on `http://localhost:4000/health`. The protected session check is available at `http://localhost:4000/auth/me`.
 
 ## Quality checks
 
@@ -73,6 +73,10 @@ Variable ownership and security boundaries are documented in [Development](docs/
 The schema will be SQL-first. Each table will have an ordered, independently readable migration under `database/migrations/`; SQL will not be embedded in application source files.
 
 The Phase 2 schema is split into ordered migrations, with one file per table and separate files for shared functions, RLS, and grants. See [database/README.md](database/README.md) and [Supabase setup](docs/SUPABASE.md).
+
+## Authentication
+
+The browser sends credentials only to the Boardnest API. The API uses Supabase Auth and stores access and refresh tokens in `HttpOnly` cookies, so browser JavaScript cannot read them. See [Authentication](docs/AUTHENTICATION.md) for setup and manual verification.
 
 ## Architecture
 
