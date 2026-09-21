@@ -11,14 +11,18 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
+    "@apollo/client": "^4.3.1",
     "@hookform/resolvers": "^5.9.1",
+    "graphql": "^16.14.2",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-hook-form": "^7.88.0",
     "react-router": "^8.4.0",
+    "rxjs": "^7.8.2",
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.7",
     "@types/node": "catalog:",
@@ -26,6 +30,7 @@
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "^6.1.1",
     "jsdom": "^27.0.0",
+    "tailwindcss": "^4.3.3",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:"
