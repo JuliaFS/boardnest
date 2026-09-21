@@ -148,3 +148,16 @@ resource identity, Apollo owns remote records, and React state is limited to
 local interface concerns such as the mobile menu and workspace selector. The
 foundation includes consistent loading, failure, missing-resource, and empty
 states. See `docs/FRONTEND.md`.
+
+## Phase 6 project and task workflow decisions
+
+React Hook Form and Zod own client-side form mechanics and validation while the
+API repeats authoritative validation at the trust boundary. Apollo mutations
+refetch affected collection queries after create/delete operations and merge
+entity updates through normalized IDs.
+
+The Kanban board uses the current `@dnd-kit/react` API with its pointer and
+keyboard sensors. Dragging updates local grouped task state immediately, then
+persists only the moved task's status and fractional position. Failed mutations
+restore the pre-drag snapshot. Reordering is disabled while search or priority
+filters are active so hidden tasks cannot produce misleading positions.

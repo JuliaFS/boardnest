@@ -3,7 +3,7 @@ import { PageHeader } from './PageHeader';
 export function MembersPage() {
   return (
     <PlaceholderPage
-      description="Workspace member and invitation management will be connected alongside project workflows in Phase 6."
+      description="Workspace member and invitation management will be connected in a later collaboration iteration."
       eyebrow="Collaboration"
       title="Members"
     />

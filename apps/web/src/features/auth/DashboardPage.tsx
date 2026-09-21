@@ -85,7 +85,7 @@ export function DashboardPage() {
         </div>
         {!selectedWorkspace ? (
           <EmptyState
-            description="Workspace creation will be available from the interface in Phase 6."
+            description="Create a workspace from the Projects page to start organizing work."
             title="No workspaces yet"
           />
         ) : projects.loading ? (
@@ -97,7 +97,7 @@ export function DashboardPage() {
           />
         ) : projectNodes.length === 0 ? (
           <EmptyState
-            description="This workspace is ready for its first project. Project creation arrives in Phase 6."
+            description="This workspace is ready for its first project. Create it from the Projects page."
             title="No projects in this workspace"
           />
         ) : (
