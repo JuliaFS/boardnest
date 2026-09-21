@@ -76,5 +76,7 @@ Use focused commits with Conventional Commit prefixes such as `feat:`, `fix:`, `
 - API health: `http://localhost:4000/health`
 - API session check: `http://localhost:4000/auth/me`
 - API authentication callback: `http://localhost:4000/auth/callback`
+- GraphQL HTTP endpoint: `http://localhost:4000/graphql`
 
-GraphQL and WebSocket endpoints are placeholders in `.env.example` until Phase 4 and Phase 7 respectively.
+The GraphQL endpoint is active. The WebSocket endpoint remains reserved until
+Phase 7.

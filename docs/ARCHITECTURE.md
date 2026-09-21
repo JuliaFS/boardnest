@@ -45,7 +45,10 @@ Project membership grants access to private projects and can narrow task-editing
 
 Supabase Auth owns credentials and sessions. `auth.users` is not duplicated, and no password is stored by Boardnest. A public `profiles` row references the Auth user UUID. The Node API owns the browser-facing login, registration, refresh, callback, and logout endpoints; session cookies are `HttpOnly`, `SameSite=Lax`, and `Secure` outside local development.
 
-The API will validate Supabase JWTs and enforce permissions at resolver/service boundaries. PostgreSQL RLS will provide defense in depth and safe access for any narrowly approved direct Supabase operations. The service-role key is server-only because it bypasses RLS.
+The API validates Supabase JWTs, requires authentication at resolver boundaries,
+and creates a request-scoped Supabase client carrying the user's JWT. PostgreSQL
+RLS is the authoritative resource-authorization layer. The service-role key is
+not used for normal GraphQL operations because it bypasses RLS.
 
 ### Data ownership
 
@@ -65,7 +68,9 @@ React and React Router will own navigation and local composition. Apollo Client 
 
 The API starts as a modular monolith: one deployable service with feature-oriented modules and explicit internal boundaries. This keeps transactions and development straightforward while allowing individual modules to be extracted later if real scaling evidence appears.
 
-The current Phase 1 HTTP health endpoint establishes deployability. Apollo Server and GraphQL modules arrive in Phase 4.
+Apollo Server 5 runs through Express 5 beside the health and authentication
+routes. Resolvers validate input and delegate persistence to an RLS-aware data
+service. Transport code does not duplicate database policy logic.
 
 ## Deployment topology
 
@@ -121,3 +126,11 @@ HTTPS terminates at the platform edge. Production WebSocket connections use WSS.
 ## Phase 2 database decisions
 
 Projects choose `workspace` or `private` visibility independently from the `planned`, `active`, `on_hold`, and `completed` business status. Archival uses a separate timestamp. Tasks use fractional positions, invitations store only token hashes, activity events keep JSON snapshots, and RLS helpers live in a non-exposed schema. Details are documented in `docs/DATABASE.md`.
+
+## Phase 4 GraphQL decisions
+
+Apollo uses Express instead of the standalone server because GraphQL shares one
+HTTP process, cookie policy, CORS policy, and graceful shutdown lifecycle with
+authentication. Context construction reuses Phase 3 session rotation. Queries
+are bounded and flat; DataLoader will be introduced only when nested relation
+resolvers create a real N+1 risk. See `docs/GRAPHQL.md`.

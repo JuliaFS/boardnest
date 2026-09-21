@@ -2,7 +2,7 @@
 
 Boardnest is a collaborative project management platform for organizing workspaces, projects, and tasks through Kanban boards, role-based permissions, and real-time updates.
 
-> Status: Phase 3 complete — Supabase authentication, protected routes, session persistence, and API token verification.
+> Status: Phase 4 complete — Apollo GraphQL API, authenticated context, RLS-aware data access, validation, and application mutations.
 
 ## Planned features
 
@@ -47,7 +47,7 @@ cp .env.example .env
 pnpm dev
 ```
 
-The web application runs on `http://localhost:5173`. The API health endpoint runs on `http://localhost:4000/health`. The protected session check is available at `http://localhost:4000/auth/me`.
+The web application runs on `http://localhost:5173`. The API health endpoint runs on `http://localhost:4000/health`. The protected session check is available at `http://localhost:4000/auth/me`, and GraphQL at `http://localhost:4000/graphql`.
 
 ## Quality checks
 
@@ -86,7 +86,7 @@ The system boundaries, dependency rules, multi-tenancy model, and security appro
 
 - **React** provides a component model and ecosystem suited to a complex, interactive Kanban UI.
 - **TypeScript** gives the frontend, backend, and shared contracts one strict type system.
-- **GraphQL and Apollo** will provide a typed application API and subscriptions for targeted real-time updates.
+- **GraphQL and Apollo** provide the typed application API; subscriptions will add targeted real-time updates in Phase 7.
 - **Node.js** lets the backend share language and selected types with the frontend while supporting HTTP and WebSocket workloads.
 - **WebSockets** will deliver task and notification changes without polling.
 - **Redis** will distribute subscription events between multiple API instances; it is not the source of truth.

@@ -1,0 +1,556 @@
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
+
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { GraphQLError } from 'graphql';
+import { z } from 'zod';
+
+import type {
+  ActivityLog,
+  Connection,
+  CreateProjectData,
+  CreateTaskData,
+  Invitation,
+  Notification,
+  Pagination,
+  Project,
+  Task,
+  TaskAssignee,
+  TaskComment,
+  TaskStatus,
+  UpdateProjectData,
+  UpdateTaskData,
+  Workspace,
+} from './domain.js';
+
+const workspaceSchema = z.object({
+  archived_at: z.string().nullable(),
+  created_at: z.string(),
+  created_by: z.uuid(),
+  id: z.uuid(),
+  name: z.string(),
+  slug: z.string(),
+  updated_at: z.string(),
+});
+const projectSchema = z.object({
+  archived_at: z.string().nullable(),
+  created_at: z.string(),
+  created_by: z.uuid(),
+  description: z.string().nullable(),
+  due_date: z.string().nullable(),
+  id: z.uuid(),
+  name: z.string(),
+  start_date: z.string().nullable(),
+  status: z.string(),
+  updated_at: z.string(),
+  visibility: z.string(),
+  workspace_id: z.uuid(),
+});
+const taskSchema = z.object({
+  archived_at: z.string().nullable(),
+  created_at: z.string(),
+  created_by: z.uuid().nullable(),
+  description: z.string().nullable(),
+  due_at: z.string().nullable(),
+  id: z.uuid(),
+  position: z.coerce.number(),
+  priority: z.string(),
+  project_id: z.uuid(),
+  status_id: z.uuid(),
+  title: z.string(),
+  updated_at: z.string(),
+});
+const taskAssigneeSchema = z.object({
+  assigned_at: z.string(),
+  assigned_by: z.uuid().nullable(),
+  task_id: z.uuid(),
+  user_id: z.uuid(),
+});
+const taskStatusSchema = z.object({
+  category: z.string(),
+  color: z.string(),
+  created_at: z.string(),
+  id: z.uuid(),
+  name: z.string(),
+  position: z.number(),
+  project_id: z.uuid(),
+  updated_at: z.string(),
+});
+const taskCommentSchema = z.object({
+  author_id: z.uuid().nullable(),
+  body: z.string(),
+  created_at: z.string(),
+  edited_at: z.string().nullable(),
+  id: z.uuid(),
+  task_id: z.uuid(),
+  updated_at: z.string(),
+});
+const notificationSchema = z.object({
+  body: z.string().nullable(),
+  created_at: z.string(),
+  id: z.uuid(),
+  payload: z.record(z.string(), z.unknown()),
+  project_id: z.uuid().nullable(),
+  read_at: z.string().nullable(),
+  task_id: z.uuid().nullable(),
+  title: z.string(),
+  type: z.string(),
+  user_id: z.uuid(),
+  workspace_id: z.uuid(),
+});
+const activitySchema = z.object({
+  actor_id: z.uuid().nullable(),
+  created_at: z.string(),
+  entity_id: z.uuid().nullable(),
+  entity_type: z.string(),
+  event_type: z.string(),
+  id: z.uuid(),
+  metadata: z.record(z.string(), z.unknown()),
+  project_id: z.uuid().nullable(),
+  task_id: z.uuid().nullable(),
+  workspace_id: z.uuid(),
+});
+const invitationSchema = z.object({
+  accepted_at: z.string().nullable(),
+  accepted_by: z.uuid().nullable(),
+  created_at: z.string(),
+  email: z.string(),
+  expires_at: z.string(),
+  id: z.uuid(),
+  invited_by: z.uuid().nullable(),
+  revoked_at: z.string().nullable(),
+  role: z.string(),
+  status: z.string(),
+  updated_at: z.string(),
+  workspace_id: z.uuid(),
+});
+
+export interface InviteResult {
+  invitation: Invitation;
+  token: string;
+}
+
+export interface BoardnestDataService {
+  activityFeed: (
+    workspaceId: string,
+    projectId: string | null,
+    pagination: Pagination,
+  ) => Promise<Connection<ActivityLog>>;
+  addComment: (
+    taskId: string,
+    body: string,
+    userId: string,
+  ) => Promise<TaskComment>;
+  assignTask: (
+    taskId: string,
+    assigneeId: string,
+    userId: string,
+  ) => Promise<TaskAssignee>;
+  createProject: (input: CreateProjectData, userId: string) => Promise<Project>;
+  createTask: (input: CreateTaskData, userId: string) => Promise<Task>;
+  createWorkspace: (
+    name: string,
+    slug: string,
+    userId: string,
+  ) => Promise<Workspace>;
+  deleteProject: (id: string) => Promise<string>;
+  deleteTask: (id: string) => Promise<string>;
+  inviteMember: (
+    workspaceId: string,
+    email: string,
+    role: string,
+    userId: string,
+  ) => Promise<InviteResult>;
+  markNotificationAsRead: (id: string) => Promise<Notification>;
+  moveTask: (id: string, statusId: string, position: number) => Promise<Task>;
+  notification: (id: string) => Promise<Notification | null>;
+  notifications: (
+    userId: string,
+    unreadOnly: boolean,
+    pagination: Pagination,
+  ) => Promise<Connection<Notification>>;
+  project: (id: string) => Promise<Project | null>;
+  projects: (
+    workspaceId: string,
+    pagination: Pagination,
+  ) => Promise<Connection<Project>>;
+  task: (id: string) => Promise<Task | null>;
+  taskStatuses: (projectId: string) => Promise<TaskStatus[]>;
+  tasks: (
+    projectId: string,
+    statusId: string | null,
+    search: string | null,
+    pagination: Pagination,
+  ) => Promise<Connection<Task>>;
+  updateProject: (id: string, input: UpdateProjectData) => Promise<Project>;
+  updateTask: (id: string, input: UpdateTaskData) => Promise<Task>;
+  workspace: (id: string) => Promise<Workspace | null>;
+  workspaces: (pagination: Pagination) => Promise<Connection<Workspace>>;
+}
+
+export function createBoardnestDataService(
+  supabaseUrl: string,
+  publishableKey: string,
+  accessToken: string,
+): BoardnestDataService {
+  const client = createClient(supabaseUrl, publishableKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+    global: { headers: { Authorization: `Bearer ${accessToken}` } },
+  });
+
+  return new SupabaseBoardnestDataService(client);
+}
+
+class SupabaseBoardnestDataService implements BoardnestDataService {
+  constructor(private readonly client: SupabaseClient) {}
+
+  async workspaces(pagination: Pagination): Promise<Connection<Workspace>> {
+    const response = await this.client
+      .from('workspaces')
+      .select('*')
+      .is('archived_at', null)
+      .order('updated_at', { ascending: false })
+      .range(pagination.offset, pagination.offset + pagination.limit);
+    return connection(workspaceSchema, response, pagination);
+  }
+
+  async workspace(id: string): Promise<Workspace | null> {
+    const response = await this.client
+      .from('workspaces')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    return optional(workspaceSchema, response);
+  }
+
+  async createWorkspace(
+    name: string,
+    slug: string,
+    userId: string,
+  ): Promise<Workspace> {
+    const id = randomUUID();
+    const insertResponse = await this.client
+      .from('workspaces')
+      .insert({ created_by: userId, id, name, slug });
+    throwForError(insertResponse.error);
+
+    const response = await this.client
+      .from('workspaces')
+      .select('*')
+      .eq('id', id)
+      .single();
+    return required(workspaceSchema, response);
+  }
+
+  async projects(
+    workspaceId: string,
+    pagination: Pagination,
+  ): Promise<Connection<Project>> {
+    const response = await this.client
+      .from('projects')
+      .select('*')
+      .eq('workspace_id', workspaceId)
+      .is('archived_at', null)
+      .order('updated_at', { ascending: false })
+      .range(pagination.offset, pagination.offset + pagination.limit);
+    return connection(projectSchema, response, pagination);
+  }
+
+  async project(id: string): Promise<Project | null> {
+    const response = await this.client
+      .from('projects')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    return optional(projectSchema, response);
+  }
+
+  async createProject(
+    input: CreateProjectData,
+    userId: string,
+  ): Promise<Project> {
+    const id = randomUUID();
+    const insertResponse = await this.client
+      .from('projects')
+      .insert({ ...input, created_by: userId, id });
+    throwForError(insertResponse.error);
+
+    const response = await this.client
+      .from('projects')
+      .select('*')
+      .eq('id', id)
+      .single();
+    return required(projectSchema, response);
+  }
+
+  async updateProject(id: string, input: UpdateProjectData): Promise<Project> {
+    const response = await this.client
+      .from('projects')
+      .update(input)
+      .eq('id', id)
+      .select('*')
+      .single();
+    return required(projectSchema, response);
+  }
+
+  async deleteProject(id: string): Promise<string> {
+    const response = await this.client
+      .from('projects')
+      .delete()
+      .eq('id', id)
+      .select('id')
+      .single();
+    return deletedId(response);
+  }
+
+  async tasks(
+    projectId: string,
+    statusId: string | null,
+    search: string | null,
+    pagination: Pagination,
+  ): Promise<Connection<Task>> {
+    let query = this.client
+      .from('tasks')
+      .select('*')
+      .eq('project_id', projectId)
+      .is('archived_at', null);
+    if (statusId) query = query.eq('status_id', statusId);
+    if (search)
+      query = query.textSearch('title', search, { type: 'websearch' });
+    const response = await query
+      .order('position', { ascending: true })
+      .order('id', { ascending: true })
+      .range(pagination.offset, pagination.offset + pagination.limit);
+    return connection(taskSchema, response, pagination);
+  }
+
+  async task(id: string): Promise<Task | null> {
+    const response = await this.client
+      .from('tasks')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    return optional(taskSchema, response);
+  }
+
+  async taskStatuses(projectId: string): Promise<TaskStatus[]> {
+    const response = await this.client
+      .from('task_statuses')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('position', { ascending: true });
+    throwForError(response.error);
+    return z.array(taskStatusSchema).parse(response.data);
+  }
+
+  async createTask(input: CreateTaskData, userId: string): Promise<Task> {
+    const response = await this.client
+      .from('tasks')
+      .insert({ ...input, created_by: userId })
+      .select('*')
+      .single();
+    return required(taskSchema, response);
+  }
+
+  async updateTask(id: string, input: UpdateTaskData): Promise<Task> {
+    const response = await this.client
+      .from('tasks')
+      .update(input)
+      .eq('id', id)
+      .select('*')
+      .single();
+    return required(taskSchema, response);
+  }
+
+  async moveTask(
+    id: string,
+    statusId: string,
+    position: number,
+  ): Promise<Task> {
+    const response = await this.client
+      .from('tasks')
+      .update({ position, status_id: statusId })
+      .eq('id', id)
+      .select('*')
+      .single();
+    return required(taskSchema, response);
+  }
+
+  async deleteTask(id: string): Promise<string> {
+    const response = await this.client
+      .from('tasks')
+      .delete()
+      .eq('id', id)
+      .select('id')
+      .single();
+    return deletedId(response);
+  }
+
+  async assignTask(
+    taskId: string,
+    assigneeId: string,
+    userId: string,
+  ): Promise<TaskAssignee> {
+    const response = await this.client
+      .from('task_assignees')
+      .insert({ assigned_by: userId, task_id: taskId, user_id: assigneeId })
+      .select('*')
+      .single();
+    return required(taskAssigneeSchema, response);
+  }
+
+  async addComment(
+    taskId: string,
+    body: string,
+    userId: string,
+  ): Promise<TaskComment> {
+    const response = await this.client
+      .from('task_comments')
+      .insert({ author_id: userId, body, task_id: taskId })
+      .select('*')
+      .single();
+    return required(taskCommentSchema, response);
+  }
+
+  async notifications(
+    userId: string,
+    unreadOnly: boolean,
+    pagination: Pagination,
+  ): Promise<Connection<Notification>> {
+    let query = this.client
+      .from('notifications')
+      .select('*')
+      .eq('user_id', userId);
+    if (unreadOnly) query = query.is('read_at', null);
+    const response = await query
+      .order('created_at', { ascending: false })
+      .range(pagination.offset, pagination.offset + pagination.limit);
+    return connection(notificationSchema, response, pagination);
+  }
+
+  async notification(id: string): Promise<Notification | null> {
+    const response = await this.client
+      .from('notifications')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    return optional(notificationSchema, response);
+  }
+
+  async markNotificationAsRead(id: string): Promise<Notification> {
+    const response = await this.client
+      .from('notifications')
+      .update({ read_at: new Date().toISOString() })
+      .eq('id', id)
+      .select('*')
+      .single();
+    return required(notificationSchema, response);
+  }
+
+  async activityFeed(
+    workspaceId: string,
+    projectId: string | null,
+    pagination: Pagination,
+  ): Promise<Connection<ActivityLog>> {
+    let query = this.client
+      .from('activity_logs')
+      .select('*')
+      .eq('workspace_id', workspaceId);
+    if (projectId) query = query.eq('project_id', projectId);
+    const response = await query
+      .order('created_at', { ascending: false })
+      .range(pagination.offset, pagination.offset + pagination.limit);
+    return connection(activitySchema, response, pagination);
+  }
+
+  async inviteMember(
+    workspaceId: string,
+    email: string,
+    role: string,
+    userId: string,
+  ): Promise<InviteResult> {
+    const token = randomBytes(32).toString('base64url');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const response = await this.client
+      .from('invitations')
+      .insert({
+        email: email.trim().toLowerCase(),
+        expires_at: expiresAt.toISOString(),
+        invited_by: userId,
+        role,
+        status: 'pending',
+        token_hash: tokenHash,
+        workspace_id: workspaceId,
+      })
+      .select(
+        'id,workspace_id,email,role,status,invited_by,accepted_by,expires_at,accepted_at,revoked_at,created_at,updated_at',
+      )
+      .single();
+    return { invitation: required(invitationSchema, response), token };
+  }
+}
+
+interface DataResponse {
+  data: unknown;
+  error: { code?: string; message: string } | null;
+}
+
+function required<T>(schema: z.ZodType<T>, response: DataResponse): T {
+  throwForError(response.error);
+  return schema.parse(response.data);
+}
+
+function optional<T>(schema: z.ZodType<T>, response: DataResponse): T | null {
+  throwForError(response.error);
+  return response.data === null ? null : schema.parse(response.data);
+}
+
+function connection<T>(
+  schema: z.ZodType<T>,
+  response: DataResponse,
+  pagination: Pagination,
+): Connection<T> {
+  throwForError(response.error);
+  const rows = z.array(schema).parse(response.data);
+  return {
+    nodes: rows.slice(0, pagination.limit),
+    pageInfo: {
+      hasNextPage: rows.length > pagination.limit,
+      limit: pagination.limit,
+      offset: pagination.offset,
+    },
+  };
+}
+
+function deletedId(response: DataResponse): string {
+  throwForError(response.error);
+  return z.object({ id: z.uuid() }).parse(response.data).id;
+}
+
+function throwForError(error: DataResponse['error']): void {
+  if (!error) return;
+  const code = error.code ?? '';
+  if (code === '42501') {
+    throw new GraphQLError('You do not have permission for this operation.', {
+      extensions: { code: 'FORBIDDEN' },
+    });
+  }
+  if (code === '23505') {
+    throw new GraphQLError('A record with these values already exists.', {
+      extensions: { code: 'CONFLICT' },
+    });
+  }
+  if (['22023', '22P02', '23503', '23514'].includes(code)) {
+    throw new GraphQLError('The operation violates a data constraint.', {
+      extensions: { code: 'BAD_USER_INPUT' },
+    });
+  }
+  if (code === 'PGRST116') {
+    throw new GraphQLError('The requested resource was not found.', {
+      extensions: { code: 'NOT_FOUND' },
+    });
+  }
+  throw new GraphQLError('The database operation failed.', {
+    extensions: { code: 'INTERNAL_SERVER_ERROR' },
+  });
+}
