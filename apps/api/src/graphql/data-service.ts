@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { GraphQLError } from 'graphql';
@@ -227,10 +227,16 @@ class SupabaseBoardnestDataService implements BoardnestDataService {
     slug: string,
     userId: string,
   ): Promise<Workspace> {
+    const id = randomUUID();
+    const insertResponse = await this.client
+      .from('workspaces')
+      .insert({ created_by: userId, id, name, slug });
+    throwForError(insertResponse.error);
+
     const response = await this.client
       .from('workspaces')
-      .insert({ created_by: userId, name, slug })
       .select('*')
+      .eq('id', id)
       .single();
     return required(workspaceSchema, response);
   }
@@ -262,10 +268,16 @@ class SupabaseBoardnestDataService implements BoardnestDataService {
     input: CreateProjectData,
     userId: string,
   ): Promise<Project> {
+    const id = randomUUID();
+    const insertResponse = await this.client
+      .from('projects')
+      .insert({ ...input, created_by: userId, id });
+    throwForError(insertResponse.error);
+
     const response = await this.client
       .from('projects')
-      .insert({ ...input, created_by: userId })
       .select('*')
+      .eq('id', id)
       .single();
     return required(projectSchema, response);
   }

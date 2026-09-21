@@ -22,6 +22,12 @@ cookie, rotates an expired session when possible, and passes the authenticated
 user's JWT to Supabase. The service-role key is deliberately not used, so the
 RLS policies installed in Phase 2 remain the resource-authorization boundary.
 
+Workspace and project creation use separate insert and read requests. Their
+membership rows are created by `AFTER INSERT` triggers, while their select
+policies require that membership. Reading only after the insert transaction has
+committed ensures the trigger-created membership is visible to the select RLS
+check.
+
 ## Concepts
 
 - The **schema** is the typed contract of object types, enums, inputs, queries,
