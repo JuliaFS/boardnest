@@ -2,7 +2,7 @@
 
 Boardnest is a collaborative project management platform for organizing workspaces, projects, and tasks through Kanban boards, role-based permissions, and real-time updates.
 
-> Status: Phase 5 complete — responsive React application shell, Apollo Client server state, protected routes, and real workspace/project views.
+> Status: Phase 6 complete — workspace/project/task workflows, searchable Kanban boards, and accessible drag-and-drop task ordering.
 
 ## Planned features
 
@@ -81,6 +81,8 @@ The browser sends credentials only to the Boardnest API. The API uses Supabase A
 ## Frontend
 
 The React application uses a responsive Tailwind CSS shell and Apollo Client for GraphQL server state. It includes protected routes, workspace/project browsing, notifications, and reusable loading, error, and empty states. See [Frontend](docs/FRONTEND.md) for route and state ownership details.
+
+Phase 6 adds validated workspace, project, and task forms; project/task editing and deletion; Kanban filtering; and optimistic task movement persisted through GraphQL.
 
 ## Architecture
 

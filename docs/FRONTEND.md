@@ -1,10 +1,9 @@
 # Frontend
 
-## Phase 5 scope
+## Phase 5 foundation
 
 Phase 5 establishes the React application foundation. It intentionally does
-not implement project/task mutations or the interactive Kanban workflow; those
-belong to Phase 6.
+not include domain mutations or an interactive Kanban workflow.
 
 The frontend currently provides:
 
@@ -16,6 +15,25 @@ The frontend currently provides:
   states;
 - Apollo cache isolation when a user signs in, registers, or signs out;
 - Tailwind CSS through the official Vite integration.
+
+## Phase 6 workflows
+
+Phase 6 builds on that foundation with:
+
+- workspace and project creation from the Projects page;
+- project visibility, lifecycle status, dates, editing, and deletion;
+- task creation in a selected board column;
+- task priority, due date, description, editing, and deletion;
+- searchable and priority-filtered Kanban columns;
+- pointer and keyboard drag-and-drop with optimistic feedback;
+- fractional task positions, allowing one moved task to be persisted without
+  renumbering an entire column;
+- rollback to the pre-drag board when persistence fails.
+
+Reordering is intentionally paused while filters are active because hidden
+tasks make a visible index ambiguous. Project and task destructive actions use
+explicit confirmation dialogs and rely on PostgreSQL cascade rules documented
+in the database migrations.
 
 ## Data flow
 

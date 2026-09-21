@@ -20,6 +20,7 @@ export interface ProjectSummary {
   description: string | null;
   visibility: 'PRIVATE' | 'WORKSPACE';
   status: 'ACTIVE' | 'COMPLETED' | 'ON_HOLD' | 'PLANNED';
+  startDate: string | null;
   dueDate: string | null;
   updatedAt: string;
 }
@@ -35,11 +36,22 @@ export interface NotificationSummary {
 export interface TaskSummary {
   id: string;
   projectId: string;
+  statusId: string;
   title: string;
   description: string | null;
   priority: 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  position: number;
   dueAt: string | null;
   updatedAt: string;
+}
+
+export interface TaskStatusSummary {
+  id: string;
+  projectId: string;
+  name: string;
+  category: 'done' | 'in_progress' | 'todo';
+  color: string;
+  position: number;
 }
 
 export interface WorkspacesData {
@@ -64,6 +76,11 @@ export interface NotificationsData {
 
 export interface TaskData {
   task: TaskSummary | null;
+}
+
+export interface BoardData {
+  taskStatuses: TaskStatusSummary[];
+  tasks: { nodes: TaskSummary[]; pageInfo: PageInfo };
 }
 
 export const WORKSPACES_QUERY = gql`
@@ -105,6 +122,7 @@ export const PROJECTS_QUERY = gql`
         description
         visibility
         status
+        startDate
         dueDate
         updatedAt
       }
@@ -126,6 +144,7 @@ export const PROJECT_QUERY = gql`
       description
       visibility
       status
+      startDate
       dueDate
       updatedAt
     }
@@ -137,11 +156,146 @@ export const TASK_QUERY = gql`
     task(id: $id) {
       id
       projectId
+      statusId
       title
       description
       priority
+      position
       dueAt
       updatedAt
+    }
+  }
+`;
+
+export const BOARD_QUERY = gql`
+  query Board($projectId: ID!, $search: String) {
+    taskStatuses(projectId: $projectId) {
+      id
+      projectId
+      name
+      category
+      color
+      position
+    }
+    tasks(projectId: $projectId, search: $search, limit: 100) {
+      nodes {
+        id
+        projectId
+        statusId
+        title
+        description
+        priority
+        position
+        dueAt
+        updatedAt
+      }
+      pageInfo {
+        hasNextPage
+        limit
+        offset
+      }
+    }
+  }
+`;
+
+export const CREATE_WORKSPACE_MUTATION = gql`
+  mutation CreateWorkspace($input: CreateWorkspaceInput!) {
+    createWorkspace(input: $input) {
+      id
+      name
+      slug
+      updatedAt
+    }
+  }
+`;
+
+export const CREATE_PROJECT_MUTATION = gql`
+  mutation CreateProject($input: CreateProjectInput!) {
+    createProject(input: $input) {
+      id
+      workspaceId
+      name
+      description
+      visibility
+      status
+      startDate
+      dueDate
+      updatedAt
+    }
+  }
+`;
+
+export const UPDATE_PROJECT_MUTATION = gql`
+  mutation UpdateProject($id: ID!, $input: UpdateProjectInput!) {
+    updateProject(id: $id, input: $input) {
+      id
+      workspaceId
+      name
+      description
+      visibility
+      status
+      startDate
+      dueDate
+      updatedAt
+    }
+  }
+`;
+
+export const DELETE_PROJECT_MUTATION = gql`
+  mutation DeleteProject($id: ID!) {
+    deleteProject(id: $id) {
+      id
+    }
+  }
+`;
+
+export const CREATE_TASK_MUTATION = gql`
+  mutation CreateTask($input: CreateTaskInput!) {
+    createTask(input: $input) {
+      id
+      projectId
+      statusId
+      title
+      description
+      priority
+      position
+      dueAt
+      updatedAt
+    }
+  }
+`;
+
+export const UPDATE_TASK_MUTATION = gql`
+  mutation UpdateTask($id: ID!, $input: UpdateTaskInput!) {
+    updateTask(id: $id, input: $input) {
+      id
+      projectId
+      statusId
+      title
+      description
+      priority
+      position
+      dueAt
+      updatedAt
+    }
+  }
+`;
+
+export const MOVE_TASK_MUTATION = gql`
+  mutation MoveTask($id: ID!, $input: MoveTaskInput!) {
+    moveTask(id: $id, input: $input) {
+      id
+      statusId
+      position
+      updatedAt
+    }
+  }
+`;
+
+export const DELETE_TASK_MUTATION = gql`
+  mutation DeleteTask($id: ID!) {
+    deleteTask(id: $id) {
+      id
     }
   }
 `;

@@ -231,7 +231,10 @@ class SupabaseBoardnestDataService implements BoardnestDataService {
     const insertResponse = await this.client
       .from('workspaces')
       .insert({ created_by: userId, id, name, slug });
-    throwForError(insertResponse.error);
+    throwForError(
+      insertResponse.error,
+      'This workspace URL slug already exists. Choose a unique slug by adding a word or number.',
+    );
 
     const response = await this.client
       .from('workspaces')
@@ -527,7 +530,10 @@ function deletedId(response: DataResponse): string {
   return z.object({ id: z.uuid() }).parse(response.data).id;
 }
 
-function throwForError(error: DataResponse['error']): void {
+function throwForError(
+  error: DataResponse['error'],
+  conflictMessage = 'A record with these values already exists.',
+): void {
   if (!error) return;
   const code = error.code ?? '';
   if (code === '42501') {
@@ -536,7 +542,7 @@ function throwForError(error: DataResponse['error']): void {
     });
   }
   if (code === '23505') {
-    throw new GraphQLError('A record with these values already exists.', {
+    throw new GraphQLError(conflictMessage, {
       extensions: { code: 'CONFLICT' },
     });
   }
