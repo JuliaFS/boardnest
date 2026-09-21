@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { projectFormSchema, workspaceFormSchema } from './project-schemas';
+import {
+  projectFormSchema,
+  workspaceFormSchema,
+  workspaceSlugFromName,
+} from './project-schemas';
 
 describe('project forms', () => {
   it('accepts a valid workspace slug', () => {
@@ -15,6 +19,27 @@ describe('project forms', () => {
       workspaceFormSchema.safeParse({ name: 'Product', slug: 'Product Team' })
         .success,
     ).toBe(false);
+  });
+
+  it('generates a URL-safe workspace slug from an English name', () => {
+    expect(workspaceSlugFromName('Frontend Product Team')).toBe(
+      'frontend-product-team',
+    );
+  });
+
+  it('transliterates a Bulgarian workspace name', () => {
+    expect(workspaceSlugFromName('Моят работен екип')).toBe(
+      'moyat-raboten-ekip',
+    );
+  });
+
+  it('removes repeated separators and caps generated slugs at 63 characters', () => {
+    const slug = workspaceSlugFromName(
+      `  Product & Design ${'Team '.repeat(20)}`,
+    );
+
+    expect(slug).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+    expect(slug.length).toBeLessThanOrEqual(63);
   });
 
   it('rejects a project due date before its start date', () => {
