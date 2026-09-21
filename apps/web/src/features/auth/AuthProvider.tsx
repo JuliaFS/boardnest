@@ -14,6 +14,7 @@ import {
   register,
   type AuthUser,
 } from './auth-client';
+import { apolloClient } from '../../lib/apollo-client';
 
 interface SignUpInput {
   displayName: string;
@@ -58,17 +59,20 @@ export function AuthProvider({ children }: PropsWithChildren) {
     () => ({
       isLoading,
       signIn: async (email, password) => {
+        await apolloClient.clearStore();
         setUser(await login(email, password));
       },
       signOut: async () => {
         try {
           await logout();
         } finally {
+          await apolloClient.clearStore();
           setUser(null);
         }
       },
       signUp: async (input) => {
         const result = await register(input);
+        await apolloClient.clearStore();
         setUser(result.user);
         return result.confirmationRequired;
       },

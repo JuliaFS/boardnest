@@ -134,3 +134,17 @@ HTTP process, cookie policy, CORS policy, and graceful shutdown lifecycle with
 authentication. Context construction reuses Phase 3 session rotation. Queries
 are bounded and flat; DataLoader will be introduced only when nested relation
 resolvers create a real N+1 risk. See `docs/GRAPHQL.md`.
+
+## Phase 5 frontend decisions
+
+Apollo Client owns GraphQL server state and sends requests with `credentials:
+include`, allowing the browser to attach the Phase 3 `HttpOnly` cookies without
+making their values available to React. The Apollo cache is cleared at account
+boundaries to prevent one user's cached records from appearing for the next
+user in the same browser.
+
+Protected application routes share one responsive layout. Route parameters own
+resource identity, Apollo owns remote records, and React state is limited to
+local interface concerns such as the mobile menu and workspace selector. The
+foundation includes consistent loading, failure, missing-resource, and empty
+states. See `docs/FRONTEND.md`.

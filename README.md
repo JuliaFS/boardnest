@@ -2,7 +2,7 @@
 
 Boardnest is a collaborative project management platform for organizing workspaces, projects, and tasks through Kanban boards, role-based permissions, and real-time updates.
 
-> Status: Phase 4 complete — Apollo GraphQL API, authenticated context, RLS-aware data access, validation, and application mutations.
+> Status: Phase 5 complete — responsive React application shell, Apollo Client server state, protected routes, and real workspace/project views.
 
 ## Planned features
 
@@ -77,6 +77,10 @@ The Phase 2 schema is split into ordered migrations, with one file per table and
 ## Authentication
 
 The browser sends credentials only to the Boardnest API. The API uses Supabase Auth and stores access and refresh tokens in `HttpOnly` cookies, so browser JavaScript cannot read them. See [Authentication](docs/AUTHENTICATION.md) for setup and manual verification.
+
+## Frontend
+
+The React application uses a responsive Tailwind CSS shell and Apollo Client for GraphQL server state. It includes protected routes, workspace/project browsing, notifications, and reusable loading, error, and empty states. See [Frontend](docs/FRONTEND.md) for route and state ownership details.
 
 ## Architecture
 
