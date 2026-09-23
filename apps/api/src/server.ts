@@ -26,7 +26,9 @@ const server = await createServer({
 });
 
 server.listen(environment.PORT, () => {
-  console.info(`Boardnest API listening on port ${environment.PORT}`);
+  console.info(
+    `Boardnest API listening on port ${environment.PORT} (HTTP + WebSocket /graphql)`,
+  );
 });
 
 function shutdown(signal: NodeJS.Signals): void {

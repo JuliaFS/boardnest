@@ -22,6 +22,11 @@ cookie, rotates an expired session when possible, and passes the authenticated
 user's JWT to Supabase. The service-role key is deliberately not used, so the
 RLS policies installed in Phase 2 remain the resource-authorization boundary.
 
+Subscriptions use the same `/graphql` path with the `graphql-transport-ws`
+protocol. The WebSocket handshake carries the eligible `HttpOnly` access cookie;
+browser JavaScript still cannot read the token. The server verifies the exact
+origin and session before accepting the connection.
+
 Workspace and project creation use separate insert and read requests. Their
 membership rows are created by `AFTER INSERT` triggers, while their select
 policies require that membership. Reading only after the insert transaction has
@@ -37,8 +42,8 @@ check.
 - A **resolver** connects a schema field to application code.
 - The **context** is created once per operation and carries the verified user
   and their RLS-aware data service.
-- A **subscription** is a long-lived result stream. Subscriptions remain in
-  Phase 7 because they require WebSocket lifecycle and authorization.
+- A **subscription** is a long-lived result stream that pushes selected changes
+  to an authorized client without polling.
 
 ## Queries
 
@@ -93,6 +98,24 @@ mutation CreateProject($input: CreateProjectInput!) {
 SHA-256 hash, and returns the raw token once. Email delivery and invitation
 acceptance will be connected when that frontend workflow is built.
 
+## Subscriptions
+
+| Subscription  | Scope                     | Payload         |
+| ------------- | ------------------------- | --------------- |
+| `taskCreated` | One accessible project ID | Created task    |
+| `taskUpdated` | One accessible project ID | Updated task    |
+| `taskDeleted` | One accessible project ID | Deleted task ID |
+
+Each subscription validates its project ID and reads that project through the
+user's RLS-aware data service before joining the event stream. Task mutations
+publish only after persistence succeeds. Direct database edits do not emit
+application events.
+
+Phase 7 uses a process-local event bus behind a small interface. This is correct
+for one API instance and keeps transport concerns outside resolvers. Phase 8
+will replace event distribution with Redis Pub/Sub so mutations and WebSocket
+clients can be handled by different API instances.
+
 ## Authentication, authorization, and errors
 
 `currentUser` is nullable so clients can check session state. Every other
@@ -126,11 +149,11 @@ it does not currently create an N+1 query pattern. Adding DataLoader without a
 batching use case would add unused abstraction. When fields such as
 `Task.assignees` are added, loaders must be request-scoped and preserve RLS.
 
-Apollo Client will own normalized browser cache state in Phase 5. The API does
-not cache mutable authorization-sensitive rows. Redis arrives in Phase 8 for
-event distribution, not as the source of truth.
+Apollo Client owns normalized browser cache state. The API does not cache
+mutable authorization-sensitive rows. Redis arrives in Phase 8 for event
+distribution, not as the source of truth.
 
 GraphQL fits Boardnest because dashboard, board, and detail screens need
-different shapes of connected data, and subscriptions can later share the same
-schema. REST remains appropriate for health checks, authentication redirects,
+different shapes of connected data, and subscriptions share the same schema.
+REST remains appropriate for health checks, authentication redirects,
 webhooks, downloads, and resources primarily relying on HTTP caching.

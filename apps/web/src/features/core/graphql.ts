@@ -83,6 +83,18 @@ export interface BoardData {
   tasks: { nodes: TaskSummary[]; pageInfo: PageInfo };
 }
 
+export interface TaskCreatedData {
+  taskCreated: TaskSummary;
+}
+
+export interface TaskUpdatedData {
+  taskUpdated: TaskSummary;
+}
+
+export interface TaskDeletedData {
+  taskDeleted: { id: string };
+}
+
 export const WORKSPACES_QUERY = gql`
   query Workspaces($limit: Int = 25, $offset: Int = 0) {
     workspaces(limit: $limit, offset: $offset) {
@@ -295,6 +307,46 @@ export const MOVE_TASK_MUTATION = gql`
 export const DELETE_TASK_MUTATION = gql`
   mutation DeleteTask($id: ID!) {
     deleteTask(id: $id) {
+      id
+    }
+  }
+`;
+
+export const TASK_CREATED_SUBSCRIPTION = gql`
+  subscription TaskCreated($projectId: ID!) {
+    taskCreated(projectId: $projectId) {
+      id
+      projectId
+      statusId
+      title
+      description
+      priority
+      position
+      dueAt
+      updatedAt
+    }
+  }
+`;
+
+export const TASK_UPDATED_SUBSCRIPTION = gql`
+  subscription TaskUpdated($projectId: ID!) {
+    taskUpdated(projectId: $projectId) {
+      id
+      projectId
+      statusId
+      title
+      description
+      priority
+      position
+      dueAt
+      updatedAt
+    }
+  }
+`;
+
+export const TASK_DELETED_SUBSCRIPTION = gql`
+  subscription TaskDeleted($projectId: ID!) {
+    taskDeleted(projectId: $projectId) {
       id
     }
   }
