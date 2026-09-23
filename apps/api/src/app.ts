@@ -3,12 +3,15 @@ import { createServer as createHttpServer, type Server } from 'node:http';
 import { ApolloServer } from '@apollo/server';
 import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer';
 import { expressMiddleware } from '@as-integrations/express5';
+import { makeExecutableSchema } from '@graphql-tools/schema';
 import cors from 'cors';
 import express, {
   type NextFunction,
   type Request,
   type Response,
 } from 'express';
+import { useServer } from 'graphql-ws/use/ws';
+import { WebSocketServer } from 'ws';
 import { z } from 'zod';
 
 import type { AuthService } from './auth/auth-service.js';
@@ -22,6 +25,10 @@ import { resolveRequestSession } from './auth/session.js';
 import type { BoardnestDataService } from './graphql/data-service.js';
 import { type GraphQLContext, resolvers, typeDefs } from './graphql/schema.js';
 import { createMaxDepthRule } from './graphql/security.js';
+import {
+  createInMemoryEventBus,
+  type RealtimeEventBus,
+} from './realtime/event-bus.js';
 
 const credentialsSchema = z.object({
   email: z.email(),
@@ -35,6 +42,7 @@ export interface ServerOptions {
   authService: AuthService;
   corsOrigin: string;
   createDataService: (accessToken: string) => BoardnestDataService;
+  events?: RealtimeEventBus;
   introspection?: boolean;
   secureCookies: boolean;
 }
@@ -42,13 +50,62 @@ export interface ServerOptions {
 export async function createServer(options: ServerOptions): Promise<Server> {
   const app = express();
   const httpServer = createHttpServer(app);
+  const events = options.events ?? createInMemoryEventBus();
+  const schema = makeExecutableSchema({ resolvers, typeDefs });
+  const websocketServer = new WebSocketServer({
+    path: '/graphql',
+    server: httpServer,
+  });
+  const websocketContexts = new WeakMap<object, GraphQLContext>();
+  const websocketCleanup = useServer(
+    {
+      context: (context) =>
+        websocketContexts.get(context.extra.request) ?? {
+          data: null,
+          events,
+          user: null,
+        },
+      onConnect: async (context) => {
+        if (context.extra.request.headers.origin !== options.corsOrigin) {
+          return false;
+        }
+
+        const cookies = readAuthCookies(context.extra.request);
+        if (!cookies.accessToken) return false;
+
+        try {
+          const user = await options.authService.verify(cookies.accessToken);
+          websocketContexts.set(context.extra.request, {
+            data: options.createDataService(cookies.accessToken),
+            events,
+            user,
+          });
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      schema,
+    },
+    websocketServer,
+  );
   const apollo = new ApolloServer<GraphQLContext>({
     csrfPrevention: true,
     includeStacktraceInErrorResponses: false,
     introspection: options.introspection ?? false,
-    plugins: [ApolloServerPluginDrainHttpServer({ httpServer })],
-    resolvers,
-    typeDefs,
+    plugins: [
+      ApolloServerPluginDrainHttpServer({ httpServer }),
+      {
+        serverWillStart() {
+          return Promise.resolve({
+            async drainServer() {
+              await websocketCleanup.dispose();
+            },
+          });
+        },
+      },
+    ],
+    schema,
     validationRules: [createMaxDepthRule(10)],
   });
   await apollo.start();
@@ -189,6 +246,7 @@ export async function createServer(options: ServerOptions): Promise<Server> {
         );
         return {
           data: session ? options.createDataService(session.accessToken) : null,
+          events,
           user: session?.user ?? null,
         };
       },

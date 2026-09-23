@@ -2,7 +2,7 @@
 
 Boardnest is a collaborative project management platform for organizing workspaces, projects, and tasks through Kanban boards, role-based permissions, and real-time updates.
 
-> Status: Phase 6 complete — workspace/project/task workflows, searchable Kanban boards, and accessible drag-and-drop task ordering.
+> Status: Phase 7 complete — authenticated GraphQL subscriptions now keep Kanban tasks synchronized across connected clients.
 
 ## Planned features
 
@@ -47,7 +47,7 @@ cp .env.example .env
 pnpm dev
 ```
 
-The web application runs on `http://localhost:5173`. The API health endpoint runs on `http://localhost:4000/health`. The protected session check is available at `http://localhost:4000/auth/me`, and GraphQL at `http://localhost:4000/graphql`.
+The web application runs on `http://localhost:5173`. The API health endpoint runs on `http://localhost:4000/health`. The protected session check is available at `http://localhost:4000/auth/me`. GraphQL uses `http://localhost:4000/graphql` for queries and mutations and `ws://localhost:4000/graphql` for subscriptions.
 
 ## Quality checks
 
@@ -84,6 +84,8 @@ The React application uses a responsive Tailwind CSS shell and Apollo Client for
 
 Phase 6 adds validated workspace, project, and task forms; project/task editing and deletion; Kanban filtering; and optimistic task movement persisted through GraphQL.
 
+Phase 7 adds authenticated task-created, task-updated, and task-deleted subscriptions. Apollo routes only subscriptions over WebSocket and merges incoming events into the active Kanban board. See [WebSockets](docs/WEBSOCKETS.md) for the lifecycle and current single-instance limitation.
+
 ## Architecture
 
 The system boundaries, dependency rules, multi-tenancy model, and security approach are described in [Architecture](docs/ARCHITECTURE.md).
@@ -92,9 +94,9 @@ The system boundaries, dependency rules, multi-tenancy model, and security appro
 
 - **React** provides a component model and ecosystem suited to a complex, interactive Kanban UI.
 - **TypeScript** gives the frontend, backend, and shared contracts one strict type system.
-- **GraphQL and Apollo** provide the typed application API; subscriptions will add targeted real-time updates in Phase 7.
+- **GraphQL and Apollo** provide the typed application API and targeted real-time task subscriptions.
 - **Node.js** lets the backend share language and selected types with the frontend while supporting HTTP and WebSocket workloads.
-- **WebSockets** will deliver task and notification changes without polling.
+- **WebSockets** deliver task changes without polling; later collaboration events can use the same transport.
 - **Redis** will distribute subscription events between multiple API instances; it is not the source of truth.
 - **Supabase** provides managed PostgreSQL and authentication while retaining a SQL-first data model.
 - **Docker** will make the API and Redis development environment reproducible.

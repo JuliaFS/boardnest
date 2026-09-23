@@ -47,6 +47,21 @@ POST /graphql with credentials: include
 Boardnest API → Supabase PostgreSQL with user RLS
 ```
 
+Phase 7 adds a second, long-lived path for real-time board events:
+
+```text
+task subscription → Apollo GraphQLWsLink → ws(s)://API/graphql
+  → verified HttpOnly cookie + project authorization
+  → task event → immutable Kanban group update
+```
+
+Apollo's split link keeps queries and mutations on HTTP and sends only
+subscriptions through `graphql-ws`. Created and updated tasks are upserted by ID
+so an initiating client does not display duplicates when it receives its own
+event. Deleted tasks are removed from every local column. A visible warning
+appears if the real-time stream disconnects; persisted data can still be
+recovered by refreshing the query.
+
 The access and refresh token values remain unavailable to frontend JavaScript.
 `credentials: include` instructs the browser to attach eligible cookies; it
 does not expose their contents to Apollo Client.
@@ -87,7 +102,8 @@ The frontend reads these public build-time values:
 
 - `VITE_API_URL` for authentication REST endpoints;
 - `VITE_GRAPHQL_URL` for GraphQL over HTTP;
-- `VITE_WS_URL` is reserved for Phase 7 subscriptions.
+- `VITE_WS_URL` is the public GraphQL WebSocket endpoint, such as
+  `ws://localhost:4000/graphql` locally and `wss://…/graphql` in production.
 
 No service-role key or authentication token may be placed in a `VITE_*`
 variable.

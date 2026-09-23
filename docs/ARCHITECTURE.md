@@ -56,7 +56,11 @@ PostgreSQL is the source of truth. Redis carries ephemeral events and may later 
 
 ### Real-time delivery
 
-A successful database mutation publishes a tenant-scoped event. Redis distributes it to every API instance, and GraphQL subscriptions deliver it to authorized connected clients. Authorization is checked when a subscription is established and when payloads are resolved.
+A successful database mutation publishes a project-scoped event. GraphQL
+subscriptions deliver it to connected clients only after the subscription has
+verified access through the user's RLS-aware data service. Phase 7 uses an
+in-memory event bus for one API process. Phase 8 will distribute those events
+through Redis so the same contract works across multiple API instances.
 
 ## Runtime architecture
 
@@ -161,3 +165,18 @@ keyboard sensors. Dragging updates local grouped task state immediately, then
 persists only the moved task's status and fractional position. Failed mutations
 restore the pre-drag snapshot. Reordering is disabled while search or priority
 filters are active so hidden tasks cannot produce misleading positions.
+
+## Phase 7 real-time decisions
+
+The API serves HTTP GraphQL and the standard `graphql-transport-ws` protocol on
+the same `/graphql` path. WebSocket authentication reuses the browser's
+`HttpOnly` access cookie and rejects unexpected origins; no bearer token is made
+available to frontend code. Apollo Client uses a split link so ordinary
+operations retain HTTP semantics while subscriptions keep a lazy persistent
+connection only when a board is active.
+
+Task creation, update, movement, and deletion publish events only after a
+successful database write. The board applies those payloads idempotently by
+task ID and keeps optimistic drag-and-drop behavior. The process-local event
+bus is deliberately isolated behind an interface because it cannot cross
+process boundaries; Redis Pub/Sub replaces that implementation in Phase 8.

@@ -1,6 +1,6 @@
 import { move } from '@dnd-kit/helpers';
 import { DragDropProvider } from '@dnd-kit/react';
-import { useMutation, useQuery } from '@apollo/client/react';
+import { useMutation, useQuery, useSubscription } from '@apollo/client/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 
@@ -8,10 +8,15 @@ import {
   BOARD_QUERY,
   MOVE_TASK_MUTATION,
   PROJECT_QUERY,
+  TASK_CREATED_SUBSCRIPTION,
+  TASK_DELETED_SUBSCRIPTION,
+  TASK_UPDATED_SUBSCRIPTION,
   type BoardData,
   type ProjectData,
-  type TaskStatusSummary,
+  type TaskCreatedData,
+  type TaskDeletedData,
   type TaskSummary,
+  type TaskUpdatedData,
 } from '../core/graphql';
 import { fieldClassName, primaryButtonClassName } from '../core/form-styles';
 import { Modal } from '../core/Modal';
@@ -19,9 +24,15 @@ import { PageHeader } from '../core/PageHeader';
 import { EmptyState, PageSkeleton, QueryError } from '../core/QueryState';
 import { KanbanColumn } from '../tasks/KanbanColumn';
 import { TaskForm } from '../tasks/TaskForm';
+import {
+  cloneGroups,
+  findTask,
+  groupTasks,
+  removeTask,
+  type TaskGroups,
+  upsertTask,
+} from '../tasks/task-groups';
 import { positionAt } from '../tasks/task-order';
-
-type TaskGroups = Record<string, TaskSummary[]>;
 
 export function BoardPage() {
   const { projectId = '' } = useParams();
@@ -42,6 +53,22 @@ export function BoardPage() {
     skip: !projectId,
     variables: { projectId },
   });
+  const subscriptionOptions = {
+    skip: !projectId || !board.data,
+    variables: { projectId },
+  };
+  const created = useSubscription<TaskCreatedData>(
+    TASK_CREATED_SUBSCRIPTION,
+    subscriptionOptions,
+  );
+  const updated = useSubscription<TaskUpdatedData>(
+    TASK_UPDATED_SUBSCRIPTION,
+    subscriptionOptions,
+  );
+  const deleted = useSubscription<TaskDeletedData>(
+    TASK_DELETED_SUBSCRIPTION,
+    subscriptionOptions,
+  );
   const [moveTask] = useMutation(MOVE_TASK_MUTATION);
 
   useEffect(() => {
@@ -53,6 +80,36 @@ export function BoardPage() {
     groupsRef.current = nextGroups;
     setGroups(nextGroups);
   }, [board.data]);
+
+  useEffect(() => {
+    if (!created.data) return;
+    const task = created.data.taskCreated;
+    setGroups((current) => {
+      const next = upsertTask(current, task);
+      groupsRef.current = next;
+      return next;
+    });
+  }, [created.data]);
+
+  useEffect(() => {
+    if (!updated.data) return;
+    const task = updated.data.taskUpdated;
+    setGroups((current) => {
+      const next = upsertTask(current, task);
+      groupsRef.current = next;
+      return next;
+    });
+  }, [updated.data]);
+
+  useEffect(() => {
+    if (!deleted.data) return;
+    const taskId = deleted.data.taskDeleted.id;
+    setGroups((current) => {
+      const next = removeTask(current, taskId);
+      groupsRef.current = next;
+      return next;
+    });
+  }, [deleted.data]);
 
   const filtersActive = search.trim().length > 0 || priority !== 'ALL';
   const visibleGroups = useMemo(() => {
@@ -165,6 +222,15 @@ export function BoardPage() {
           {dragError}
         </p>
       ) : null}
+      {created.error || updated.error || deleted.error ? (
+        <p
+          className="mb-4 rounded-xl border border-amber-800/70 bg-amber-950/30 p-3 text-sm text-amber-200"
+          role="status"
+        >
+          Real-time updates are temporarily unavailable. Refresh the page to
+          reconnect.
+        </p>
+      ) : null}
 
       {statuses.length === 0 ? (
         <EmptyState
@@ -253,30 +319,4 @@ export function BoardPage() {
       ) : null}
     </>
   );
-}
-
-function groupTasks(
-  statuses: TaskStatusSummary[],
-  tasks: TaskSummary[],
-): TaskGroups {
-  const groups = Object.fromEntries(
-    statuses.map((status) => [status.id, [] as TaskSummary[]]),
-  );
-
-  for (const task of tasks) groups[task.statusId]?.push(task);
-  return groups;
-}
-
-function cloneGroups(groups: TaskGroups): TaskGroups {
-  return Object.fromEntries(
-    Object.entries(groups).map(([statusId, tasks]) => [statusId, [...tasks]]),
-  );
-}
-
-function findTask(groups: TaskGroups, taskId: string) {
-  for (const [statusId, tasks] of Object.entries(groups)) {
-    const index = tasks.findIndex(({ id }) => id === taskId);
-    if (index >= 0) return { index, statusId, tasks };
-  }
-  return null;
 }

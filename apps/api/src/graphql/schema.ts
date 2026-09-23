@@ -2,6 +2,11 @@ import { GraphQLError, GraphQLScalarType, Kind } from 'graphql';
 import { z } from 'zod';
 
 import type { PublicAuthUser } from '../auth/auth-service.js';
+import type {
+  RealtimeEventBus,
+  TaskEvent,
+  TaskEventKind,
+} from '../realtime/event-bus.js';
 import type { BoardnestDataService } from './data-service.js';
 import type {
   CreateProjectData,
@@ -13,6 +18,7 @@ import type {
 
 export interface GraphQLContext {
   data: BoardnestDataService | null;
+  events: RealtimeEventBus;
   user: PublicAuthUser | null;
 }
 
@@ -281,6 +287,12 @@ export const typeDefs = `#graphql
     inviteMember(input: InviteMemberInput!): InvitationPayload!
     markNotificationAsRead(id: ID!): Notification!
   }
+
+  type Subscription {
+    taskCreated(projectId: ID!): Task!
+    taskUpdated(projectId: ID!): Task!
+    taskDeleted(projectId: ID!): DeletePayload!
+  }
 `;
 
 const JSONScalar = new GraphQLScalarType({
@@ -510,35 +522,60 @@ export const resolvers = {
     ) => {
       const authenticated = requireAuth(context);
       const input = parse(createTaskSchema, args.input);
-      return authenticated.data.createTask(
+      const task = await authenticated.data.createTask(
         toCreateTaskData(input),
         authenticated.user.id,
       );
+      await context.events.publishTask(taskEvent('created', task));
+      return task;
     },
     updateTask: async (
       _parent: unknown,
       args: { id: string; input: unknown },
       context: GraphQLContext,
-    ) =>
-      requireAuth(context).data.updateTask(
+    ) => {
+      const task = await requireAuth(context).data.updateTask(
         uuid(args.id),
         toUpdateTaskData(parse(updateTaskSchema, args.input)),
-      ),
+      );
+      await context.events.publishTask(taskEvent('updated', task));
+      return task;
+    },
     deleteTask: async (
       _parent: unknown,
       args: { id: string },
       context: GraphQLContext,
-    ) => ({ id: await requireAuth(context).data.deleteTask(uuid(args.id)) }),
+    ) => {
+      const authenticated = requireAuth(context);
+      const id = uuid(args.id);
+      const task = await authenticated.data.task(id);
+      if (!task) {
+        throw new GraphQLError('The requested task was not found.', {
+          extensions: { code: 'NOT_FOUND' },
+        });
+      }
+      const deletedId = await authenticated.data.deleteTask(id);
+      await context.events.publishTask({
+        kind: 'deleted',
+        projectId: task.project_id,
+        task: null,
+        taskId: deletedId,
+      });
+      return { id: deletedId };
+    },
     moveTask: async (
       _parent: unknown,
       args: { id: string; input: { position: number; statusId: string } },
       context: GraphQLContext,
-    ) =>
-      requireAuth(context).data.moveTask(
+    ) => {
+      const task = await requireAuth(context).data.moveTask(
         uuid(args.id),
         uuid(args.input.statusId),
         z.number().nonnegative().parse(args.input.position),
-      ),
+      );
+      await context.events.publishTask(taskEvent('updated', task));
+      return task;
+    },
     assignTask: async (
       _parent: unknown,
       args: { assigneeId: string; taskId: string },
@@ -584,7 +621,72 @@ export const resolvers = {
       context: GraphQLContext,
     ) => requireAuth(context).data.markNotificationAsRead(uuid(args.id)),
   },
+  Subscription: {
+    taskCreated: taskSubscription('created'),
+    taskDeleted: {
+      resolve: async (
+        event: TaskEvent,
+        _args: unknown,
+        context: GraphQLContext,
+      ) => {
+        await requireProjectAccess(context, event.projectId);
+        return { id: event.taskId };
+      },
+      subscribe: subscribeToTaskEvents('deleted'),
+    },
+    taskUpdated: taskSubscription('updated'),
+  },
 };
+
+function taskEvent(
+  kind: Exclude<TaskEventKind, 'deleted'>,
+  task: Awaited<ReturnType<BoardnestDataService['createTask']>>,
+): TaskEvent {
+  return {
+    kind,
+    projectId: task.project_id,
+    task,
+    taskId: task.id,
+  };
+}
+
+function taskSubscription(kind: Exclude<TaskEventKind, 'deleted'>) {
+  return {
+    resolve: async (
+      event: TaskEvent,
+      _args: unknown,
+      context: GraphQLContext,
+    ) => {
+      await requireProjectAccess(context, event.projectId);
+      return event.task;
+    },
+    subscribe: subscribeToTaskEvents(kind),
+  };
+}
+
+function subscribeToTaskEvents(kind: TaskEventKind) {
+  return async (
+    _parent: unknown,
+    args: { projectId: string },
+    context: GraphQLContext,
+  ) => {
+    const projectId = uuid(args.projectId);
+    await requireProjectAccess(context, projectId);
+    return context.events.subscribeToTasks(projectId, kind);
+  };
+}
+
+async function requireProjectAccess(
+  context: GraphQLContext,
+  projectId: string,
+): Promise<void> {
+  const project = await requireAuth(context).data.project(projectId);
+  if (!project) {
+    throw new GraphQLError('Project not found or access denied.', {
+      extensions: { code: 'FORBIDDEN' },
+    });
+  }
+}
 
 function requireAuth(context: GraphQLContext): {
   data: BoardnestDataService;

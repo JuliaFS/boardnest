@@ -3,11 +3,17 @@ import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
 import type { Session } from '@supabase/supabase-js';
+import { createClient } from 'graphql-ws';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { WebSocket } from 'ws';
 
 import { createServer } from './app.js';
 import type { AuthService, PublicAuthUser } from './auth/auth-service.js';
 import type { BoardnestDataService } from './graphql/data-service.js';
+import {
+  createInMemoryEventBus,
+  type RealtimeEventBus,
+} from './realtime/event-bus.js';
 
 const origin = 'http://localhost:5173';
 const user: PublicAuthUser = {
@@ -61,11 +67,13 @@ function createAuthService(): AuthService {
 async function startServer(
   authService = createAuthService(),
   dataService = {} as unknown as BoardnestDataService,
+  events?: RealtimeEventBus,
 ) {
   const server = await createServer({
     authService,
     corsOrigin: origin,
     createDataService: vi.fn(() => dataService),
+    ...(events ? { events } : {}),
     introspection: true,
     secureCookies: false,
   });
@@ -288,5 +296,105 @@ describe('API server', () => {
       },
       user.id,
     );
+  });
+
+  it('delivers authenticated task subscription events over WebSocket', async () => {
+    const projectId = '6992c303-a240-4e15-8fcc-461d53756324';
+    const task = {
+      archived_at: null,
+      created_at: new Date(0).toISOString(),
+      created_by: user.id,
+      description: null,
+      due_at: null,
+      id: 'f2410cb7-47f6-4af6-8ed9-f1d7a45158fc',
+      position: 1000,
+      priority: 'medium',
+      project_id: projectId,
+      status_id: 'ae248328-e9e4-4416-a92d-47af95406e4d',
+      title: 'Ship real-time updates',
+      updated_at: new Date(0).toISOString(),
+    };
+    const dataService = {
+      createTask: vi.fn().mockResolvedValue(task),
+      project: vi.fn().mockResolvedValue({ id: projectId }),
+    } as unknown as BoardnestDataService;
+    const events = createInMemoryEventBus();
+    const subscribe = vi.spyOn(events, 'subscribeToTasks');
+    const { server } = await startServer(
+      createAuthService(),
+      dataService,
+      events,
+    );
+    const httpUrl = await getUrl(server, '/graphql');
+    const wsUrl = httpUrl.replace('http:', 'ws:');
+
+    class AuthenticatedWebSocket extends WebSocket {
+      constructor(address: string | URL, protocols?: string | string[]) {
+        super(address, protocols, {
+          headers: {
+            cookie: 'boardnest-access=access-token',
+            origin,
+          },
+        });
+      }
+    }
+
+    const client = createClient({
+      url: wsUrl,
+      webSocketImpl: AuthenticatedWebSocket,
+    });
+    const result = new Promise<unknown>((resolve, reject) => {
+      const unsubscribe = client.subscribe(
+        {
+          query: `subscription TaskCreated($projectId: ID!) {
+            taskCreated(projectId: $projectId) { id title priority }
+          }`,
+          variables: { projectId },
+        },
+        {
+          complete: () => undefined,
+          error: reject,
+          next: (value) => {
+            unsubscribe();
+            resolve(value);
+          },
+        },
+      );
+    });
+
+    await vi.waitFor(() => expect(subscribe).toHaveBeenCalledOnce());
+    const mutation = await fetch(httpUrl, {
+      body: JSON.stringify({
+        query: `mutation CreateTask($input: CreateTaskInput!) {
+          createTask(input: $input) { id }
+        }`,
+        variables: {
+          input: {
+            projectId,
+            statusId: task.status_id,
+            title: task.title,
+          },
+        },
+      }),
+      headers: {
+        'content-type': 'application/json',
+        cookie: 'boardnest-access=access-token',
+        origin,
+      },
+      method: 'POST',
+    });
+
+    expect(mutation.status).toBe(200);
+    await expect(result).resolves.toEqual({
+      data: {
+        taskCreated: {
+          id: task.id,
+          priority: 'MEDIUM',
+          title: task.title,
+        },
+      },
+    });
+    expect(dataService.project).toHaveBeenCalledTimes(2);
+    await client.dispose();
   });
 });

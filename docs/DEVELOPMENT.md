@@ -77,6 +77,7 @@ Use focused commits with Conventional Commit prefixes such as `feat:`, `fix:`, `
 - API session check: `http://localhost:4000/auth/me`
 - API authentication callback: `http://localhost:4000/auth/callback`
 - GraphQL HTTP endpoint: `http://localhost:4000/graphql`
+- GraphQL WebSocket endpoint: `ws://localhost:4000/graphql`
 
-The GraphQL endpoint is active. The WebSocket endpoint remains reserved until
-Phase 7.
+Both transports use the same GraphQL schema and path. Queries and mutations use
+HTTP; subscriptions use the `graphql-transport-ws` WebSocket protocol.
