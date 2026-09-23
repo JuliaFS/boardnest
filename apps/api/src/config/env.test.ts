@@ -8,6 +8,7 @@ describe('API environment', () => {
       parseEnvironment({
         API_URL: 'http://localhost:4000',
         CORS_ORIGIN: 'http://localhost:5173',
+        REDIS_URL: 'redis://localhost:6379',
         SUPABASE_PUBLISHABLE_KEY: 'test-key',
         SUPABASE_URL: 'https://example.supabase.co',
       }),
@@ -16,6 +17,7 @@ describe('API environment', () => {
       CORS_ORIGIN: 'http://localhost:5173',
       NODE_ENV: 'development',
       PORT: 4000,
+      REDIS_URL: 'redis://localhost:6379',
       SUPABASE_PUBLISHABLE_KEY: 'test-key',
       SUPABASE_URL: 'https://example.supabase.co',
     });
@@ -27,6 +29,7 @@ describe('API environment', () => {
         API_URL: 'http://localhost:4000',
         CORS_ORIGIN: 'http://localhost:5173',
         PORT: '70000',
+        REDIS_URL: 'redis://localhost:6379',
         SUPABASE_PUBLISHABLE_KEY: 'test-key',
         SUPABASE_URL: 'https://example.supabase.co',
       }),

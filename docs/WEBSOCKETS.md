@@ -48,14 +48,12 @@ duplicate card.
 - Event topics use project IDs and never broadcast all task changes to every
   subscriber.
 
-## Current limitation and Phase 8
+## Redis distribution
 
-The Phase 7 event bus is in memory. It is deterministic, testable, and correct
-for the current single API process, but it cannot deliver an event between two
-different server instances and events are intentionally not durable. Phase 8
-will use Redis Pub/Sub behind the same event-bus boundary for horizontal
-distribution. PostgreSQL remains the source of truth, and reconnecting clients
-recover current state through the board query.
+Phase 8 uses Redis Pub/Sub behind the event-bus boundary. A mutation handled by
+one API process can therefore update a WebSocket connected to another process.
+Events remain intentionally non-durable: PostgreSQL is the source of truth, and
+reconnecting clients recover current state through the board query.
 
 Direct changes made in Supabase SQL Editor do not pass through GraphQL mutations
 and therefore do not publish a Phase 7 event.

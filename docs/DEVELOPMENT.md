@@ -20,12 +20,26 @@ pnpm install
 | `pnpm format`       | Format supported repository files      |
 | `pnpm format:check` | Verify formatting without edits        |
 | `pnpm lint`         | Run ESLint with zero warnings allowed  |
+| `pnpm redis:up`     | Start and health-check local Redis     |
+| `pnpm redis:logs`   | Follow local Redis container logs      |
+| `pnpm redis:down`   | Stop the local Redis container         |
 | `pnpm typecheck`    | Type-check every applicable workspace  |
 | `pnpm test`         | Run workspace tests once               |
 | `pnpm build`        | Produce application and package builds |
 | `pnpm check`        | Run the complete local quality gate    |
 
 Run `pnpm check` before opening a pull request.
+
+Start Redis before the application:
+
+```bash
+pnpm redis:up
+pnpm dev
+```
+
+The API intentionally fails during startup if it cannot connect to `REDIS_URL`.
+This prevents an instance from appearing healthy while silently missing
+cross-instance real-time events.
 
 ## Environment setup
 
@@ -55,7 +69,7 @@ These values are read only by the API process:
 - `CORS_ORIGIN`
 - `NODE_ENV`
 
-`SUPABASE_PUBLISHABLE_KEY` is deliberately public and is also used by the API client to support every Supabase signing-key mode. `SUPABASE_SERVICE_ROLE_KEY` and `DATABASE_URL` are secrets. Never prefix either secret with `VITE_`, log it, commit it, or send it to a browser.
+`SUPABASE_PUBLISHABLE_KEY` is deliberately public and is also used by the API client to support every Supabase signing-key mode. `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, and a production `REDIS_URL` containing credentials are secrets. Never prefix these secrets with `VITE_`, log them, commit them, or send them to a browser.
 
 ## Workspace conventions
 

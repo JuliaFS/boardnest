@@ -1,4 +1,5 @@
 import type { Task } from '../graphql/domain.js';
+import { AsyncEventQueue } from './async-event-queue.js';
 
 export type TaskEventKind = 'created' | 'deleted' | 'updated';
 
@@ -10,11 +11,12 @@ export interface TaskEvent {
 }
 
 export interface RealtimeEventBus {
+  close: () => Promise<void>;
   publishTask: (event: TaskEvent) => Promise<void>;
   subscribeToTasks: (
     projectId: string,
     kind: TaskEventKind,
-  ) => AsyncIterable<TaskEvent>;
+  ) => Promise<AsyncIterable<TaskEvent>>;
 }
 
 interface Subscriber {
@@ -27,6 +29,14 @@ export function createInMemoryEventBus(): RealtimeEventBus {
   const subscribers = new Set<Subscriber>();
 
   return {
+    async close() {
+      await Promise.all(
+        [...subscribers].map(({ queue }) =>
+          queue.return().then(() => undefined),
+        ),
+      );
+    },
+
     publishTask(event) {
       for (const subscriber of subscribers) {
         if (
@@ -45,49 +55,7 @@ export function createInMemoryEventBus(): RealtimeEventBus {
       });
       const subscriber = { kind, projectId, queue };
       subscribers.add(subscriber);
-      return queue;
+      return Promise.resolve(queue);
     },
   };
-}
-
-class AsyncEventQueue<T> implements AsyncIterableIterator<T> {
-  readonly #onClose: () => void;
-  readonly #pending: Array<(result: IteratorResult<T>) => void> = [];
-  readonly #values: T[] = [];
-  #closed = false;
-
-  constructor(onClose: () => void) {
-    this.#onClose = onClose;
-  }
-
-  [Symbol.asyncIterator](): AsyncIterableIterator<T> {
-    return this;
-  }
-
-  next(): Promise<IteratorResult<T>> {
-    const value = this.#values.shift();
-    if (value) return Promise.resolve({ done: false, value });
-    if (this.#closed) return Promise.resolve({ done: true, value: undefined });
-
-    return new Promise((resolve) => this.#pending.push(resolve));
-  }
-
-  push(value: T): void {
-    if (this.#closed) return;
-    const resolve = this.#pending.shift();
-    if (resolve) resolve({ done: false, value });
-    else this.#values.push(value);
-  }
-
-  return(): Promise<IteratorResult<T>> {
-    if (!this.#closed) {
-      this.#closed = true;
-      this.#onClose();
-      for (const resolve of this.#pending.splice(0)) {
-        resolve({ done: true, value: undefined });
-      }
-      this.#values.length = 0;
-    }
-    return Promise.resolve({ done: true, value: undefined });
-  }
 }

@@ -2,7 +2,7 @@
 
 Boardnest is a collaborative project management platform for organizing workspaces, projects, and tasks through Kanban boards, role-based permissions, and real-time updates.
 
-> Status: Phase 7 complete — authenticated GraphQL subscriptions now keep Kanban tasks synchronized across connected clients.
+> Status: Phase 8 complete — Redis Pub/Sub distributes authenticated Kanban task events across API instances.
 
 ## Planned features
 
@@ -34,6 +34,7 @@ docs/                  Architecture and development documentation
 
 - Node.js 24.21.0 LTS
 - pnpm 12.4.2
+- Docker with Docker Compose for local Redis
 
 Using the pinned versions is recommended. The repository also declares compatible ranges in `package.json`.
 
@@ -44,6 +45,7 @@ corepack enable
 corepack prepare pnpm@12.4.2 --activate
 pnpm install
 cp .env.example .env
+pnpm redis:up
 pnpm dev
 ```
 
@@ -61,6 +63,10 @@ pnpm check
 ```
 
 `pnpm check` runs formatting, linting, type checking, tests, and builds in sequence.
+
+Local real-time development also provides `pnpm redis:up`, `pnpm redis:logs`,
+and `pnpm redis:down`. The Compose service contains only ephemeral Pub/Sub data;
+PostgreSQL remains the source of truth.
 
 ## Environment variables
 
@@ -84,7 +90,12 @@ The React application uses a responsive Tailwind CSS shell and Apollo Client for
 
 Phase 6 adds validated workspace, project, and task forms; project/task editing and deletion; Kanban filtering; and optimistic task movement persisted through GraphQL.
 
-Phase 7 adds authenticated task-created, task-updated, and task-deleted subscriptions. Apollo routes only subscriptions over WebSocket and merges incoming events into the active Kanban board. See [WebSockets](docs/WEBSOCKETS.md) for the lifecycle and current single-instance limitation.
+Phase 7 adds authenticated task-created, task-updated, and task-deleted subscriptions. Apollo routes only subscriptions over WebSocket and merges incoming events into the active Kanban board. See [WebSockets](docs/WEBSOCKETS.md) for the connection lifecycle and security model.
+
+Phase 8 replaces the process-local event transport with Redis Pub/Sub. Dedicated
+publisher and subscriber connections allow mutations received by one API
+instance to reach WebSocket clients connected to another. See
+[Redis](docs/REDIS.md) for local and production configuration.
 
 ## Architecture
 
@@ -97,7 +108,7 @@ The system boundaries, dependency rules, multi-tenancy model, and security appro
 - **GraphQL and Apollo** provide the typed application API and targeted real-time task subscriptions.
 - **Node.js** lets the backend share language and selected types with the frontend while supporting HTTP and WebSocket workloads.
 - **WebSockets** deliver task changes without polling; later collaboration events can use the same transport.
-- **Redis** will distribute subscription events between multiple API instances; it is not the source of truth.
+- **Redis** distributes subscription events between multiple API instances; it is not the source of truth.
 - **Supabase** provides managed PostgreSQL and authentication while retaining a SQL-first data model.
 - **Docker** will make the API and Redis development environment reproducible.
 - **GitHub Actions** will enforce formatting, linting, type checking, tests, and builds before merge.

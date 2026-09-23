@@ -17,6 +17,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint . --max-warnings 0",
+    "redis:down": "docker compose stop redis",
+    "redis:logs": "docker compose logs -f redis",
+    "redis:up": "docker compose up -d --wait redis",
     "test": "pnpm --recursive --if-present test",
     "typecheck": "pnpm --recursive --if-present typecheck"
   },

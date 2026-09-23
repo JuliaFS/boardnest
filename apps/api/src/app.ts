@@ -47,7 +47,13 @@ export interface ServerOptions {
   secureCookies: boolean;
 }
 
-export async function createServer(options: ServerOptions): Promise<Server> {
+export interface BoardnestServer extends Server {
+  shutdown: () => Promise<void>;
+}
+
+export async function createServer(
+  options: ServerOptions,
+): Promise<BoardnestServer> {
   const app = express();
   const httpServer = createHttpServer(app);
   const events = options.events ?? createInMemoryEventBus();
@@ -100,6 +106,7 @@ export async function createServer(options: ServerOptions): Promise<Server> {
           return Promise.resolve({
             async drainServer() {
               await websocketCleanup.dispose();
+              await events.close();
             },
           });
         },
@@ -272,7 +279,9 @@ export async function createServer(options: ServerOptions): Promise<Server> {
     response.status(404).json({ error: 'Not found' });
   });
 
-  return httpServer;
+  return Object.assign(httpServer, {
+    shutdown: () => apollo.stop(),
+  });
 }
 
 function trustedOrigin(expectedOrigin: string) {

@@ -56,11 +56,10 @@ PostgreSQL is the source of truth. Redis carries ephemeral events and may later 
 
 ### Real-time delivery
 
-A successful database mutation publishes a project-scoped event. GraphQL
-subscriptions deliver it to connected clients only after the subscription has
-verified access through the user's RLS-aware data service. Phase 7 uses an
-in-memory event bus for one API process. Phase 8 will distribute those events
-through Redis so the same contract works across multiple API instances.
+A successful database mutation publishes a versioned, project-scoped event.
+Redis distributes it to every interested API instance, and GraphQL subscriptions
+deliver it to connected clients only after the subscription verifies access
+through the user's RLS-aware data service.
 
 ## Runtime architecture
 
@@ -178,5 +177,20 @@ connection only when a board is active.
 Task creation, update, movement, and deletion publish events only after a
 successful database write. The board applies those payloads idempotently by
 task ID and keeps optimistic drag-and-drop behavior. The process-local event
-bus is deliberately isolated behind an interface because it cannot cross
-process boundaries; Redis Pub/Sub replaces that implementation in Phase 8.
+bus was deliberately isolated behind an interface because it could not cross
+process boundaries; Phase 8 replaces that implementation with Redis Pub/Sub.
+
+## Phase 8 Redis Pub/Sub decisions
+
+The API uses the official `node-redis` client with separate publisher and
+subscribe-only connections. Channels are versioned and scoped by project and
+event kind, preventing every API instance from receiving unrelated tenant
+traffic. JSON payloads are validated at both serialization and consumption
+boundaries before reaching a WebSocket subscriber.
+
+Redis Pub/Sub is deliberately ephemeral and at-most-once. A missed event is
+recovered from PostgreSQL by the board query after reconnect; Redis never owns
+task state. The API fails fast when its initial Redis connection cannot be
+established. A later publish failure is logged but does not report a persisted
+database mutation as failed. Graceful shutdown unsubscribes active iterators and
+closes both Redis connections.
