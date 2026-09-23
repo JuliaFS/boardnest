@@ -111,10 +111,9 @@ user's RLS-aware data service before joining the event stream. Task mutations
 publish only after persistence succeeds. Direct database edits do not emit
 application events.
 
-Phase 7 uses a process-local event bus behind a small interface. This is correct
-for one API instance and keeps transport concerns outside resolvers. Phase 8
-will replace event distribution with Redis Pub/Sub so mutations and WebSocket
-clients can be handled by different API instances.
+The subscription resolvers depend on a small event-bus interface rather than a
+Redis client. Phase 8 implements that interface with Redis Pub/Sub so mutations
+and WebSocket clients can be handled by different API instances.
 
 ## Authentication, authorization, and errors
 
@@ -150,8 +149,8 @@ batching use case would add unused abstraction. When fields such as
 `Task.assignees` are added, loaders must be request-scoped and preserve RLS.
 
 Apollo Client owns normalized browser cache state. The API does not cache
-mutable authorization-sensitive rows. Redis arrives in Phase 8 for event
-distribution, not as the source of truth.
+mutable authorization-sensitive rows. Redis provides event distribution, not
+durable storage or an authorization boundary.
 
 GraphQL fits Boardnest because dashboard, board, and detail screens need
 different shapes of connected data, and subscriptions share the same schema.

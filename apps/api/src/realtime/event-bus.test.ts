@@ -21,9 +21,9 @@ const task = {
 describe('in-memory real-time event bus', () => {
   it('delivers only matching project and event type messages', async () => {
     const events = createInMemoryEventBus();
-    const subscription = events
-      .subscribeToTasks(task.project_id, 'created')
-      [Symbol.asyncIterator]();
+    const subscription = (
+      await events.subscribeToTasks(task.project_id, 'created')
+    )[Symbol.asyncIterator]();
 
     await events.publishTask({
       kind: 'updated',
@@ -52,9 +52,9 @@ describe('in-memory real-time event bus', () => {
 
   it('completes pending reads when a subscriber disconnects', async () => {
     const events = createInMemoryEventBus();
-    const subscription = events
-      .subscribeToTasks(task.project_id, 'deleted')
-      [Symbol.asyncIterator]();
+    const subscription = (
+      await events.subscribeToTasks(task.project_id, 'deleted')
+    )[Symbol.asyncIterator]();
     const pending = subscription.next();
 
     await subscription.return?.();
