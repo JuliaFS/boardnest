@@ -15,20 +15,6 @@ COPY . .
 RUN --mount=type=cache,id=boardnest-pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile
 
-FROM dependencies AS api-build
-RUN pnpm --filter @boardnest/api build
-RUN pnpm --filter @boardnest/api deploy --prod /prod/api
-
-FROM node:${NODE_VERSION}-alpine AS api-runtime
-ENV NODE_ENV=production
-WORKDIR /app
-COPY --from=api-build --chown=node:node /prod/api ./
-USER node
-EXPOSE 4000
-HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=5 \
-  CMD wget -q -O /dev/null http://127.0.0.1:4000/health || exit 1
-CMD ["node", "dist/server.js"]
-
 FROM dependencies AS web-build
 ARG VITE_API_URL=http://localhost:4000
 ARG VITE_GRAPHQL_URL=http://localhost:4000/graphql
@@ -47,3 +33,20 @@ HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=5 \
   CMD wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1
 ENTRYPOINT []
 CMD ["nginx", "-g", "daemon off;"]
+
+# Keep the API runtime as the final stage so Railway's default root-Dockerfile
+# build deploys the backend. Docker Compose selects both targets explicitly.
+FROM dependencies AS api-build
+RUN pnpm --filter @boardnest/api build
+RUN pnpm --filter @boardnest/api deploy --prod /prod/api
+
+FROM node:${NODE_VERSION}-alpine AS api-runtime
+ENV NODE_ENV=production
+ENV PORT=4000
+WORKDIR /app
+COPY --from=api-build --chown=node:node /prod/api ./
+USER node
+EXPOSE 4000
+HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=5 \
+  CMD wget -q -O /dev/null "http://127.0.0.1:${PORT}/health" || exit 1
+CMD ["node", "dist/server.js"]

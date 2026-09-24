@@ -78,16 +78,20 @@ The frontend has no Supabase key and no JavaScript access to authentication toke
 These values are read only by the API process:
 
 - `API_URL`
+- `COOKIE_SAME_SITE`
 - `SUPABASE_URL`
 - `SUPABASE_PUBLISHABLE_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `DATABASE_URL`
 - `REDIS_URL`
 - `PORT`
 - `CORS_ORIGIN`
 - `NODE_ENV`
 
-`SUPABASE_PUBLISHABLE_KEY` is deliberately public and is also used by the API client to support every Supabase signing-key mode. `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, and a production `REDIS_URL` containing credentials are secrets. Never prefix these secrets with `VITE_`, log them, commit them, or send them to a browser.
+`SUPABASE_PUBLISHABLE_KEY` is deliberately public and is also used by the API
+client to support every Supabase signing-key mode. The service-role key and
+direct database URL shown as reserved placeholders in `.env.example` are not
+used by the application. They and a production `REDIS_URL` containing
+credentials are secrets. Never prefix secrets with `VITE_`, log them, commit
+them, or send them to a browser.
 
 ## Workspace conventions
 

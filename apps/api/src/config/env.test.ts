@@ -14,6 +14,7 @@ describe('API environment', () => {
       }),
     ).toEqual({
       API_URL: 'http://localhost:4000',
+      COOKIE_SAME_SITE: 'lax',
       CORS_ORIGIN: 'http://localhost:5173',
       NODE_ENV: 'development',
       PORT: 4000,
@@ -34,5 +35,18 @@ describe('API environment', () => {
         SUPABASE_URL: 'https://example.supabase.co',
       }),
     ).toThrow('Invalid API environment configuration');
+  });
+
+  it('only allows cross-site cookies in production', () => {
+    expect(() =>
+      parseEnvironment({
+        API_URL: 'http://localhost:4000',
+        COOKIE_SAME_SITE: 'none',
+        CORS_ORIGIN: 'http://localhost:5173',
+        REDIS_URL: 'redis://localhost:6379',
+        SUPABASE_PUBLISHABLE_KEY: 'test-key',
+        SUPABASE_URL: 'https://example.supabase.co',
+      }),
+    ).toThrow('COOKIE_SAME_SITE=none requires NODE_ENV=production');
   });
 });

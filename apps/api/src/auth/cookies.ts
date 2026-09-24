@@ -9,8 +9,11 @@ const pkceCookieMaxAge = 60 * 60 * 24;
 
 interface CookieOptions {
   maxAge: number;
+  sameSite: CookieSameSite;
   secure: boolean;
 }
+
+export type CookieSameSite = 'Lax' | 'None';
 
 export interface AuthCookies {
   accessToken: string | null;
@@ -29,13 +32,16 @@ export function setSessionCookies(
   response: ServerResponse,
   session: Session,
   secure: boolean,
+  sameSite: CookieSameSite = 'Lax',
 ): void {
   appendCookie(response, accessCookieName, session.access_token, {
     maxAge: session.expires_in,
+    sameSite,
     secure,
   });
   appendCookie(response, refreshCookieName, session.refresh_token, {
     maxAge: refreshCookieMaxAge,
+    sameSite,
     secure,
   });
   preventCaching(response);
@@ -44,9 +50,14 @@ export function setSessionCookies(
 export function clearSessionCookies(
   response: ServerResponse,
   secure: boolean,
+  sameSite: CookieSameSite = 'Lax',
 ): void {
-  appendCookie(response, accessCookieName, '', { maxAge: 0, secure });
-  appendCookie(response, refreshCookieName, '', { maxAge: 0, secure });
+  appendCookie(response, accessCookieName, '', { maxAge: 0, sameSite, secure });
+  appendCookie(response, refreshCookieName, '', {
+    maxAge: 0,
+    sameSite,
+    secure,
+  });
   preventCaching(response);
 }
 
@@ -54,15 +65,18 @@ export class PkceCookieStorage {
   readonly isServer = true;
   readonly #cookies: Map<string, string>;
   readonly #response: ServerResponse;
+  readonly #sameSite: CookieSameSite;
   readonly #secure: boolean;
 
   constructor(
     request: IncomingMessage,
     response: ServerResponse,
     secure: boolean,
+    sameSite: CookieSameSite = 'Lax',
   ) {
     this.#cookies = parseCookies(request.headers.cookie);
     this.#response = response;
+    this.#sameSite = sameSite;
     this.#secure = secure;
   }
 
@@ -77,6 +91,7 @@ export class PkceCookieStorage {
     this.#cookies.set(name, value);
     appendCookie(this.#response, name, value, {
       maxAge: pkceCookieMaxAge,
+      sameSite: this.#sameSite,
       secure: this.#secure,
     });
     preventCaching(this.#response);
@@ -88,6 +103,7 @@ export class PkceCookieStorage {
     this.#cookies.delete(name);
     appendCookie(this.#response, name, '', {
       maxAge: 0,
+      sameSite: this.#sameSite,
       secure: this.#secure,
     });
     preventCaching(this.#response);
@@ -117,14 +133,14 @@ function appendCookie(
   response: ServerResponse,
   name: string,
   value: string,
-  { maxAge, secure }: CookieOptions,
+  { maxAge, sameSite, secure }: CookieOptions,
 ): void {
   const cookie = [
     `${name}=${encodeURIComponent(value)}`,
     'Path=/',
     `Max-Age=${maxAge}`,
     'HttpOnly',
-    'SameSite=Lax',
+    `SameSite=${sameSite}`,
     ...(secure ? ['Secure'] : []),
   ].join('; ');
   const current = response.getHeader('set-cookie');

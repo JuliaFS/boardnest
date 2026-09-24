@@ -13,7 +13,8 @@ stored in `localStorage` or returned in a JSON response.
 Authentication cookies use:
 
 - `HttpOnly` to block JavaScript access;
-- `SameSite=Lax` plus strict `Origin` validation on auth mutations for CSRF protection;
+- configurable `SameSite=Lax` or `SameSite=None` plus strict `Origin`
+  validation on auth and GraphQL mutations for CSRF protection;
 - `Secure` in production;
 - host-only scope and `Path=/`.
 
@@ -44,6 +45,12 @@ Both email-confirmation modes are supported:
 For production, replace both localhost origins with their HTTPS deployment URLs
 and allow the exact production API callback URL in Supabase.
 
+Prefer a frontend and API on subdomains of the same registered domain and use
+`COOKIE_SAME_SITE=lax`. Temporary `vercel.app` plus `railway.app` deployments
+need `COOKIE_SAME_SITE=none`, which always requires `Secure` production cookies
+and can still be affected by browser third-party-cookie blocking. See
+[Production deployment](DEPLOYMENT.md).
+
 ## Local configuration
 
 Copy `.env.example` to `.env`, then set:
@@ -52,6 +59,7 @@ Copy `.env.example` to `.env`, then set:
 VITE_API_URL=http://localhost:4000
 
 API_URL=http://localhost:4000
+COOKIE_SAME_SITE=lax
 SUPABASE_URL=https://your-project-ref.supabase.co
 SUPABASE_PUBLISHABLE_KEY=sb_publishable_your-public-key
 CORS_ORIGIN=http://localhost:5173

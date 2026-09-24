@@ -25,6 +25,7 @@ const server = await createServer({
     ),
   events,
   introspection: environment.NODE_ENV !== 'production',
+  cookieSameSite: environment.COOKIE_SAME_SITE === 'none' ? 'None' : 'Lax',
   secureCookies: environment.NODE_ENV === 'production',
 }).catch(async (error: unknown) => {
   await events.close();

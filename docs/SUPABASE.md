@@ -53,10 +53,10 @@ The Dashboard project settings provide:
 
 - Project URL → backend `SUPABASE_URL`
 - Public publishable key → backend `SUPABASE_PUBLISHABLE_KEY`
-- Server secret/service-role key → backend `SUPABASE_SERVICE_ROLE_KEY`
-- PostgreSQL connection string → backend `DATABASE_URL`
+- Server secret/service-role key, reserved for future privileged tooling
+- PostgreSQL connection string, reserved for CLI administration
 
-Boardnest uses the current `sb_publishable_...` key format on the API server. The browser does not receive a Supabase client or key. Use a server-only secret key only for future privileged backend operations.
+Boardnest uses the current `sb_publishable_...` key format on the API server. The browser does not receive a Supabase client or key. The deployed application needs only `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`. Use a server-only secret key only for future privileged backend operations.
 
 ## 5. Secret boundaries
 
@@ -84,8 +84,12 @@ CLI migration history. Phase 11 CI therefore never connects to or mutates the
 hosted database: replaying the historical files could duplicate objects that
 already exist.
 
-Before automated production migrations are enabled, Phase 12 must baseline the
-remote migration history against the reviewed files in `database/migrations`.
-After that transition, validate new migrations in an isolated database and
-apply them through the controlled deployment workflow. Do not make ad hoc
-production schema changes through Table Editor or SQL Editor.
+Before automated production migrations are enabled, baseline the remote schema
+with `supabase db pull`, carefully compare the generated timestamped baseline
+against the reviewed files in `database/migrations`, and confirm that it is
+recorded as applied remotely. Do this only after a backup; it is deliberately
+separate from application deployment. After that transition, validate new
+migrations in an isolated database and apply them through a controlled
+deployment step. Do not make ad hoc production schema changes through Table
+Editor or SQL Editor. See [Production deployment](DEPLOYMENT.md) for the exact
+boundary.
