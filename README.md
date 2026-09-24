@@ -2,7 +2,7 @@
 
 Boardnest is a collaborative project management platform for organizing workspaces, projects, and tasks through Kanban boards, role-based permissions, and real-time updates.
 
-> Status: Phase 9 complete — unit, component, integration, coverage, and browser E2E suites protect the critical workflows.
+> Status: Phase 10 complete — multi-stage API/web images and a health-checked Docker Compose stack provide a reproducible local runtime.
 
 ## Planned features
 
@@ -34,7 +34,7 @@ docs/                  Architecture and development documentation
 
 - Node.js 24.21.0 LTS
 - pnpm 12.4.2
-- Docker with Docker Compose for local Redis
+- Docker Engine with Docker Compose v2
 
 Using the pinned versions is recommended. The repository also declares compatible ranges in `package.json`.
 
@@ -50,6 +50,22 @@ pnpm dev
 ```
 
 The web application runs on `http://localhost:5173`. The API health endpoint runs on `http://localhost:4000/health`. The protected session check is available at `http://localhost:4000/auth/me`. GraphQL uses `http://localhost:4000/graphql` for queries and mutations and `ws://localhost:4000/graphql` for subscriptions.
+
+## Docker
+
+After configuring the real Supabase values in `.env`, build and start the full
+local stack:
+
+```bash
+pnpm docker:up
+```
+
+The containerized web application is available at `http://localhost:8080`;
+the API remains at `http://localhost:4000`. Use `pnpm docker:logs` to follow
+all services and `pnpm docker:down` to remove the local containers and network.
+Supabase remains external and Redis data remains ephemeral. See
+[Docker](docs/DOCKER.md) for architecture, commands, troubleshooting, and
+production considerations.
 
 ## Quality checks
 
@@ -107,6 +123,11 @@ forms, authentication routing, and a complete Playwright Kanban workflow.
 Coverage thresholds prevent regression while Redis and database integration
 checks remain explicit. See [Testing](docs/TESTING.md).
 
+Phase 10 adds a single multi-stage Dockerfile with independent API and web
+runtime targets. Docker Compose builds both targets, waits for Redis and API
+health checks, and runs the services with read-only filesystems and
+non-privileged application users.
+
 ## Architecture
 
 The system boundaries, dependency rules, multi-tenancy model, and security approach are described in [Architecture](docs/ARCHITECTURE.md).
@@ -120,7 +141,8 @@ The system boundaries, dependency rules, multi-tenancy model, and security appro
 - **WebSockets** deliver task changes without polling; later collaboration events can use the same transport.
 - **Redis** distributes subscription events between multiple API instances; it is not the source of truth.
 - **Supabase** provides managed PostgreSQL and authentication while retaining a SQL-first data model.
-- **Docker** will make the API and Redis development environment reproducible.
+- **Docker** packages the API and static web build into reproducible,
+  least-privilege runtime images; Compose coordinates them with Redis locally.
 - **GitHub Actions** will enforce formatting, linting, type checking, tests, and builds before merge.
 - **Vercel** fits the static Vite frontend, while **Railway** supports the long-running API and WebSocket process.
 

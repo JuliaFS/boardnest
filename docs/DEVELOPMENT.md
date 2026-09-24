@@ -14,22 +14,27 @@ pnpm install
 
 ## Commands
 
-| Command              | Purpose                                |
-| -------------------- | -------------------------------------- |
-| `pnpm dev`           | Run web and API development processes  |
-| `pnpm format`        | Format supported repository files      |
-| `pnpm format:check`  | Verify formatting without edits        |
-| `pnpm lint`          | Run ESLint with zero warnings allowed  |
-| `pnpm redis:up`      | Start and health-check local Redis     |
-| `pnpm redis:logs`    | Follow local Redis container logs      |
-| `pnpm redis:down`    | Stop the local Redis container         |
-| `pnpm typecheck`     | Type-check every applicable workspace  |
-| `pnpm test`          | Run workspace tests once               |
-| `pnpm test:coverage` | Run API/web tests with coverage gates  |
-| `pnpm test:e2e`      | Run Playwright tests in Chromium       |
-| `pnpm test:e2e:ui`   | Open the interactive Playwright runner |
-| `pnpm build`         | Produce application and package builds |
-| `pnpm check`         | Run the complete local quality gate    |
+| Command              | Purpose                                 |
+| -------------------- | --------------------------------------- |
+| `pnpm dev`           | Run web and API development processes   |
+| `pnpm docker:build`  | Build the API and web container images  |
+| `pnpm docker:config` | Validate resolved Compose configuration |
+| `pnpm docker:up`     | Build and start the full Docker stack   |
+| `pnpm docker:logs`   | Follow web, API, and Redis logs         |
+| `pnpm docker:down`   | Remove the local Docker stack           |
+| `pnpm format`        | Format supported repository files       |
+| `pnpm format:check`  | Verify formatting without edits         |
+| `pnpm lint`          | Run ESLint with zero warnings allowed   |
+| `pnpm redis:up`      | Start and health-check local Redis      |
+| `pnpm redis:logs`    | Follow local Redis container logs       |
+| `pnpm redis:down`    | Stop the local Redis container          |
+| `pnpm typecheck`     | Type-check every applicable workspace   |
+| `pnpm test`          | Run workspace tests once                |
+| `pnpm test:coverage` | Run API/web tests with coverage gates   |
+| `pnpm test:e2e`      | Run Playwright tests in Chromium        |
+| `pnpm test:e2e:ui`   | Open the interactive Playwright runner  |
+| `pnpm build`         | Produce application and package builds  |
+| `pnpm check`         | Run the complete local quality gate     |
 
 Run `pnpm check` before opening a pull request.
 
@@ -107,3 +112,8 @@ Use focused commits with Conventional Commit prefixes such as `feat:`, `fix:`, `
 
 Both transports use the same GraphQL schema and path. Queries and mutations use
 HTTP; subscriptions use the `graphql-transport-ws` WebSocket protocol.
+
+For the containerized workflow, the web application uses
+`http://localhost:8080` while the API remains on port `4000`. Do not run
+`pnpm dev` and `pnpm docker:up` simultaneously with the default ports.
+Detailed setup and port override examples are in [Docker](DOCKER.md).
