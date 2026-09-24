@@ -1,0 +1,82 @@
+name: Production deployment
+
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: Deployment gate
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.configuration.outputs.enabled }}
+      sha: ${{ steps.revision.outputs.sha }}
+    steps:
+      - name: Resolve revision
+        id: revision
+        env:
+          WORKFLOW_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          echo "sha=$WORKFLOW_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Read deployment configuration
+        id: configuration
+        env:
+          DEPLOYMENTS_ENABLED: ${{ vars.PRODUCTION_DEPLOYMENTS_ENABLED }}
+        run: |
+          if [ "$DEPLOYMENTS_ENABLED" = "true" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Production deployment is enabled." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Production deployment is disabled until Phase 12 configuration is complete." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  deploy:
+    name: Deploy production
+    needs: plan
+    if: needs.plan.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_WEB_URL }}
+    steps:
+      - name: Check out verified revision
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.4.2
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Deploy API to Railway
+        env:
+          RAILWAY_SERVICE: ${{ vars.RAILWAY_SERVICE }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: pnpm dlx @railway/cli@5.62.1 up --ci --service "$RAILWAY_SERVICE"
+
+      - name: Trigger Vercel production deployment
+        env:
+          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: curl --fail --silent --show-error --request POST "$VERCEL_DEPLOY_HOOK_URL"

@@ -26,6 +26,7 @@
     "redis:logs": "docker compose logs -f redis",
     "redis:up": "docker compose up -d --wait redis",
     "test": "pnpm --recursive --if-present test",
+    "test:ci": "pnpm --filter @boardnest/shared test && pnpm --filter @boardnest/api --filter @boardnest/web --parallel test:coverage",
     "test:coverage": "pnpm --filter @boardnest/api --filter @boardnest/web --parallel test:coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
