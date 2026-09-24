@@ -1,0 +1,126 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: 'true'
+
+jobs:
+  quality:
+    name: Quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.4.2
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Type-check
+        run: pnpm typecheck
+
+      - name: Run tests with coverage thresholds
+        run: pnpm test:ci
+
+      - name: Build applications and packages
+        run: pnpm build
+
+  e2e:
+    name: End-to-end
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.4.2
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium and system dependencies
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        run: pnpm test:e2e
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-${{ github.run_attempt }}
+          path: playwright-report/
+          if-no-files-found: error
+          retention-days: 14
+
+  docker:
+    name: Docker images
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SUPABASE_PUBLISHABLE_KEY: ci-placeholder
+      SUPABASE_URL: https://example.supabase.co
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Validate Compose configuration
+        run: docker compose config --quiet
+
+      - name: Check Dockerfile
+        run: docker build --check --target api-runtime .
+
+      - name: Build API image
+        run: docker build --target api-runtime --tag boardnest-api:ci .
+
+      - name: Build web image
+        run: docker build --target web-runtime --tag boardnest-web:ci .

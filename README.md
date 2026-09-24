@@ -2,7 +2,7 @@
 
 Boardnest is a collaborative project management platform for organizing workspaces, projects, and tasks through Kanban boards, role-based permissions, and real-time updates.
 
-> Status: Phase 10 complete — multi-stage API/web images and a health-checked Docker Compose stack provide a reproducible local runtime.
+> Status: Phase 11 complete — GitHub Actions enforce quality, browser, and Docker gates, with protected production delivery prepared for Phase 12.
 
 ## Planned features
 
@@ -85,6 +85,11 @@ builds, and Chromium E2E tests in sequence. Install the pinned browser once
 with `pnpm exec playwright install chromium`. See
 [Testing](docs/TESTING.md) for suite boundaries and external integration checks.
 
+GitHub Actions repeats these checks from a clean checkout for pull requests and
+`main`, enforces coverage thresholds, builds both Docker runtime targets, and
+retains failed Playwright reports. Production delivery remains disabled until
+the provider environment is configured in Phase 12. See [CI/CD](docs/CI-CD.md).
+
 Local real-time development also provides `pnpm redis:up`, `pnpm redis:logs`,
 and `pnpm redis:down`. The Compose service contains only ephemeral Pub/Sub data;
 PostgreSQL remains the source of truth.
@@ -128,6 +133,11 @@ runtime targets. Docker Compose builds both targets, waits for Redis and API
 health checks, and runs the services with read-only filesystems and
 non-privileged application users.
 
+Phase 11 adds separate CI and production deployment workflows. CI validates
+formatting, linting, types, coverage, builds, browser workflows, Compose, and
+both runtime images. CD accepts only a successful `main` CI revision and stays
+explicitly disabled until production credentials are configured in Phase 12.
+
 ## Architecture
 
 The system boundaries, dependency rules, multi-tenancy model, and security approach are described in [Architecture](docs/ARCHITECTURE.md).
@@ -143,7 +153,8 @@ The system boundaries, dependency rules, multi-tenancy model, and security appro
 - **Supabase** provides managed PostgreSQL and authentication while retaining a SQL-first data model.
 - **Docker** packages the API and static web build into reproducible,
   least-privilege runtime images; Compose coordinates them with Redis locally.
-- **GitHub Actions** will enforce formatting, linting, type checking, tests, and builds before merge.
+- **GitHub Actions** enforces formatting, linting, type checking, coverage,
+  E2E behavior, and container builds before deployment.
 - **Vercel** fits the static Vite frontend, while **Railway** supports the long-running API and WebSocket process.
 
 Detailed decision records and trade-offs live in [Architecture](docs/ARCHITECTURE.md).

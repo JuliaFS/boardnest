@@ -220,3 +220,18 @@ healthy before the API starts, and the API must become healthy before the web
 container starts. Services communicate over the private Compose network;
 only host-facing development ports are published. Supabase stays external
 because it is the managed development and production database/auth provider.
+
+## Phase 11 CI/CD decisions
+
+CI and production delivery use separate GitHub Actions workflows so untrusted
+pull-request code never enters a job with deployment credentials. The CI token
+is read-only, installs the frozen lockfile on the pinned toolchain, and treats
+formatting, linting, types, coverage, application builds, browser workflows,
+Compose validation, and both Docker targets as merge gates.
+
+Production delivery is downstream of a successful `main` CI run and resolves
+the verified commit SHA. A protected GitHub `production` environment owns its
+provider credentials and an explicit enable switch keeps delivery dormant until
+Phase 12 completes the Railway and Vercel projects. Deployment runs are
+serialized; application rollback restores a previous healthy provider release,
+while database changes use forward corrective migrations.

@@ -9,8 +9,9 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  reporter: process.env.CI ? 'github' : 'list',
+  reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
   retries: process.env.CI ? 2 : 0,
+  workers: process.env.CI ? 1 : undefined,
   testDir: './apps/web/e2e',
   use: {
     baseURL: 'http://127.0.0.1:4173',

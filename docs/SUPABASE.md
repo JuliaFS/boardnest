@@ -77,6 +77,15 @@ Supabase Auth owns users, credentials, sessions, and password recovery. Boardnes
 
 Deleting an Auth user can fail while that user is recorded as a workspace creator or the final owner. Transfer ownership and remove/reassign protected references before account deletion.
 
-## 7. Future CLI workflow
+## 7. Migration automation boundary
 
-Manual SQL Editor execution is appropriate for the current learning/review stage. Before automated deployment, Phase 11 will adopt Supabase CLI migration history so schema changes are applied consistently by CI. After that transition, remote schema changes must not be made ad hoc through Table Editor or SQL Editor.
+The initial schema was applied manually before the hosted project had Supabase
+CLI migration history. Phase 11 CI therefore never connects to or mutates the
+hosted database: replaying the historical files could duplicate objects that
+already exist.
+
+Before automated production migrations are enabled, Phase 12 must baseline the
+remote migration history against the reviewed files in `database/migrations`.
+After that transition, validate new migrations in an isolated database and
+apply them through the controlled deployment workflow. Do not make ad hoc
+production schema changes through Table Editor or SQL Editor.

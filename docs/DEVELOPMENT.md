@@ -30,6 +30,7 @@ pnpm install
 | `pnpm redis:down`    | Stop the local Redis container          |
 | `pnpm typecheck`     | Type-check every applicable workspace   |
 | `pnpm test`          | Run workspace tests once                |
+| `pnpm test:ci`       | Run shared tests and API/web coverage   |
 | `pnpm test:coverage` | Run API/web tests with coverage gates   |
 | `pnpm test:e2e`      | Run Playwright tests in Chromium        |
 | `pnpm test:e2e:ui`   | Open the interactive Playwright runner  |
@@ -117,3 +118,11 @@ For the containerized workflow, the web application uses
 `http://localhost:8080` while the API remains on port `4000`. Do not run
 `pnpm dev` and `pnpm docker:up` simultaneously with the default ports.
 Detailed setup and port override examples are in [Docker](DOCKER.md).
+
+## Continuous integration
+
+Pull requests targeting `main` run the same formatting, linting, type, test,
+build, E2E, and Docker checks from a clean GitHub-hosted runner. Run both
+`pnpm check` and `pnpm test:ci` locally before pushing. Workflow behavior,
+required branch checks, secrets, deployment gating, and rollback are documented
+in [CI/CD](CI-CD.md).
