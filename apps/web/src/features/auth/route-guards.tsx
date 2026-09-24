@@ -17,11 +17,27 @@ export function ProtectedRoute() {
 
 export function PublicOnlyRoute() {
   const { isLoading, user } = useAuth();
+  const location = useLocation();
 
   if (isLoading) return <FullPageLoader />;
-  if (user) return <Navigate replace to="/dashboard" />;
+  if (user) return <Navigate replace to={returnPath(location.state)} />;
 
   return <Outlet />;
+}
+
+function returnPath(state: unknown): string {
+  if (
+    typeof state === 'object' &&
+    state !== null &&
+    'from' in state &&
+    typeof state.from === 'string' &&
+    state.from.startsWith('/') &&
+    !state.from.startsWith('//')
+  ) {
+    return state.from;
+  }
+
+  return '/dashboard';
 }
 
 function FullPageLoader() {

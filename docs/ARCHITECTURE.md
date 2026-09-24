@@ -194,3 +194,16 @@ task state. The API fails fast when its initial Redis connection cannot be
 established. A later publish failure is logged but does not report a persisted
 database mutation as failed. Graceful shutdown unsubscribes active iterators and
 closes both Redis connections.
+
+## Phase 9 testing decisions
+
+The test pyramid keeps fast domain and resolver checks in Vitest, renders
+GraphQL-aware forms with React Testing Library and Apollo's `MockedProvider`,
+and reserves Playwright for critical user journeys. Browser tests run the real
+React application with a stateful transport fixture, while API integration
+tests exercise the real HTTP and WebSocket servers. This avoids coupling the
+default suite to hosted Supabase data without reducing transport coverage.
+
+Coverage thresholds are baselines rather than vanity targets: they fail on
+regression and can rise as later phases add behavior. Destructive PostgreSQL
+RLS checks and live Redis checks remain explicit opt-in integration suites.

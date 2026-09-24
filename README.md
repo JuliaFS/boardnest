@@ -2,7 +2,7 @@
 
 Boardnest is a collaborative project management platform for organizing workspaces, projects, and tasks through Kanban boards, role-based permissions, and real-time updates.
 
-> Status: Phase 8 complete — Redis Pub/Sub distributes authenticated Kanban task events across API instances.
+> Status: Phase 9 complete — unit, component, integration, coverage, and browser E2E suites protect the critical workflows.
 
 ## Planned features
 
@@ -58,11 +58,16 @@ pnpm format:check
 pnpm lint
 pnpm typecheck
 pnpm test
+pnpm test:coverage
+pnpm test:e2e
 pnpm build
 pnpm check
 ```
 
-`pnpm check` runs formatting, linting, type checking, tests, and builds in sequence.
+`pnpm check` runs formatting, linting, type checking, unit/component tests,
+builds, and Chromium E2E tests in sequence. Install the pinned browser once
+with `pnpm exec playwright install chromium`. See
+[Testing](docs/TESTING.md) for suite boundaries and external integration checks.
 
 Local real-time development also provides `pnpm redis:up`, `pnpm redis:logs`,
 and `pnpm redis:down`. The Compose service contains only ephemeral Pub/Sub data;
@@ -96,6 +101,11 @@ Phase 8 replaces the process-local event transport with Redis Pub/Sub. Dedicated
 publisher and subscriber connections allow mutations received by one API
 instance to reach WebSocket clients connected to another. See
 [Redis](docs/REDIS.md) for local and production configuration.
+
+Phase 9 expands meaningful coverage across GraphQL workflow resolvers, React
+forms, authentication routing, and a complete Playwright Kanban workflow.
+Coverage thresholds prevent regression while Redis and database integration
+checks remain explicit. See [Testing](docs/TESTING.md).
 
 ## Architecture
 
