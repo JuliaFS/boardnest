@@ -51,6 +51,9 @@ jobs:
     environment:
       name: production
       url: ${{ vars.PRODUCTION_WEB_URL }}
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
     steps:
       - name: Check out verified revision
         uses: actions/checkout@v6
@@ -70,13 +73,32 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
 
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Deploy API to Railway
         env:
           RAILWAY_SERVICE: ${{ vars.RAILWAY_SERVICE }}
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: pnpm dlx @railway/cli@5.62.1 up --ci --service "$RAILWAY_SERVICE"
 
-      - name: Trigger Vercel production deployment
+      - name: Pull Vercel production configuration
         env:
-          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
-        run: curl --fail --silent --show-error --request POST "$VERCEL_DEPLOY_HOOK_URL"
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: pnpm dlx --allow-build esbuild vercel@58.4.4 pull --yes --environment=production --token "$VERCEL_TOKEN" --cwd apps/web
+
+      - name: Build Vercel production deployment
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: pnpm dlx --allow-build esbuild vercel@58.4.4 build --prod --token "$VERCEL_TOKEN" --cwd apps/web
+
+      - name: Deploy web to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: pnpm dlx --allow-build esbuild vercel@58.4.4 deploy --prebuilt --prod --token "$VERCEL_TOKEN" --cwd apps/web
+
+      - name: Verify production endpoints
+        env:
+          PRODUCTION_API_URL: ${{ vars.PRODUCTION_API_URL }}
+          PRODUCTION_WEB_URL: ${{ vars.PRODUCTION_WEB_URL }}
+        run: pnpm smoke:production

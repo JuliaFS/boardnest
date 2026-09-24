@@ -2,7 +2,7 @@
 
 Boardnest is a collaborative project management platform for organizing workspaces, projects, and tasks through Kanban boards, role-based permissions, and real-time updates.
 
-> Status: Phase 11 complete — GitHub Actions enforce quality, browser, and Docker gates, with protected production delivery prepared for Phase 12.
+> Status: Phase 12 deployment configuration complete — provider activation and production verification follow the checked-in deployment runbook.
 
 ## Planned features
 
@@ -88,7 +88,8 @@ with `pnpm exec playwright install chromium`. See
 GitHub Actions repeats these checks from a clean checkout for pull requests and
 `main`, enforces coverage thresholds, builds both Docker runtime targets, and
 retains failed Playwright reports. Production delivery remains disabled until
-the provider environment is configured in Phase 12. See [CI/CD](docs/CI-CD.md).
+the provider environments and explicit enable switch are configured. See
+[CI/CD](docs/CI-CD.md) and [Deployment](docs/DEPLOYMENT.md).
 
 Local real-time development also provides `pnpm redis:up`, `pnpm redis:logs`,
 and `pnpm redis:down`. The Compose service contains only ephemeral Pub/Sub data;
@@ -137,6 +138,12 @@ Phase 11 adds separate CI and production deployment workflows. CI validates
 formatting, linting, types, coverage, builds, browser workflows, Compose, and
 both runtime images. CD accepts only a successful `main` CI revision and stays
 explicitly disabled until production credentials are configured in Phase 12.
+
+Phase 12 configures Vercel SPA routing, Railway's API image and dynamic health
+port, production cookie modes, pinned provider deployments, and automated
+production smoke checks. The deployment runbook covers Supabase callbacks,
+Upstash TLS Redis, custom domains, GitHub environment ownership, verification,
+and rollback. Real provider credentials remain outside the repository.
 
 ## Architecture
 

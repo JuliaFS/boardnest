@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { AuthService, PublicAuthUser } from './auth-service.js';
 import {
   clearSessionCookies,
+  type CookieSameSite,
   readAuthCookies,
   setSessionCookies,
 } from './cookies.js';
@@ -17,6 +18,7 @@ export async function resolveRequestSession(
   response: ServerResponse,
   authService: AuthService,
   secureCookies: boolean,
+  cookieSameSite: CookieSameSite = 'Lax',
 ): Promise<RequestSession | null> {
   const cookies = readAuthCookies(request);
 
@@ -34,13 +36,18 @@ export async function resolveRequestSession(
   if (cookies.refreshToken) {
     try {
       const result = await authService.refresh(cookies.refreshToken);
-      setSessionCookies(response, result.session, secureCookies);
+      setSessionCookies(
+        response,
+        result.session,
+        secureCookies,
+        cookieSameSite,
+      );
       return { accessToken: result.session.access_token, user: result.user };
     } catch {
       // Invalid sessions are cleared below.
     }
   }
 
-  clearSessionCookies(response, secureCookies);
+  clearSessionCookies(response, secureCookies, cookieSameSite);
   return null;
 }

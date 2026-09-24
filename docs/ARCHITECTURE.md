@@ -235,3 +235,24 @@ provider credentials and an explicit enable switch keeps delivery dormant until
 Phase 12 completes the Railway and Vercel projects. Deployment runs are
 serialized; application rollback restores a previous healthy provider release,
 while database changes use forward corrective migrations.
+
+## Phase 12 deployment decisions
+
+The production web application is a static Vite deployment on Vercel. The
+long-running Railway service uses the root Dockerfile's final `api-runtime`
+stage so HTTP and WebSocket traffic share one process. Supabase continues to
+own PostgreSQL and authentication, while Upstash supplies a TLS Redis protocol
+endpoint for cross-instance Pub/Sub.
+
+The preferred public URLs are same-site custom subdomains such as
+`app.example.com` and `api.example.com`. This preserves `SameSite=Lax`
+authentication cookies while exact CORS and WebSocket origin checks remain in
+force. Provider domains on different sites are supported with production-only
+`SameSite=None; Secure` cookies, but browser third-party-cookie policies make
+that a temporary compatibility mode rather than the target architecture.
+
+GitHub deploys only the exact `main` revision that passed CI. Runtime secrets
+stay with their owning provider; GitHub holds scoped deployment credentials and
+public smoke-test URLs. The post-deploy check covers the web document, API
+health, and GraphQL/CORS path. Authenticated PKCE, RLS, and WebSocket behavior
+remain explicit browser verification because they require a real user session.

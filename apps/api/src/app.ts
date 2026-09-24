@@ -17,6 +17,7 @@ import { z } from 'zod';
 import type { AuthService } from './auth/auth-service.js';
 import {
   clearSessionCookies,
+  type CookieSameSite,
   PkceCookieStorage,
   readAuthCookies,
   setSessionCookies,
@@ -42,6 +43,7 @@ export interface ServerOptions {
   authService: AuthService;
   corsOrigin: string;
   createDataService: (accessToken: string) => BoardnestDataService;
+  cookieSameSite?: CookieSameSite;
   events?: RealtimeEventBus;
   introspection?: boolean;
   secureCookies: boolean;
@@ -54,6 +56,10 @@ export interface BoardnestServer extends Server {
 export async function createServer(
   options: ServerOptions,
 ): Promise<BoardnestServer> {
+  const cookieSameSite = options.cookieSameSite ?? 'Lax';
+  if (cookieSameSite === 'None' && !options.secureCookies) {
+    throw new Error('SameSite=None cookies require secureCookies=true.');
+  }
   const app = express();
   const httpServer = createHttpServer(app);
   const events = options.events ?? createInMemoryEventBus();
@@ -143,16 +149,22 @@ export async function createServer(
         request,
         response,
         options.secureCookies,
+        cookieSameSite,
       );
       const result = await options.authService.completeConfirmation({
         code,
         ...(flowId ? { flowId } : {}),
         storage,
       });
-      setSessionCookies(response, result.session, options.secureCookies);
+      setSessionCookies(
+        response,
+        result.session,
+        options.secureCookies,
+        cookieSameSite,
+      );
       response.redirect(303, `${options.corsOrigin}/dashboard`);
     } catch {
-      clearSessionCookies(response, options.secureCookies);
+      clearSessionCookies(response, options.secureCookies, cookieSameSite);
       response.redirect(303, `${options.corsOrigin}/login?confirmation=failed`);
     }
   });
@@ -168,6 +180,7 @@ export async function createServer(
           request,
           response,
           options.secureCookies,
+          cookieSameSite,
         );
         const registration = await options.authService.register({
           ...input,
@@ -178,6 +191,7 @@ export async function createServer(
             response,
             registration.result.session,
             options.secureCookies,
+            cookieSameSite,
           );
         }
         response.status(201).json({
@@ -200,7 +214,12 @@ export async function createServer(
           input.email,
           input.password,
         );
-        setSessionCookies(response, result.session, options.secureCookies);
+        setSessionCookies(
+          response,
+          result.session,
+          options.secureCookies,
+          cookieSameSite,
+        );
         response.json({ user: result.user });
       } catch (error) {
         response.status(401).json({ error: authErrorMessage(error) });
@@ -218,7 +237,7 @@ export async function createServer(
           .signOut(cookies.accessToken, cookies.refreshToken)
           .catch(() => undefined);
       }
-      clearSessionCookies(response, options.secureCookies);
+      clearSessionCookies(response, options.secureCookies, cookieSameSite);
       response.status(204).end();
     },
   );
@@ -229,6 +248,7 @@ export async function createServer(
       response,
       options.authService,
       options.secureCookies,
+      cookieSameSite,
     );
     if (!session) {
       response.status(401).json({ error: 'Authentication required' });
@@ -250,6 +270,7 @@ export async function createServer(
           res,
           options.authService,
           options.secureCookies,
+          cookieSameSite,
         );
         return {
           data: session ? options.createDataService(session.accessToken) : null,

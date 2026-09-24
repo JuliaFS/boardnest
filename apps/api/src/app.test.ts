@@ -123,6 +123,37 @@ describe('API server', () => {
     );
   });
 
+  it('sets secure cross-site cookies when explicitly configured', async () => {
+    const server = await createServer({
+      authService: createAuthService(),
+      cookieSameSite: 'None',
+      corsOrigin: origin,
+      createDataService: vi.fn(() => ({}) as BoardnestDataService),
+      introspection: true,
+      secureCookies: true,
+    });
+    servers.add(server);
+    server.listen(0, '127.0.0.1');
+
+    const response = await fetch(await getUrl(server, '/auth/login'), {
+      body: JSON.stringify({
+        email: 'person@example.com',
+        password: 'StrongPass1',
+      }),
+      headers: { 'content-type': 'application/json', origin },
+      method: 'POST',
+    });
+    const cookies = response.headers.getSetCookie();
+
+    expect(cookies).toHaveLength(2);
+    expect(
+      cookies.every(
+        (cookie) =>
+          cookie.includes('SameSite=None') && cookie.includes('Secure'),
+      ),
+    ).toBe(true);
+  });
+
   it('rejects cross-origin auth mutations', async () => {
     const { authService, server } = await startServer();
     const response = await fetch(await getUrl(server, '/auth/login'), {

@@ -96,25 +96,32 @@ serializes production runs so two deployments do not overlap. To request a
 manual production run, manually start the `CI` workflow on `main`; successful
 completion triggers the same protected path without bypassing verification.
 
-The workflow is intentionally dormant before Phase 12. The `plan` job reads the
+The workflow stays dormant until production is configured. The `plan` job reads the
 non-secret repository variable `PRODUCTION_DEPLOYMENTS_ENABLED`. When it is
 absent or not equal to `true`, the workflow records a successful skipped
 deployment without requesting any credentials.
 
-After Phase 12 configures the providers, use this ownership:
+Use this ownership:
 
-| Name                             | Kind                 | Purpose                                    |
-| -------------------------------- | -------------------- | ------------------------------------------ |
-| `PRODUCTION_DEPLOYMENTS_ENABLED` | repository variable  | Explicit production deployment switch      |
-| `PRODUCTION_WEB_URL`             | environment variable | URL shown in GitHub deployment history     |
-| `RAILWAY_SERVICE`                | environment variable | Railway API service identifier or name     |
-| `RAILWAY_TOKEN`                  | environment secret   | Scoped Railway production project token    |
-| `VERCEL_DEPLOY_HOOK_URL`         | environment secret   | Vercel hook bound to the production branch |
+| Name                             | Kind                 | Purpose                                     |
+| -------------------------------- | -------------------- | ------------------------------------------- |
+| `PRODUCTION_DEPLOYMENTS_ENABLED` | repository variable  | Explicit production deployment switch       |
+| `PRODUCTION_API_URL`             | environment variable | API URL used by post-deploy smoke checks    |
+| `PRODUCTION_WEB_URL`             | environment variable | Web smoke target and deployment history URL |
+| `RAILWAY_SERVICE`                | environment variable | Railway API service identifier or name      |
+| `RAILWAY_TOKEN`                  | environment secret   | Scoped Railway production project token     |
+| `VERCEL_TOKEN`                   | environment secret   | Vercel deployment token                     |
+| `VERCEL_ORG_ID`                  | environment secret   | Vercel team/account identifier              |
+| `VERCEL_PROJECT_ID`              | environment secret   | Vercel project identifier                   |
 
-When enabled, the workflow checks out the verified revision, deploys the API
-with a pinned Railway CLI, and then triggers the Vercel production build. The
-provider project, environment variables, health verification, and final
-activation belong to Phase 12.
+When enabled, the workflow checks out the verified revision, installs the
+frozen lockfile, deploys the API with a pinned Railway CLI, and builds and
+deploys the frontend with a pinned Vercel CLI. It then verifies the public web,
+API health, and GraphQL/CORS endpoints with `pnpm smoke:production`.
+
+The application runtime values belong in Railway and Vercel, not in GitHub.
+GitHub contains only scoped provider deployment credentials and the public URLs
+needed for verification. Full provider setup is in [Deployment](DEPLOYMENT.md).
 
 Configure the `production` GitHub environment to accept only `main`. For a
 public portfolio repository, add a required reviewer if the GitHub plan permits
@@ -128,9 +135,11 @@ before migration history was managed by the Supabase CLI. Automatically replayin
 those historical files against the live project could duplicate already applied
 objects.
 
-Phase 12 must first baseline the remote migration history. New migrations can
-then be validated in an isolated database and applied as an explicit deployment
-step. Production database changes must never run for a pull request.
+Before future automated database migrations are introduced, first baseline the
+remote migration history. New migrations can then be validated in an isolated
+database and applied as an explicit deployment step. This is deliberately not
+part of the first application deployment, and production database changes must
+never run for a pull request.
 
 ## Failure and rollback strategy
 
@@ -144,7 +153,7 @@ step. Production database changes must never run for a pull request.
 - Database migrations use forward fixes. Destructive automatic down migrations
   are avoided because deployed application instances may still depend on the
   newer schema.
-- Rotate a deploy token or hook immediately if it may have been exposed.
+- Rotate a deploy token immediately if it may have been exposed.
 
 Rollback is an incident response, not a substitute for CI. Record the failed
 revision and cause before re-enabling production delivery.

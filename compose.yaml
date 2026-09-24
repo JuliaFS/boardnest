@@ -23,6 +23,7 @@ services:
       target: api-runtime
     environment:
       API_URL: ${DOCKER_API_URL:-http://localhost:4000}
+      COOKIE_SAME_SITE: ${DOCKER_COOKIE_SAME_SITE:-lax}
       CORS_ORIGIN: ${DOCKER_WEB_ORIGIN:-http://localhost:8080}
       NODE_ENV: ${DOCKER_NODE_ENV:-development}
       PORT: 4000
