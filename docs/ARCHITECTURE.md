@@ -207,3 +207,16 @@ default suite to hosted Supabase data without reducing transport coverage.
 Coverage thresholds are baselines rather than vanity targets: they fail on
 regression and can rise as later phases add behavior. Destructive PostgreSQL
 RLS checks and live Redis checks remain explicit opt-in integration suites.
+
+## Phase 10 Docker decisions
+
+One root multi-stage Dockerfile produces two independent runtime targets.
+The API target contains compiled JavaScript and production-only dependencies;
+the web target contains only static Vite assets served by an unprivileged Nginx
+process. Build tools and source files do not enter either runtime image.
+
+Compose models readiness rather than only process order: Redis must become
+healthy before the API starts, and the API must become healthy before the web
+container starts. Services communicate over the private Compose network;
+only host-facing development ports are published. Supabase stays external
+because it is the managed development and production database/auth provider.
