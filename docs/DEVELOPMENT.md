@@ -14,21 +14,33 @@ pnpm install
 
 ## Commands
 
-| Command             | Purpose                                |
-| ------------------- | -------------------------------------- |
-| `pnpm dev`          | Run web and API development processes  |
-| `pnpm format`       | Format supported repository files      |
-| `pnpm format:check` | Verify formatting without edits        |
-| `pnpm lint`         | Run ESLint with zero warnings allowed  |
-| `pnpm redis:up`     | Start and health-check local Redis     |
-| `pnpm redis:logs`   | Follow local Redis container logs      |
-| `pnpm redis:down`   | Stop the local Redis container         |
-| `pnpm typecheck`    | Type-check every applicable workspace  |
-| `pnpm test`         | Run workspace tests once               |
-| `pnpm build`        | Produce application and package builds |
-| `pnpm check`        | Run the complete local quality gate    |
+| Command              | Purpose                                |
+| -------------------- | -------------------------------------- |
+| `pnpm dev`           | Run web and API development processes  |
+| `pnpm format`        | Format supported repository files      |
+| `pnpm format:check`  | Verify formatting without edits        |
+| `pnpm lint`          | Run ESLint with zero warnings allowed  |
+| `pnpm redis:up`      | Start and health-check local Redis     |
+| `pnpm redis:logs`    | Follow local Redis container logs      |
+| `pnpm redis:down`    | Stop the local Redis container         |
+| `pnpm typecheck`     | Type-check every applicable workspace  |
+| `pnpm test`          | Run workspace tests once               |
+| `pnpm test:coverage` | Run API/web tests with coverage gates  |
+| `pnpm test:e2e`      | Run Playwright tests in Chromium       |
+| `pnpm test:e2e:ui`   | Open the interactive Playwright runner |
+| `pnpm build`         | Produce application and package builds |
+| `pnpm check`         | Run the complete local quality gate    |
 
 Run `pnpm check` before opening a pull request.
+
+Install the Playwright browser once on a new machine:
+
+```bash
+pnpm exec playwright install chromium
+```
+
+Testing strategy, coverage thresholds, and opt-in integration checks are
+documented in [Testing](TESTING.md).
 
 Start Redis before the application:
 

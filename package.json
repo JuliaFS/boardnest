@@ -12,7 +12,7 @@
   "packageManager": "pnpm@12.4.2",
   "scripts": {
     "build": "pnpm --recursive --if-present build",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm test:e2e",
     "dev": "pnpm --parallel --filter @boardnest/api --filter @boardnest/web dev",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -21,10 +21,15 @@
     "redis:logs": "docker compose logs -f redis",
     "redis:up": "docker compose up -d --wait redis",
     "test": "pnpm --recursive --if-present test",
+    "test:coverage": "pnpm --filter @boardnest/api --filter @boardnest/web --parallel test:coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "typecheck": "pnpm --recursive --if-present typecheck"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.0",
+    "@playwright/test": "^1.63.0",
+    "@vitest/coverage-v8": "5.0.1",
     "eslint": "^10.10.0",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^16.4.0",
