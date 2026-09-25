@@ -12,8 +12,7 @@ WORKDIR /workspace
 
 FROM base AS dependencies
 COPY . .
-RUN --mount=type=cache,id=boardnest-pnpm,target=/pnpm/store \
-    pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile
 
 FROM dependencies AS web-build
 ARG VITE_API_URL=http://localhost:4000
