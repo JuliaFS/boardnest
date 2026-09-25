@@ -20,7 +20,8 @@ The browser uses the Node API as an authentication backend-for-frontend. The API
 - `apps/web` owns browser rendering, routing, forms, accessibility, and Apollo client state.
 - `apps/api` owns GraphQL, authentication context, authorization, validation, transactions, and event publication.
 - `packages/shared` contains framework-independent values and utilities that genuinely apply on both sides. It must not depend on either application.
-- `packages/graphql-types` will contain generated types, not a second handwritten domain model.
+- `packages/graphql-types` reserves a future generated-type boundary; it must
+  not become a second handwritten domain model.
 - `packages/config` is reserved for reusable configuration once duplication justifies extraction.
 - `database` owns all PostgreSQL schema and seed SQL.
 
@@ -65,7 +66,10 @@ through the user's RLS-aware data service.
 
 ### Web
 
-React and React Router will own navigation and local composition. Apollo Client will own GraphQL server state. React state will remain local by default; Zustand will be introduced only for genuinely global client-only state that does not belong in the URL or Apollo cache.
+React and React Router own navigation and local composition. Apollo Client owns
+GraphQL server state. React state remains local by default; Zustand is added
+only if genuinely global client-only state cannot belong in the URL or Apollo
+cache.
 
 ### API
 
@@ -126,22 +130,22 @@ HTTPS terminates at the platform edge. Production WebSocket connections use WSS.
 
 **Trade-off:** State lives in several appropriate places rather than one universal store, so conventions must stay documented.
 
-## Phase 2 database decisions
+## Database decisions
 
 Projects choose `workspace` or `private` visibility independently from the `planned`, `active`, `on_hold`, and `completed` business status. Archival uses a separate timestamp. Tasks use fractional positions, invitations store only token hashes, activity events keep JSON snapshots, and RLS helpers live in a non-exposed schema. Details are documented in `docs/DATABASE.md`.
 
-## Phase 4 GraphQL decisions
+## GraphQL decisions
 
 Apollo uses Express instead of the standalone server because GraphQL shares one
 HTTP process, cookie policy, CORS policy, and graceful shutdown lifecycle with
-authentication. Context construction reuses Phase 3 session rotation. Queries
+authentication. Context construction reuses the cookie-session rotation. Queries
 are bounded and flat; DataLoader will be introduced only when nested relation
 resolvers create a real N+1 risk. See `docs/GRAPHQL.md`.
 
-## Phase 5 frontend decisions
+## Frontend state decisions
 
 Apollo Client owns GraphQL server state and sends requests with `credentials:
-include`, allowing the browser to attach the Phase 3 `HttpOnly` cookies without
+include`, allowing the browser to attach `HttpOnly` cookies without
 making their values available to React. The Apollo cache is cleared at account
 boundaries to prevent one user's cached records from appearing for the next
 user in the same browser.
@@ -152,7 +156,7 @@ local interface concerns such as the mobile menu and workspace selector. The
 foundation includes consistent loading, failure, missing-resource, and empty
 states. See `docs/FRONTEND.md`.
 
-## Phase 6 project and task workflow decisions
+## Project and task workflow decisions
 
 React Hook Form and Zod own client-side form mechanics and validation while the
 API repeats authoritative validation at the trust boundary. Apollo mutations
@@ -165,7 +169,7 @@ persists only the moved task's status and fractional position. Failed mutations
 restore the pre-drag snapshot. Reordering is disabled while search or priority
 filters are active so hidden tasks cannot produce misleading positions.
 
-## Phase 7 real-time decisions
+## Real-time decisions
 
 The API serves HTTP GraphQL and the standard `graphql-transport-ws` protocol on
 the same `/graphql` path. WebSocket authentication reuses the browser's
@@ -177,10 +181,10 @@ connection only when a board is active.
 Task creation, update, movement, and deletion publish events only after a
 successful database write. The board applies those payloads idempotently by
 task ID and keeps optimistic drag-and-drop behavior. The process-local event
-bus was deliberately isolated behind an interface because it could not cross
-process boundaries; Phase 8 replaces that implementation with Redis Pub/Sub.
+bus is deliberately isolated behind an interface; production injects the Redis
+Pub/Sub implementation so events can cross process boundaries.
 
-## Phase 8 Redis Pub/Sub decisions
+## Redis Pub/Sub decisions
 
 The API uses the official `node-redis` client with separate publisher and
 subscribe-only connections. Channels are versioned and scoped by project and
@@ -195,7 +199,7 @@ established. A later publish failure is logged but does not report a persisted
 database mutation as failed. Graceful shutdown unsubscribes active iterators and
 closes both Redis connections.
 
-## Phase 9 testing decisions
+## Testing decisions
 
 The test pyramid keeps fast domain and resolver checks in Vitest, renders
 GraphQL-aware forms with React Testing Library and Apollo's `MockedProvider`,
@@ -205,10 +209,10 @@ tests exercise the real HTTP and WebSocket servers. This avoids coupling the
 default suite to hosted Supabase data without reducing transport coverage.
 
 Coverage thresholds are baselines rather than vanity targets: they fail on
-regression and can rise as later phases add behavior. Destructive PostgreSQL
+regression and can rise as the product adds behavior. Destructive PostgreSQL
 RLS checks and live Redis checks remain explicit opt-in integration suites.
 
-## Phase 10 Docker decisions
+## Container decisions
 
 One root multi-stage Dockerfile produces two independent runtime targets.
 The API target contains compiled JavaScript and production-only dependencies;
@@ -221,7 +225,7 @@ container starts. Services communicate over the private Compose network;
 only host-facing development ports are published. Supabase stays external
 because it is the managed development and production database/auth provider.
 
-## Phase 11 CI/CD decisions
+## CI/CD decisions
 
 CI and production delivery use separate GitHub Actions workflows so untrusted
 pull-request code never enters a job with deployment credentials. The CI token
@@ -231,12 +235,12 @@ Compose validation, and both Docker targets as merge gates.
 
 Production delivery is downstream of a successful `main` CI run and resolves
 the verified commit SHA. A protected GitHub `production` environment owns its
-provider credentials and an explicit enable switch keeps delivery dormant until
-Phase 12 completes the Railway and Vercel projects. Deployment runs are
+provider credentials and an explicit enable switch prevents accidental releases.
+Deployment runs are
 serialized; application rollback restores a previous healthy provider release,
 while database changes use forward corrective migrations.
 
-## Phase 12 deployment decisions
+## Production deployment decisions
 
 The production web application is a static Vite deployment on Vercel. The
 long-running Railway service uses the root Dockerfile's final `api-runtime`

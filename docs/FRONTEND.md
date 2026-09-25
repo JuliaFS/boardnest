@@ -1,109 +1,137 @@
 # Frontend
 
-## Phase 5 foundation
+## Responsibilities
 
-Phase 5 establishes the React application foundation. It intentionally does
-not include domain mutations or an interactive Kanban workflow.
+`apps/web` owns routing, rendering, forms, accessible interaction, public
+runtime configuration, and Apollo Client integration. It does not query
+Supabase directly and cannot read authentication tokens.
 
-The frontend currently provides:
+The application provides:
 
-- a responsive authenticated shell and navigation;
-- protected routes for dashboard, workspaces, projects, boards, tasks,
-  members, notifications, and settings;
-- live workspace, project, task, and notification reads through GraphQL;
-- reusable loading skeletons, error recovery, empty states, and not-found
-  states;
-- Apollo cache isolation when a user signs in, registers, or signs out;
-- Tailwind CSS through the official Vite integration.
-
-## Phase 6 workflows
-
-Phase 6 builds on that foundation with:
-
-- workspace and project creation from the Projects page;
+- responsive authenticated navigation and route guards;
+- registration, email-confirmation feedback, login, and logout;
+- workspace and project browsing and creation;
 - project visibility, lifecycle status, dates, editing, and deletion;
-- task creation in a selected board column;
-- task priority, due date, description, editing, and deletion;
-- searchable and priority-filtered Kanban columns;
-- pointer and keyboard drag-and-drop with optimistic feedback;
-- fractional task positions, allowing one moved task to be persisted without
-  renumbering an entire column;
-- rollback to the pre-drag board when persistence fails.
-
-Reordering is intentionally paused while filters are active because hidden
-tasks make a visible index ambiguous. Project and task destructive actions use
-explicit confirmation dialogs and rely on PostgreSQL cascade rules documented
-in the database migrations.
+- project details and Kanban board pages;
+- task creation, priority, due date, description, editing, and deletion;
+- search and priority filtering;
+- pointer and keyboard drag-and-drop with optimistic movement and rollback;
+- live task create/update/delete synchronization through subscriptions;
+- notification reads;
+- reusable loading, retryable error, empty, and not-found states.
 
 ## Data flow
 
 ```text
 React page
-   ↓ useQuery
-Apollo Client cache
-   ↓ cache miss / refresh
-POST /graphql with credentials: include
-   ↓ browser attaches HttpOnly cookies
+   ↓ Apollo useQuery / useMutation
+Apollo Client normalized cache
+   ↓ POST /graphql with credentials: include
+Browser attaches eligible HttpOnly cookies
+   ↓
 Boardnest API → Supabase PostgreSQL with user RLS
 ```
 
-Phase 7 adds a second, long-lived path for real-time board events:
+Apollo uses a split link for real-time data:
 
 ```text
-task subscription → Apollo GraphQLWsLink → ws(s)://API/graphql
-  → verified HttpOnly cookie + project authorization
-  → task event → immutable Kanban group update
+task subscription → GraphQLWsLink → ws(s)://API/graphql
+  → verified HttpOnly cookie + exact Origin
+  → project authorization through RLS
+  → Redis-distributed task event
+  → immutable Kanban group update
 ```
 
-Apollo's split link keeps queries and mutations on HTTP and sends only
-subscriptions through `graphql-ws`. Created and updated tasks are upserted by ID
-so an initiating client does not display duplicates when it receives its own
-event. Deleted tasks are removed from every local column. A visible warning
-appears if the real-time stream disconnects; persisted data can still be
-recovered by refreshing the query.
-
-The access and refresh token values remain unavailable to frontend JavaScript.
-`credentials: include` instructs the browser to attach eligible cookies; it
-does not expose their contents to Apollo Client.
+Created and updated tasks are upserted by ID, so an initiating client does not
+show duplicates when it receives its own event. Deleted tasks are removed from
+all local columns. A disconnected subscription shows a warning; a normal board
+query recovers durable state.
 
 ## State ownership
 
-- Apollo Client owns GraphQL responses and their normalized cache.
-- React Router and URL parameters identify the active workspace, project, and
-  task.
-- Component state owns short-lived interface choices such as whether mobile
-  navigation is open.
-- Authentication user state remains in `AuthProvider` because login and logout
-  use the dedicated REST BFF endpoints.
-- Zustand is not installed because Phase 5 has no global client-only state that
-  justifies another store.
+- Apollo Client owns GraphQL responses and normalized server state.
+- React Router and URL parameters identify active resources.
+- Component state owns local interaction such as dialogs, filters, and mobile
+  navigation.
+- `AuthProvider` owns the small browser-visible user/session state returned by
+  the REST authentication BFF.
+- React Hook Form owns form interaction and Zod owns client-side form schemas.
+- Zustand is intentionally absent because there is no cross-cutting client-only
+  state that justifies another store.
+
+The Apollo cache is cleared on account boundaries so cached data from one user
+cannot appear for the next user in the same browser.
+
+## Kanban behavior
+
+The board groups tasks by status and orders each group by fractional position.
+Dragging changes local grouped state first and then persists the new status and
+position. If the mutation fails, the board restores its pre-drag snapshot.
+
+Reordering is disabled while search or priority filters are active because the
+hidden cards make a visible insertion index ambiguous. Destructive project and
+task actions require confirmation.
+
+`@dnd-kit/react` supplies pointer and keyboard sensors. Buttons, labels,
+dialogs, focusable controls, status messages, and responsive navigation are
+covered by component or browser tests where they are part of the critical
+workflow.
 
 ## Routes
 
-| Route                                | Phase 5 behavior                          |
-| ------------------------------------ | ----------------------------------------- |
-| `/dashboard`                         | Workspace and current-project overview    |
-| `/workspaces/:workspaceId`           | Workspace details and accessible projects |
-| `/projects`                          | Workspace selector and project list       |
-| `/projects/:projectId`               | Project details                           |
-| `/projects/:projectId/board`         | Board route and Phase 6 column foundation |
-| `/projects/:projectId/tasks/:taskId` | Task details foundation                   |
-| `/members`                           | Reserved collaboration route              |
-| `/notifications`                     | Real notification query and empty state   |
-| `/settings`                          | Reserved preferences route                |
+| Route                                | Behavior                                                    |
+| ------------------------------------ | ----------------------------------------------------------- |
+| `/login`                             | Public login form                                           |
+| `/register`                          | Public registration and confirmation flow                   |
+| `/dashboard`                         | Workspace count and recent projects                         |
+| `/workspaces/:workspaceId`           | Workspace details and accessible projects                   |
+| `/projects`                          | Workspace selection, workspace creation, and project list   |
+| `/projects/:projectId`               | Project details and management                              |
+| `/projects/:projectId/board`         | Interactive real-time Kanban board                          |
+| `/projects/:projectId/tasks/:taskId` | Task details and editing                                    |
+| `/notifications`                     | Notification timeline and empty state                       |
+| `/members`                           | Reserved UI extension point for the existing invitation API |
+| `/settings`                          | Reserved UI extension point for preferences                 |
 
-All application routes sit behind `ProtectedRoute`. Anonymous visitors are
-redirected to `/login`, while signed-in users cannot return to the login or
-registration screens.
+All application routes are protected. Anonymous visitors are redirected to
+`/login`; authenticated users are redirected away from login and registration.
+
+The reserved routes are intentionally disclosed instead of being described as
+complete features. Invitation creation, assignment, comments, activity feeds,
+and notification updates already exist in GraphQL and can be connected in a
+future product iteration.
 
 ## Environment
 
-The frontend reads these public build-time values:
+The frontend requires three public build-time URLs:
 
-- `VITE_API_URL` for authentication REST endpoints;
-- `VITE_GRAPHQL_URL` for GraphQL over HTTP;
-- `VITE_WS_URL` is the public GraphQL WebSocket endpoint, such as
-  `ws://localhost:4000/graphql` locally and `wss://…/graphql` in production.
+- `VITE_API_URL` — authentication REST origin;
+- `VITE_GRAPHQL_URL` — GraphQL HTTP endpoint;
+- `VITE_WS_URL` — GraphQL WebSocket endpoint.
 
-No service-role key or authentication token may be placed in a `VITE_*`
-variable.
+Vite embeds these values into the static JavaScript bundle. They must contain
+real URLs rather than masked dashboard values. A production Vercel/Railway
+deployment uses, for example:
+
+```dotenv
+VITE_API_URL=https://api.example.com
+VITE_GRAPHQL_URL=https://api.example.com/graphql
+VITE_WS_URL=wss://api.example.com/graphql
+```
+
+No service-role key, Redis URL, database URL, provider token, access token, or
+refresh token may be placed in a `VITE_*` variable.
+
+## Build and verification
+
+```bash
+pnpm --filter @boardnest/web typecheck
+pnpm --filter @boardnest/web test
+pnpm --filter @boardnest/web test:coverage
+pnpm --filter @boardnest/web build
+pnpm test:e2e
+```
+
+Production output is written to `apps/web/dist`. Vercel uses
+`apps/web/vercel.json` for the pnpm install command, Vite build, output folder,
+and React Router SPA rewrite.

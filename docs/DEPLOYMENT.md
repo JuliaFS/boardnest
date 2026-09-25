@@ -102,6 +102,9 @@ selected by the `rediss://` scheme.
 4. Set the health-check path to `/health`.
 5. Let Railway provide `PORT`; do not hard-code a public port.
 6. Generate a Railway domain or attach `api.example.com` and wait for HTTPS.
+   The public domain target port must match the runtime `PORT` shown in the
+   deploy log (Railway currently injects `8080` for this service), not the
+   Dockerfile's local default.
 7. Add these service variables:
 
 | Variable                   | Production value                                  |
@@ -147,6 +150,13 @@ Add these variables to the Vercel **Production** environment before building:
 
 `VITE_*` values are public build-time configuration. Never put Supabase secret
 keys, Redis credentials, deployment tokens, or database passwords in them.
+Enter the real URL text: copying a dashboard's masked `••••` display embeds
+those characters into the JavaScript bundle and stops frontend initialization.
+
+`apps/web/vercel.json` explicitly uses
+`pnpm install --frozen-lockfile`. This prevents Vercel's local builder from
+falling back to npm, which cannot resolve the pnpm workspace `catalog:`
+protocol.
 
 The GitHub workflow deploys Vercel with its CLI. Avoid a second automatic
 production deployment from a provider Git integration, or disable that path,
@@ -223,7 +233,33 @@ Use a new test account and verify all of the following:
 7. Sign-out clears both cookies and protected routes return to `/login`.
 8. Browser and provider logs contain no keys, passwords, Redis URLs, or tokens.
 
-## 9. Failure and rollback
+## 9. Production troubleshooting
+
+### Vercel loads only the background
+
+Open the browser console. If it reports invalid public environment variables,
+verify all three `VITE_*` production values contain full URLs rather than
+masked characters. Because Vite embeds them at build time, saving a variable
+is not enough: run a new production deployment and hard-refresh the browser.
+
+### Railway returns 502 while the service is online
+
+Read the API deploy log for `Boardnest API listening on port ...`, then set the
+Railway generated domain's target port to that exact value. `/health` should
+return `{"service":"boardnest-api","status":"ok"}`.
+
+### Redis closes immediately in Railway
+
+Use the provider's Redis protocol URL with TLS, normally `rediss://...`, rather
+than an HTTP REST endpoint or a non-TLS `redis://` URL when the provider requires
+TLS.
+
+### Vercel reports `Unsupported URL Type "catalog:"`
+
+Confirm the checked-in `apps/web/vercel.json` still contains the explicit pnpm
+install command. The error means the build incorrectly attempted `npm install`.
+
+## 10. Failure and rollback
 
 - Set `PRODUCTION_DEPLOYMENTS_ENABLED=false` before investigating repeated
   failures.

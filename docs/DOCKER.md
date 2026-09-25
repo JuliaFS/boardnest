@@ -48,8 +48,9 @@ The root `Dockerfile` exposes two final targets:
 4. Provides SPA fallback through `try_files`.
 5. Serves hashed assets with immutable caching and checks `/health`.
 
-The pnpm store uses a BuildKit cache mount. Repeated builds can reuse downloaded
-packages without copying the cache into a final image.
+Dependency installation uses the frozen workspace lockfile. Build caches remain
+builder-managed and are never copied into a final runtime image. The Dockerfile
+avoids a named cache mount because Railway requires provider-specific cache IDs.
 
 ## Prerequisites
 

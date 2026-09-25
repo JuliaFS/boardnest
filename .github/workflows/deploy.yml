@@ -39,7 +39,7 @@ jobs:
             echo "Production deployment is enabled." >> "$GITHUB_STEP_SUMMARY"
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "Production deployment is disabled until Phase 12 configuration is complete." >> "$GITHUB_STEP_SUMMARY"
+            echo "Production deployment is disabled. Set PRODUCTION_DEPLOYMENTS_ENABLED=true after provider configuration is complete." >> "$GITHUB_STEP_SUMMARY"
           fi
 
   deploy:

@@ -96,7 +96,7 @@ serializes production runs so two deployments do not overlap. To request a
 manual production run, manually start the `CI` workflow on `main`; successful
 completion triggers the same protected path without bypassing verification.
 
-The workflow stays dormant until production is configured. The `plan` job reads the
+The deployment can be paused without changing code. The `plan` job reads the
 non-secret repository variable `PRODUCTION_DEPLOYMENTS_ENABLED`. When it is
 absent or not equal to `true`, the workflow records a successful skipped
 deployment without requesting any credentials.

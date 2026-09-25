@@ -104,7 +104,9 @@ them, or send them to a browser.
 
 ## Git workflow
 
-Use focused commits with Conventional Commit prefixes such as `feat:`, `fix:`, `test:`, `docs:`, `refactor:`, `chore:`, and `ci:`. Phase work should remain reviewable and must leave the quality gate green.
+Use focused commits with Conventional Commit prefixes such as `feat:`, `fix:`,
+`test:`, `docs:`, `refactor:`, `chore:`, and `ci:`. Every branch should remain
+reviewable and leave the quality gate green.
 
 ## Current local endpoints
 

@@ -20,7 +20,7 @@ Browser requests must use `credentials: 'include'`. The browser never reads or
 submits a bearer token. The API extracts the access token from its `HttpOnly`
 cookie, rotates an expired session when possible, and passes the authenticated
 user's JWT to Supabase. The service-role key is deliberately not used, so the
-RLS policies installed in Phase 2 remain the resource-authorization boundary.
+RLS policies remain the resource-authorization boundary.
 
 Subscriptions use the same `/graphql` path with the `graphql-transport-ws`
 protocol. The WebSocket handshake carries the eligible `HttpOnly` access cookie;
@@ -62,7 +62,7 @@ check.
 
 List queries return `nodes` and `pageInfo`. `limit` is restricted to 1–100 and
 `offset` cannot be negative. One extra row is fetched to derive `hasNextPage`.
-Offset pagination is appropriate for this phase; cursor pagination is a future
+Offset pagination is appropriate for the current data volume; cursor pagination is a future
 option for large, frequently updated feeds.
 
 ## Mutations
@@ -96,7 +96,7 @@ mutation CreateProject($input: CreateProjectInput!) {
 
 `inviteMember` generates a cryptographically random token, stores only its
 SHA-256 hash, and returns the raw token once. Email delivery and invitation
-acceptance will be connected when that frontend workflow is built.
+acceptance are outside the current browser workflow.
 
 ## Subscriptions
 
@@ -112,7 +112,7 @@ publish only after persistence succeeds. Direct database edits do not emit
 application events.
 
 The subscription resolvers depend on a small event-bus interface rather than a
-Redis client. Phase 8 implements that interface with Redis Pub/Sub so mutations
+Redis client. Production injects a Redis Pub/Sub implementation so mutations
 and WebSocket clients can be handled by different API instances.
 
 ## Authentication, authorization, and errors
@@ -143,7 +143,7 @@ broad operations containing many aliases.
 
 ## N+1, caching, and transport choice
 
-The Phase 4 schema returns flat resources and has no per-row nested resolver, so
+The current schema returns flat resources and has no per-row nested resolver, so
 it does not currently create an N+1 query pattern. Adding DataLoader without a
 batching use case would add unused abstraction. When fields such as
 `Task.assignees` are added, loaders must be request-scoped and preserve RLS.

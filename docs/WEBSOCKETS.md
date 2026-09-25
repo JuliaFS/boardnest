@@ -50,13 +50,13 @@ duplicate card.
 
 ## Redis distribution
 
-Phase 8 uses Redis Pub/Sub behind the event-bus boundary. A mutation handled by
+Redis Pub/Sub sits behind the event-bus boundary. A mutation handled by
 one API process can therefore update a WebSocket connected to another process.
 Events remain intentionally non-durable: PostgreSQL is the source of truth, and
 reconnecting clients recover current state through the board query.
 
 Direct changes made in Supabase SQL Editor do not pass through GraphQL mutations
-and therefore do not publish a Phase 7 event.
+and therefore do not publish a subscription event.
 
 ## Manual verification
 
