@@ -90,6 +90,6 @@ needed for authentication and must never be used in a `VITE_*` variable.
 6. Refresh the page and confirm the session remains active.
 7. Sign out and confirm both cookies disappear and `/dashboard` redirects to `/login`.
 
-The dashboard still uses Auth metadata for the display name. Phase 4 now exposes
-`currentUser` and workspace data through GraphQL; the frontend adopts Apollo
-Client in Phase 5.
+The frontend session endpoint supplies the authenticated header identity, while
+GraphQL exposes `currentUser` and all authorized application data through
+Apollo Client.

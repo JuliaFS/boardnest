@@ -37,8 +37,8 @@ The corresponding development configuration is:
 REDIS_URL=redis://localhost:6379
 ```
 
-No volume is required because Pub/Sub messages are not persisted. Phase 10 will
-extend the Compose topology to the application services.
+No volume is required because Pub/Sub messages are not persisted. The full
+Compose topology also builds and runs the API and static web services.
 
 ## Connections and lifecycle
 

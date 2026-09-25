@@ -1,186 +1,252 @@
 # Boardnest
 
-Boardnest is a collaborative project management platform for organizing workspaces, projects, and tasks through Kanban boards, role-based permissions, and real-time updates.
+Boardnest is a production-style, multi-tenant project management application
+for organizing workspaces, projects, and tasks on collaborative Kanban boards.
+It demonstrates a React and TypeScript frontend, an authenticated GraphQL API,
+PostgreSQL Row Level Security, real-time WebSocket updates, Redis Pub/Sub, and
+automated delivery to Vercel and Railway.
 
-> Status: Phase 12 deployment configuration complete — provider activation and production verification follow the checked-in deployment runbook.
+## Live application
 
-## Planned features
+- Web: <https://boardnest-web-omega.vercel.app>
+- API health: <https://boardnest-api-production.up.railway.app/health>
+- GraphQL: <https://boardnest-api-production.up.railway.app/graphql>
 
-- Supabase email/password authentication
-- Multi-tenant workspaces with role-based access control
-- Projects, tasks, labels, comments, and assignments
-- Kanban boards with accessible drag and drop
-- GraphQL queries, mutations, and subscriptions
-- Real-time updates distributed through Redis Pub/Sub
-- Activity history, notifications, search, and basic analytics
+The hosted application uses free provider domains. Authentication therefore
+requires cross-site `SameSite=None; Secure` cookies and may be blocked by strict
+third-party-cookie browser settings. Same-site custom subdomains are the
+recommended production topology.
 
-## Repository structure
+## Screenshots
+
+| Authentication                          | Project portfolio                  | Kanban board                             |
+| --------------------------------------- | ---------------------------------- | ---------------------------------------- |
+| _Add login and registration screenshot_ | _Add workspace/project screenshot_ | _Add board and drag-and-drop screenshot_ |
+
+The placeholders intentionally keep repository documentation free of temporary
+local screenshots. Add optimized production captures before using the project
+in a portfolio presentation.
+
+## Implemented features
+
+- Supabase email/password registration, email confirmation through a PKCE
+  callback, login, refresh, and logout;
+- access and refresh tokens stored only in secure `HttpOnly` cookies;
+- multi-tenant workspaces with owner, admin, member, and viewer roles;
+- workspace-visible and private projects with independent lifecycle status;
+- project and task creation, editing, deletion, dates, and priority;
+- configurable Kanban statuses and pointer/keyboard drag-and-drop;
+- optimistic task movement with rollback when persistence fails;
+- task search and priority filtering;
+- GraphQL queries, mutations, pagination, validation, and stable public errors;
+- project-authorized GraphQL subscriptions for task creation, updates, moves,
+  and deletion;
+- Redis Pub/Sub distribution across API instances;
+- PostgreSQL constraints, triggers, grants, and Row Level Security policies;
+- notification and activity-feed API reads, task assignment, comments, and
+  invitation creation;
+- responsive protected routes with loading, error, empty, and missing-resource
+  states;
+- Vitest, React Testing Library, Playwright, coverage gates, Docker images,
+  GitHub Actions CI, and protected production deployment.
+
+## Current product scope
+
+The portfolio release centers on authentication and the complete workspace →
+project → Kanban task workflow. The GraphQL API also exposes invitations,
+assignments, comments, activity feeds, and notification updates. The `/members`
+and `/settings` routes remain clearly identified extension points, notification
+management is read-only in the current UI, and invitation delivery/acceptance
+is not connected to an email provider. These are product-scope boundaries, not
+security assumptions; the database and API still enforce their documented
+authorization rules.
+
+## Architecture
+
+```text
+Browser (React + Apollo Client)
+  ├── HTTPS + HttpOnly cookies ──> Node.js / Apollo API on Railway
+  │                                  ├── Supabase Auth
+  │                                  ├── Supabase PostgreSQL + RLS
+  │                                  └── Upstash Redis Pub/Sub
+  └── WSS GraphQL subscription ──> same Railway API process
+```
+
+PostgreSQL is the source of truth. Redis carries ephemeral real-time events,
+and clients recover missed state through GraphQL queries after reconnecting.
+The browser never receives a Supabase key or readable authentication token.
+
+### Repository structure
 
 ```text
 apps/
-  api/                 Node.js API service
-  web/                 React application
+  api/                 Express, Apollo Server, auth, GraphQL, WebSockets
+  web/                 React, Vite, Apollo Client, forms, Kanban UI
 packages/
-  config/              Shared project conventions
-  graphql-types/       Generated GraphQL artifacts (Phase 4)
-  shared/              Framework-independent shared code
+  config/              Reserved shared configuration boundary
+  graphql-types/       Reserved GraphQL code-generation boundary
+  shared/              Runtime-independent shared code
 database/
-  migrations/          Ordered SQL migrations (Phase 2)
-  seeds/               Development-only seed data (Phase 2)
-docs/                  Architecture and development documentation
+  migrations/          Ordered SQL schema, RLS, and grants
+  tests/               Transactional SQL schema smoke test
+docs/                  Architecture and operational documentation
+.github/workflows/     CI and protected production deployment
 ```
 
-## Requirements
+See [Architecture](docs/ARCHITECTURE.md) for boundaries, data flow, ADRs, and
+trade-offs.
 
-- Node.js 24.21.0 LTS
+## Technology stack
+
+| Layer     | Technology                                                            |
+| --------- | --------------------------------------------------------------------- |
+| Web       | React 19, TypeScript, Vite, React Router, Apollo Client, Tailwind CSS |
+| Forms/UI  | React Hook Form, Zod, `@dnd-kit/react`                                |
+| API       | Node.js 24, Express 5, Apollo Server 5, GraphQL, `graphql-ws`         |
+| Data/Auth | Supabase PostgreSQL, Supabase Auth, SQL-first migrations, RLS         |
+| Real time | WebSockets, GraphQL subscriptions, Redis Pub/Sub                      |
+| Testing   | Vitest, React Testing Library, Playwright                             |
+| Delivery  | Docker, Docker Compose, GitHub Actions, Railway, Vercel, Upstash      |
+
+## Local development
+
+### Requirements
+
+- Node.js 24.21.0
 - pnpm 12.4.2
 - Docker Engine with Docker Compose v2
+- a configured Supabase project with the checked-in SQL migrations
 
-Using the pinned versions is recommended. The repository also declares compatible ranges in `package.json`.
-
-## Local setup
+### First setup
 
 ```bash
+nvm install
+nvm use
 corepack enable
 corepack prepare pnpm@12.4.2 --activate
 pnpm install
 cp .env.example .env
+```
+
+Replace the Supabase placeholders in `.env`, then start Redis and the two
+development applications:
+
+```bash
 pnpm redis:up
 pnpm dev
 ```
 
-The web application runs on `http://localhost:5173`. The API health endpoint runs on `http://localhost:4000/health`. The protected session check is available at `http://localhost:4000/auth/me`. GraphQL uses `http://localhost:4000/graphql` for queries and mutations and `ws://localhost:4000/graphql` for subscriptions.
+Open:
+
+- web: <http://localhost:5173>
+- API health: <http://localhost:4000/health>
+- GraphQL HTTP: <http://localhost:4000/graphql>
+- GraphQL WebSocket: `ws://localhost:4000/graphql`
+
+`nvm install`, Corepack activation, and `pnpm install` are setup/update
+commands. A normal development session needs only `nvm use`, `pnpm redis:up`,
+and `pnpm dev` when dependencies are already installed.
+
+## Environment variables
+
+Copy [.env.example](.env.example) to `.env`. Never commit the populated file.
+
+| Variable                   | Visibility           | Purpose                                       |
+| -------------------------- | -------------------- | --------------------------------------------- |
+| `VITE_API_URL`             | Public               | Browser authentication API origin             |
+| `VITE_GRAPHQL_URL`         | Public               | GraphQL HTTP endpoint                         |
+| `VITE_WS_URL`              | Public               | GraphQL WebSocket endpoint                    |
+| `API_URL`                  | Server               | Public API origin used for Auth callback URLs |
+| `COOKIE_SAME_SITE`         | Server               | `lax` or production-only `none` cookie mode   |
+| `SUPABASE_URL`             | Server               | Supabase project URL                          |
+| `SUPABASE_PUBLISHABLE_KEY` | Server               | Public key used by the API with user JWTs     |
+| `REDIS_URL`                | Secret in production | Redis/Upstash protocol URL                    |
+| `PORT`                     | Server               | API listening port                            |
+| `CORS_ORIGIN`              | Server               | Exact trusted frontend origin                 |
+| `NODE_ENV`                 | Server               | `development`, `test`, or `production`        |
+
+Values prefixed with `VITE_` are embedded into public JavaScript. Database
+passwords, service-role keys, Redis credentials, and deployment tokens must
+never use that prefix. The complete ownership model is in
+[Development](docs/DEVELOPMENT.md) and [Security](docs/SECURITY.md).
+
+## Database and Supabase
+
+Run the SQL files in `database/migrations` exactly once and in filename order.
+Each table has an independently readable migration; shared authorization
+functions, RLS policies, and API grants are deliberately separate. Do not run
+the destructive transactional smoke test against the hosted project.
+
+- [Database migration order and ERD](database/README.md)
+- [Table-level design](docs/DATABASE.md)
+- [Supabase setup](docs/SUPABASE.md)
 
 ## Docker
 
-After configuring the real Supabase values in `.env`, build and start the full
-local stack:
+After `.env` is configured:
 
 ```bash
 pnpm docker:up
 ```
 
-The containerized web application is available at `http://localhost:8080`;
-the API remains at `http://localhost:4000`. Use `pnpm docker:logs` to follow
-all services and `pnpm docker:down` to remove the local containers and network.
-Supabase remains external and Redis data remains ephemeral. See
-[Docker](docs/DOCKER.md) for architecture, commands, troubleshooting, and
-production considerations.
+The containerized web application is served at <http://localhost:8080> and the
+API at <http://localhost:4000>. Use `pnpm docker:logs` and
+`pnpm docker:down` for lifecycle management. See [Docker](docs/DOCKER.md).
 
-## Quality checks
+## Testing and quality
 
 ```bash
-pnpm format:check
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm test:coverage
-pnpm test:e2e
-pnpm build
 pnpm check
+pnpm test:ci
+docker compose config --quiet
+docker build --check --target api-runtime .
 ```
 
-`pnpm check` runs formatting, linting, type checking, unit/component tests,
-builds, and Chromium E2E tests in sequence. Install the pinned browser once
-with `pnpm exec playwright install chromium`. See
-[Testing](docs/TESTING.md) for suite boundaries and external integration checks.
+`pnpm check` runs formatting, ESLint, TypeScript, unit/component tests,
+application builds, and the Playwright browser workflow. Install Chromium once
+with `pnpm exec playwright install chromium`. Coverage thresholds and opt-in
+Redis/database integration checks are documented in [Testing](docs/TESTING.md).
 
-GitHub Actions repeats these checks from a clean checkout for pull requests and
-`main`, enforces coverage thresholds, builds both Docker runtime targets, and
-retains failed Playwright reports. Production delivery remains disabled until
-the provider environments and explicit enable switch are configured. See
-[CI/CD](docs/CI-CD.md) and [Deployment](docs/DEPLOYMENT.md).
+## CI/CD and deployment
 
-Local real-time development also provides `pnpm redis:up`, `pnpm redis:logs`,
-and `pnpm redis:down`. The Compose service contains only ephemeral Pub/Sub data;
-PostgreSQL remains the source of truth.
+Pull requests and `main` run clean-install quality, E2E, Compose, and Docker
+jobs. A successful `main` CI revision triggers the protected production
+workflow, which deploys the API to Railway, builds/deploys the web app to
+Vercel, and runs public smoke checks. Provider credentials are held by the
+GitHub `production` environment, never by the application repository.
 
-## Environment variables
+- [CI/CD](docs/CI-CD.md)
+- [Production deployment and rollback](docs/DEPLOYMENT.md)
 
-Copy `.env.example` to `.env` for local development. The placeholder values are intentionally non-secret. Never commit `.env` files or a Supabase service-role key.
+## Architecture decisions
 
-Variable ownership and security boundaries are documented in [Development](docs/DEVELOPMENT.md).
+- **React** supports a component-oriented, accessible, highly interactive UI.
+- **TypeScript** provides one strict language across browser, server, and shared code.
+- **GraphQL and Apollo** support screen-specific data shapes and typed subscriptions.
+- **Node.js** serves HTTP and WebSockets in one long-running process.
+- **WebSockets** update open boards without polling.
+- **Redis** distributes ephemeral events between API instances without owning data.
+- **Supabase** supplies managed PostgreSQL and Auth while preserving SQL and RLS visibility.
+- **Docker** produces reproducible, non-root API and static-web runtime images.
+- **GitHub Actions** makes quality checks and verified-revision deployment repeatable.
+- **Vercel and Railway** match the static frontend and long-running WebSocket API workloads.
 
-## Database
+## Documentation
 
-The schema will be SQL-first. Each table will have an ordered, independently readable migration under `database/migrations/`; SQL will not be embedded in application source files.
-
-The Phase 2 schema is split into ordered migrations, with one file per table and separate files for shared functions, RLS, and grants. See [database/README.md](database/README.md) and [Supabase setup](docs/SUPABASE.md).
-
-## Authentication
-
-The browser sends credentials only to the Boardnest API. The API uses Supabase Auth and stores access and refresh tokens in `HttpOnly` cookies, so browser JavaScript cannot read them. See [Authentication](docs/AUTHENTICATION.md) for setup and manual verification.
-
-## Frontend
-
-The React application uses a responsive Tailwind CSS shell and Apollo Client for GraphQL server state. It includes protected routes, workspace/project browsing, notifications, and reusable loading, error, and empty states. See [Frontend](docs/FRONTEND.md) for route and state ownership details.
-
-Phase 6 adds validated workspace, project, and task forms; project/task editing and deletion; Kanban filtering; and optimistic task movement persisted through GraphQL.
-
-Phase 7 adds authenticated task-created, task-updated, and task-deleted subscriptions. Apollo routes only subscriptions over WebSocket and merges incoming events into the active Kanban board. See [WebSockets](docs/WEBSOCKETS.md) for the connection lifecycle and security model.
-
-Phase 8 replaces the process-local event transport with Redis Pub/Sub. Dedicated
-publisher and subscriber connections allow mutations received by one API
-instance to reach WebSocket clients connected to another. See
-[Redis](docs/REDIS.md) for local and production configuration.
-
-Phase 9 expands meaningful coverage across GraphQL workflow resolvers, React
-forms, authentication routing, and a complete Playwright Kanban workflow.
-Coverage thresholds prevent regression while Redis and database integration
-checks remain explicit. See [Testing](docs/TESTING.md).
-
-Phase 10 adds a single multi-stage Dockerfile with independent API and web
-runtime targets. Docker Compose builds both targets, waits for Redis and API
-health checks, and runs the services with read-only filesystems and
-non-privileged application users.
-
-Phase 11 adds separate CI and production deployment workflows. CI validates
-formatting, linting, types, coverage, builds, browser workflows, Compose, and
-both runtime images. CD accepts only a successful `main` CI revision and stays
-explicitly disabled until production credentials are configured in Phase 12.
-
-Phase 12 configures Vercel SPA routing, Railway's API image and dynamic health
-port, production cookie modes, pinned provider deployments, and automated
-production smoke checks. The deployment runbook covers Supabase callbacks,
-Upstash TLS Redis, custom domains, GitHub environment ownership, verification,
-and rollback. Real provider credentials remain outside the repository.
-
-## Architecture
-
-The system boundaries, dependency rules, multi-tenancy model, and security approach are described in [Architecture](docs/ARCHITECTURE.md).
-
-### Architecture decisions
-
-- **React** provides a component model and ecosystem suited to a complex, interactive Kanban UI.
-- **TypeScript** gives the frontend, backend, and shared contracts one strict type system.
-- **GraphQL and Apollo** provide the typed application API and targeted real-time task subscriptions.
-- **Node.js** lets the backend share language and selected types with the frontend while supporting HTTP and WebSocket workloads.
-- **WebSockets** deliver task changes without polling; later collaboration events can use the same transport.
-- **Redis** distributes subscription events between multiple API instances; it is not the source of truth.
-- **Supabase** provides managed PostgreSQL and authentication while retaining a SQL-first data model.
-- **Docker** packages the API and static web build into reproducible,
-  least-privilege runtime images; Compose coordinates them with Redis locally.
-- **GitHub Actions** enforces formatting, linting, type checking, coverage,
-  E2E behavior, and container builds before deployment.
-- **Vercel** fits the static Vite frontend, while **Railway** supports the long-running API and WebSocket process.
-
-Detailed decision records and trade-offs live in [Architecture](docs/ARCHITECTURE.md).
-
-## Delivery phases
-
-1. Architecture and repository setup
-2. Supabase database design and SQL migrations
-3. Authentication
-4. GraphQL backend
-5. React application foundation
-6. Projects, tasks, and Kanban
-7. WebSockets and GraphQL subscriptions
-8. Redis Pub/Sub
-9. Testing expansion
-10. Docker
-11. CI/CD
-12. Deployment
-13. Documentation and cleanup
+- [Architecture](docs/ARCHITECTURE.md)
+- [Authentication](docs/AUTHENTICATION.md)
+- [Database](docs/DATABASE.md)
+- [Supabase](docs/SUPABASE.md)
+- [GraphQL](docs/GRAPHQL.md)
+- [Frontend](docs/FRONTEND.md)
+- [WebSockets](docs/WEBSOCKETS.md)
+- [Redis](docs/REDIS.md)
+- [Security](docs/SECURITY.md)
+- [Testing](docs/TESTING.md)
+- [Docker](docs/DOCKER.md)
+- [Development](docs/DEVELOPMENT.md)
+- [CI/CD](docs/CI-CD.md)
+- [Deployment](docs/DEPLOYMENT.md)
 
 ## License
 

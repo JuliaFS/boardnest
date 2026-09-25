@@ -1,5 +1,7 @@
 # `@boardnest/config`
 
-This workspace owns reusable tool configuration once repetition appears across applications. Phase 1 keeps the canonical TypeScript, ESLint, and Prettier configuration at the repository root so every workspace can consume it without publishing or bootstrapping a config package.
-
-Configuration will move here only when it has a real reusable boundary.
+This private workspace reserves the boundary for reusable tool configuration.
+The current repository keeps TypeScript, ESLint, Prettier, and test conventions
+at the root because extracting a package would add indirection without removing
+meaningful duplication. Add exports here only when two consumers need the same
+non-trivial preset.

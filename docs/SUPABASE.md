@@ -9,7 +9,7 @@
 
 Do not create Boardnest tables through Table Editor. The SQL files in this repository are the schema source of truth.
 
-## 2. Apply Phase 2 migrations manually
+## 2. Apply the migrations manually
 
 For the current reviewed workflow:
 
@@ -45,7 +45,9 @@ In Table Editor, confirm that these 14 public tables exist:
 
 Open the RLS settings for every table and confirm RLS is enabled. The migrations enable it automatically; the Dashboard check is verification only.
 
-Create a temporary user through Supabase Authentication and verify that a matching `profiles` row appears. A failure in the profile trigger can block signup, so perform this check before building Phase 3 authentication.
+Create a temporary user through Supabase Authentication and verify that a
+matching `profiles` row appears. A failure in the profile trigger can block
+signup, so perform this check before testing application authentication.
 
 ## 4. Project configuration values
 
@@ -80,7 +82,7 @@ Deleting an Auth user can fail while that user is recorded as a workspace creato
 ## 7. Migration automation boundary
 
 The initial schema was applied manually before the hosted project had Supabase
-CLI migration history. Phase 11 CI therefore never connects to or mutates the
+CLI migration history. CI therefore never connects to or mutates the
 hosted database: replaying the historical files could duplicate objects that
 already exist.
 
