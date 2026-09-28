@@ -234,6 +234,7 @@ GitHub `production` environment, never by the application repository.
 
 ## Documentation
 
+- [Public demo](docs/PUBLIC_DEMO.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Authentication](docs/AUTHENTICATION.md)
 - [Database](docs/DATABASE.md)
