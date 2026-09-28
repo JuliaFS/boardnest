@@ -20,6 +20,7 @@ const user: PublicAuthUser = {
   displayName: 'Test User',
   email: 'person@example.com',
   id: '4ac60f36-9f7a-419f-b447-d8f9d2bc7cd8',
+  isAnonymous: false,
   role: 'authenticated',
 };
 const session = {
@@ -52,6 +53,10 @@ afterEach(async () => {
 
 function createAuthService(): AuthService {
   return {
+    anonymous: vi.fn().mockResolvedValue({
+      session,
+      user: { ...user, displayName: 'Guest', email: null, isAnonymous: true },
+    }),
     completeConfirmation: vi.fn().mockResolvedValue({ session, user }),
     login: vi.fn().mockResolvedValue({ session, user }),
     refresh: vi.fn().mockResolvedValue({ session, user }),
@@ -121,6 +126,25 @@ describe('API server', () => {
     expect(cookies.every((cookie) => cookie.includes('SameSite=Lax'))).toBe(
       true,
     );
+  });
+
+  it('starts a guest session without returning tokens', async () => {
+    const { authService, server } = await startServer();
+    const response = await fetch(await getUrl(server, '/auth/guest'), {
+      headers: { origin },
+      method: 'POST',
+    });
+    const body = (await response.json()) as { user: PublicAuthUser };
+
+    expect(response.status).toBe(201);
+    expect(authService.anonymous).toHaveBeenCalledOnce();
+    expect(body.user).toMatchObject({
+      displayName: 'Guest',
+      email: null,
+      isAnonymous: true,
+    });
+    expect(JSON.stringify(body)).not.toContain('access-token');
+    expect(response.headers.getSetCookie()).toHaveLength(2);
   });
 
   it('sets secure cross-site cookies when explicitly configured', async () => {
@@ -235,7 +259,7 @@ describe('API server', () => {
     const response = await fetch(await getUrl(server, '/graphql'), {
       body: JSON.stringify({
         query:
-          'query CurrentUser { currentUser { id email displayName role } }',
+          'query CurrentUser { currentUser { id email displayName isAnonymous role } }',
       }),
       headers: {
         'content-type': 'application/json',

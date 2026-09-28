@@ -37,6 +37,17 @@ the short-lived PKCE authorization code, stores the resulting session in
 `HttpOnly` cookies, and redirects the browser to `/dashboard`.
 
 Under **Authentication → Providers → Email**, keep the Email provider enabled.
+Under **Authentication → Providers → Anonymous Sign-Ins**, enable anonymous
+sign-ins for the guest demo. Supabase anonymous users receive an authenticated
+session with an is_anonymous JWT claim; Boardnest uses that claim for database
+enforcement and never treats the public anon role as a guest account.
+
+For an internet-facing deployment, keep Supabase's anonymous-sign-in rate
+limit enabled. Before enabling CAPTCHA/Turnstile in Supabase, add a matching
+widget and forward its token through the guest endpoint; the current button does
+not yet collect a CAPTCHA token. Anonymous users are persistent Auth records, so
+schedule periodic cleanup for abandoned users after the chosen retention period.
+
 Both email-confirmation modes are supported:
 
 - confirmation enabled: registration shows a "Check your email" screen;
@@ -74,6 +85,7 @@ needed for authentication and must never be used in a `VITE_*` variable.
 | Method | Path             | Purpose                               |
 | ------ | ---------------- | ------------------------------------- |
 | POST   | `/auth/register` | Create a Supabase account             |
+| POST   | `/auth/guest`    | Create an anonymous guest session     |
 | POST   | `/auth/login`    | Create the `HttpOnly` cookie session  |
 | GET    | `/auth/callback` | Complete PKCE email confirmation      |
 | GET    | `/auth/session`  | Verify or refresh the current session |
@@ -89,6 +101,9 @@ needed for authentication and must never be used in a `VITE_*` variable.
    `boardnest-access` and `boardnest-refresh` have `HttpOnly` and `SameSite=Lax`.
 6. Refresh the page and confirm the session remains active.
 7. Sign out and confirm both cookies disappear and `/dashboard` redirects to `/login`.
+8. From `/login`, choose **Continue as guest** and confirm the dashboard shows
+   the guest limits banner. Verify that a second workspace or project and the
+   twenty-first task are rejected with a readable limit message.
 
 The frontend session endpoint supplies the authenticated header identity, while
 GraphQL exposes `currentUser` and all authorized application data through

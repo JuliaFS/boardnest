@@ -205,6 +205,25 @@ export async function createServer(
   );
 
   app.post(
+    '/auth/guest',
+    trustedOrigin(options.corsOrigin),
+    async (_request, response) => {
+      try {
+        const result = await options.authService.anonymous();
+        setSessionCookies(
+          response,
+          result.session,
+          options.secureCookies,
+          cookieSameSite,
+        );
+        response.status(201).json({ user: result.user });
+      } catch (error) {
+        response.status(429).json({ error: authErrorMessage(error) });
+      }
+    },
+  );
+
+  app.post(
     '/auth/login',
     trustedOrigin(options.corsOrigin),
     async (request, response) => {

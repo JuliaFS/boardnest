@@ -8,10 +8,11 @@ import { loginSchema, type LoginValues } from './auth-schemas';
 import { useAuth } from './AuthProvider';
 
 export function LoginPage() {
-  const { signIn } = useAuth();
+  const { continueAsGuest, signIn } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [guestLoading, setGuestLoading] = useState(false);
   const {
     formState: { errors, isSubmitting },
     handleSubmit,
@@ -67,6 +68,31 @@ export function LoginPage() {
           {isSubmitting ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
+      <div className="auth-divider" aria-hidden="true">
+        <span>or</span>
+      </div>
+      <button
+        className="guest-button"
+        disabled={isSubmitting || guestLoading}
+        onClick={() => {
+          setSubmissionError(null);
+          setGuestLoading(true);
+          void continueAsGuest()
+            .then(() => navigate('/dashboard', { replace: true }))
+            .catch((error: unknown) =>
+              setSubmissionError(getAuthErrorMessage(error)),
+            )
+            .finally(() => setGuestLoading(false));
+        }}
+        type="button"
+      >
+        {guestLoading ? 'Starting demo…' : 'Continue as guest'}
+      </button>
+      <p className="guest-copy">
+        No registration required. Guest accounts are limited to 1 workspace, 1
+        project, 20 tasks, 1 invitation, and 10 comments. Task edits and moves
+        are unlimited.
+      </p>
       <p className="auth-switch">
         New to Boardnest? <Link to="/register">Create an account</Link>
       </p>

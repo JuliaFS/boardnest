@@ -9,6 +9,13 @@
 
 Do not create Boardnest tables through Table Editor. The SQL files in this repository are the schema source of truth.
 
+Enable **Authentication → Providers → Anonymous Sign-Ins** for the guest demo.
+Before exposing it publicly, review the anonymous-sign-in IP rate limit. A
+CAPTCHA/Turnstile widget and token-forwarding step must be added before enabling
+CAPTCHA in Supabase; the current guest button does not collect that token.
+Supabase does not automatically remove abandoned anonymous users, so add a
+scheduled retention cleanup appropriate for the deployment.
+
 ## 2. Apply the migrations manually
 
 For the current reviewed workflow:

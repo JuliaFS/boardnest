@@ -7,7 +7,8 @@ import {
 import { z } from 'zod';
 
 const claimsSchema = z.object({
-  email: z.email().optional(),
+  email: z.union([z.email(), z.literal('')]).nullish(),
+  is_anonymous: z.boolean().optional().default(false),
   role: z.literal('authenticated'),
   sub: z.uuid(),
   user_metadata: z.record(z.string(), z.unknown()).optional(),
@@ -17,6 +18,7 @@ export interface PublicAuthUser {
   displayName: string | null;
   email: string | null;
   id: string;
+  isAnonymous: boolean;
   role: 'authenticated';
 }
 
@@ -39,6 +41,7 @@ export interface CompleteConfirmationInput {
 }
 
 export interface AuthService {
+  anonymous: () => Promise<AuthSessionResult>;
   completeConfirmation: (
     input: CompleteConfirmationInput,
   ) => Promise<AuthSessionResult>;
@@ -78,6 +81,15 @@ export function createSupabaseAuthService({
   }
 
   return {
+    async anonymous() {
+      const client = createAuthClient();
+      const { data, error } = await client.auth.signInAnonymously({
+        options: { data: { display_name: 'Guest' } },
+      });
+      if (error) throw error;
+      return mapSession(data.session, data.user);
+    },
+
     async completeConfirmation({ code, flowId, storage }) {
       const client = createAuthClient(storage);
       const { data, error } = await client.auth.exchangeCodeForSession(
@@ -157,8 +169,9 @@ export function createSupabaseAuthService({
 
       return {
         displayName: readDisplayName(claims.user_metadata),
-        email: claims.email ?? null,
+        email: claims.email || null,
         id: claims.sub,
+        isAnonymous: claims.is_anonymous,
         role: claims.role,
       };
     },
@@ -178,6 +191,7 @@ function mapSession(
       displayName: readDisplayName(user.user_metadata),
       email: user.email ?? null,
       id: user.id,
+      isAnonymous: user.is_anonymous ?? false,
       role: 'authenticated',
     },
   };

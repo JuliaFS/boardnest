@@ -53,8 +53,19 @@ Run every file exactly once and in filename order:
 | `200_authorization_functions.sql` | Non-exposed RLS helper functions                            |
 | `210_rls_policies.sql`            | Per-operation RLS policies                                  |
 | `220_api_grants.sql`              | Explicit `anon`, `authenticated`, and `service_role` grants |
+| `230_anonymous_guest_limits.sql`  | Concurrency-safe quotas for anonymous guest sessions        |
 
 Do not run `database/tests/*.sql` as migrations. The smoke test inserts deterministic temporary records and rolls the transaction back.
+
+## Anonymous guest quotas
+
+Supabase anonymous users retain the authenticated database role and are
+distinguished by the signed is_anonymous JWT claim. Insert triggers enforce a
+maximum of one workspace, one project, twenty tasks, one invitation, and ten
+comments per guest. Updates and task moves remain unlimited. Counts include
+archived rows so archival cannot bypass storage limits; hard deletion releases
+the corresponding quota. Per-user advisory transaction locks keep concurrent
+inserts from exceeding a limit.
 
 ## Project visibility and status
 

@@ -8,6 +8,7 @@ import {
 } from 'react';
 
 import {
+  continueAsGuest,
   getSession,
   login,
   logout,
@@ -23,6 +24,7 @@ interface SignUpInput {
 }
 
 interface AuthContextValue {
+  continueAsGuest: () => Promise<void>;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -57,6 +59,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const value = useMemo<AuthContextValue>(
     () => ({
+      continueAsGuest: async () => {
+        await apolloClient.clearStore();
+        setUser(await continueAsGuest());
+      },
       isLoading,
       signIn: async (email, password) => {
         await apolloClient.clearStore();

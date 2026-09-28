@@ -96,6 +96,13 @@ export function AppLayout() {
       </aside>
 
       <main className="min-h-screen md:pl-64">
+        {user?.isAnonymous ? (
+          <div className="border-b border-amber-700/60 bg-amber-950/40 px-4 py-3 text-center text-sm text-amber-100">
+            Guest demo: 1 workspace, 1 project, 20 tasks, 1 invitation, and 10
+            comments. Task edits and moves are unlimited. This account cannot be
+            recovered after signing out.
+          </div>
+        ) : null}
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
           <Outlet />
         </div>

@@ -31,6 +31,7 @@ in a portfolio presentation.
 
 - Supabase email/password registration, email confirmation through a PKCE
   callback, login, refresh, and logout;
+- no-registration anonymous guest sessions with database-enforced demo quotas;
 - access and refresh tokens stored only in secure `HttpOnly` cookies;
 - multi-tenant workspaces with owner, admin, member, and viewer roles;
 - workspace-visible and private projects with independent lifecycle status;

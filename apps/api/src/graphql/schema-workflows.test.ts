@@ -10,6 +10,7 @@ const user: PublicAuthUser = {
   displayName: 'Test User',
   email: 'person@example.com',
   id: '4ac60f36-9f7a-419f-b447-d8f9d2bc7cd8',
+  isAnonymous: false,
   role: 'authenticated',
 };
 const workspaceId = '6992c303-a240-4e15-8fcc-461d53756324';
