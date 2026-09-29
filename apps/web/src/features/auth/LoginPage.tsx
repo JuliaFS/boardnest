@@ -1,11 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useLocation, useNavigate } from 'react-router';
 
 import { getAuthErrorMessage } from './auth-errors';
 import { loginSchema, type LoginValues } from './auth-schemas';
 import { useAuth } from './AuthProvider';
+import { TurnstileWidget } from './TurnstileWidget';
 
 export function LoginPage() {
   const { continueAsGuest, signIn } = useAuth();
@@ -13,6 +14,12 @@ export function LoginPage() {
   const navigate = useNavigate();
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [guestLoading, setGuestLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
+  const handleCaptchaToken = useCallback(
+    (token: string | null) => setCaptchaToken(token),
+    [],
+  );
   const {
     formState: { errors, isSubmitting },
     handleSubmit,
@@ -71,18 +78,27 @@ export function LoginPage() {
       <div className="auth-divider" aria-hidden="true">
         <span>or</span>
       </div>
+      <TurnstileWidget
+        onTokenChange={handleCaptchaToken}
+        resetKey={turnstileResetKey}
+      />
       <button
         className="guest-button"
-        disabled={isSubmitting || guestLoading}
+        disabled={isSubmitting || guestLoading || !captchaToken}
         onClick={() => {
+          if (!captchaToken) return;
           setSubmissionError(null);
           setGuestLoading(true);
-          void continueAsGuest()
+          void continueAsGuest(captchaToken)
             .then(() => navigate('/dashboard', { replace: true }))
             .catch((error: unknown) =>
               setSubmissionError(getAuthErrorMessage(error)),
             )
-            .finally(() => setGuestLoading(false));
+            .finally(() => {
+              setGuestLoading(false);
+              setCaptchaToken(null);
+              setTurnstileResetKey((current) => current + 1);
+            });
         }}
         type="button"
       >

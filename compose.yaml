@@ -25,11 +25,13 @@ services:
       API_URL: ${DOCKER_API_URL:-http://localhost:4000}
       COOKIE_SAME_SITE: ${DOCKER_COOKIE_SAME_SITE:-lax}
       CORS_ORIGIN: ${DOCKER_WEB_ORIGIN:-http://localhost:8080}
+      GUEST_RATE_LIMIT_SECRET: ${GUEST_RATE_LIMIT_SECRET:?Set GUEST_RATE_LIMIT_SECRET in .env}
       NODE_ENV: ${DOCKER_NODE_ENV:-development}
       PORT: 4000
       REDIS_URL: redis://redis:6379
       SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:?Set SUPABASE_PUBLISHABLE_KEY in .env}
       SUPABASE_URL: ${SUPABASE_URL:?Set SUPABASE_URL in .env}
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-0}
     ports:
       - '127.0.0.1:${API_HOST_PORT:-4000}:4000'
     depends_on:
@@ -59,6 +61,7 @@ services:
       args:
         VITE_API_URL: ${DOCKER_PUBLIC_API_URL:-http://localhost:4000}
         VITE_GRAPHQL_URL: ${DOCKER_PUBLIC_GRAPHQL_URL:-http://localhost:4000/graphql}
+        VITE_TURNSTILE_SITE_KEY: ${VITE_TURNSTILE_SITE_KEY:-1x00000000000000000000AA}
         VITE_WS_URL: ${DOCKER_PUBLIC_WS_URL:-ws://localhost:4000/graphql}
     ports:
       - '127.0.0.1:${WEB_HOST_PORT:-8080}:8080'

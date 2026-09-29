@@ -10,11 +10,12 @@
 Do not create Boardnest tables through Table Editor. The SQL files in this repository are the schema source of truth.
 
 Enable **Authentication → Providers → Anonymous Sign-Ins** for the guest demo.
-Before exposing it publicly, review the anonymous-sign-in IP rate limit. A
-CAPTCHA/Turnstile widget and token-forwarding step must be added before enabling
-CAPTCHA in Supabase; the current guest button does not collect that token.
-Supabase does not automatically remove abandoned anonymous users, so add a
-scheduled retention cleanup appropriate for the deployment.
+Under **Authentication → Bot and Abuse Protection**, select Cloudflare
+Turnstile, enter the widget secret key, and enable CAPTCHA protection. The
+frontend sends the widget token through the API and Supabase validates it during
+anonymous sign-in. Keep the anonymous-sign-in provider limit enabled as an
+additional boundary. Supabase does not automatically remove abandoned anonymous
+users, so add a scheduled retention cleanup appropriate for the deployment.
 
 ## 2. Apply the migrations manually
 

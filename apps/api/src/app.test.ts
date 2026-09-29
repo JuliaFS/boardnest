@@ -9,6 +9,7 @@ import { WebSocket } from 'ws';
 
 import { createServer } from './app.js';
 import type { AuthService, PublicAuthUser } from './auth/auth-service.js';
+import type { GuestAdmission } from './auth/guest-admission.js';
 import type { BoardnestDataService } from './graphql/data-service.js';
 import {
   createInMemoryEventBus,
@@ -51,6 +52,17 @@ afterEach(async () => {
   servers.clear();
 });
 
+function createGuestAdmission(): GuestAdmission {
+  return {
+    close: vi.fn().mockResolvedValue(undefined),
+    consume: vi.fn().mockResolvedValue({
+      allowed: true,
+      reservation: 'boardnest:v1:guest:global:day:1',
+    }),
+    release: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
 function createAuthService(): AuthService {
   return {
     anonymous: vi.fn().mockResolvedValue({
@@ -78,6 +90,7 @@ async function startServer(
     authService,
     corsOrigin: origin,
     createDataService: vi.fn(() => dataService),
+    guestAdmission: createGuestAdmission(),
     ...(events ? { events } : {}),
     introspection: true,
     secureCookies: false,
@@ -131,13 +144,14 @@ describe('API server', () => {
   it('starts a guest session without returning tokens', async () => {
     const { authService, server } = await startServer();
     const response = await fetch(await getUrl(server, '/auth/guest'), {
-      headers: { origin },
+      body: JSON.stringify({ captchaToken: 'turnstile-token' }),
+      headers: { 'content-type': 'application/json', origin },
       method: 'POST',
     });
     const body = (await response.json()) as { user: PublicAuthUser };
 
     expect(response.status).toBe(201);
-    expect(authService.anonymous).toHaveBeenCalledOnce();
+    expect(authService.anonymous).toHaveBeenCalledWith('turnstile-token');
     expect(body.user).toMatchObject({
       displayName: 'Guest',
       email: null,
@@ -153,6 +167,7 @@ describe('API server', () => {
       cookieSameSite: 'None',
       corsOrigin: origin,
       createDataService: vi.fn(() => ({}) as BoardnestDataService),
+      guestAdmission: createGuestAdmission(),
       introspection: true,
       secureCookies: true,
     });

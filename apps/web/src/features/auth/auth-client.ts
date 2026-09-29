@@ -42,8 +42,11 @@ export async function login(
   return body.user;
 }
 
-export async function continueAsGuest(): Promise<AuthUser> {
-  const body = await request<AuthResponse>('/auth/guest', { method: 'POST' });
+export async function continueAsGuest(captchaToken: string): Promise<AuthUser> {
+  const body = await request<AuthResponse>('/auth/guest', {
+    body: JSON.stringify({ captchaToken }),
+    method: 'POST',
+  });
   return body.user;
 }
 

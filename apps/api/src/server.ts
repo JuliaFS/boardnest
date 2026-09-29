@@ -1,5 +1,6 @@
 import { createServer } from './app.js';
 import { createSupabaseAuthService } from './auth/auth-service.js';
+import { createRedisGuestAdmission } from './auth/guest-admission.js';
 import { loadEnvironmentFile, parseEnvironment } from './config/env.js';
 import { createBoardnestDataService } from './graphql/data-service.js';
 import { createRedisEventBus } from './realtime/redis-event-bus.js';
@@ -13,6 +14,13 @@ const authService = createSupabaseAuthService({
   supabaseUrl: environment.SUPABASE_URL,
 });
 const events = await createRedisEventBus(environment.REDIS_URL);
+const guestAdmission = await createRedisGuestAdmission(
+  environment.REDIS_URL,
+  environment.GUEST_RATE_LIMIT_SECRET,
+).catch(async (error: unknown) => {
+  await events.close();
+  throw error;
+});
 
 const server = await createServer({
   authService,
@@ -24,11 +32,13 @@ const server = await createServer({
       accessToken,
     ),
   events,
+  guestAdmission,
   introspection: environment.NODE_ENV !== 'production',
   cookieSameSite: environment.COOKIE_SAME_SITE === 'none' ? 'None' : 'Lax',
   secureCookies: environment.NODE_ENV === 'production',
+  trustProxyHops: environment.TRUST_PROXY_HOPS,
 }).catch(async (error: unknown) => {
-  await events.close();
+  await Promise.allSettled([events.close(), guestAdmission.close()]);
   throw error;
 });
 

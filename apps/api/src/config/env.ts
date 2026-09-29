@@ -6,6 +6,7 @@ const environmentSchema = z
     API_URL: z.url(),
     COOKIE_SAME_SITE: z.enum(['lax', 'none']).default('lax'),
     CORS_ORIGIN: z.url(),
+    GUEST_RATE_LIMIT_SECRET: z.string().min(32),
     NODE_ENV: z
       .enum(['development', 'test', 'production'])
       .default('development'),
@@ -13,6 +14,7 @@ const environmentSchema = z
     REDIS_URL: z.url(),
     SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
     SUPABASE_URL: z.url(),
+    TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
   })
   .superRefine((environment, context) => {
     if (

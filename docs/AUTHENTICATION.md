@@ -42,11 +42,13 @@ sign-ins for the guest demo. Supabase anonymous users receive an authenticated
 session with an is_anonymous JWT claim; Boardnest uses that claim for database
 enforcement and never treats the public anon role as a guest account.
 
-For an internet-facing deployment, keep Supabase's anonymous-sign-in rate
-limit enabled. Before enabling CAPTCHA/Turnstile in Supabase, add a matching
-widget and forward its token through the guest endpoint; the current button does
-not yet collect a CAPTCHA token. Anonymous users are persistent Auth records, so
-schedule periodic cleanup for abandoned users after the chosen retention period.
+The guest button renders Cloudflare Turnstile and sends its single-use token to
+`POST /auth/guest`. The API forwards it to `signInAnonymously`, so Supabase
+performs the server-side CAPTCHA validation before creating the anonymous user.
+Redis additionally limits guest creation to 3 attempts per IP per hour, 10 per
+IP per UTC day, and 100 successful reservations globally per UTC day. Anonymous
+users are persistent Auth records, so schedule periodic cleanup for abandoned
+users after the chosen retention period.
 
 Both email-confirmation modes are supported:
 

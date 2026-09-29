@@ -189,6 +189,13 @@ a {
   content: '';
 }
 
+.turnstile-shell {
+  display: grid;
+  min-height: 4.1rem;
+  place-items: center;
+  margin-bottom: 0.85rem;
+}
+
 .guest-button {
   width: 100%;
   padding: 0.8rem 1rem;

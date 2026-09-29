@@ -24,7 +24,7 @@ interface SignUpInput {
 }
 
 interface AuthContextValue {
-  continueAsGuest: () => Promise<void>;
+  continueAsGuest: (captchaToken: string) => Promise<void>;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -59,9 +59,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const value = useMemo<AuthContextValue>(
     () => ({
-      continueAsGuest: async () => {
+      continueAsGuest: async (captchaToken) => {
         await apolloClient.clearStore();
-        setUser(await continueAsGuest());
+        setUser(await continueAsGuest(captchaToken));
       },
       isLoading,
       signIn: async (email, password) => {

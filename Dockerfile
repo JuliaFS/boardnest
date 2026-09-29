@@ -17,9 +17,11 @@ RUN pnpm install --frozen-lockfile
 FROM dependencies AS web-build
 ARG VITE_API_URL=http://localhost:4000
 ARG VITE_GRAPHQL_URL=http://localhost:4000/graphql
+ARG VITE_TURNSTILE_SITE_KEY=1x00000000000000000000AA
 ARG VITE_WS_URL=ws://localhost:4000/graphql
 ENV VITE_API_URL=${VITE_API_URL}
 ENV VITE_GRAPHQL_URL=${VITE_GRAPHQL_URL}
+ENV VITE_TURNSTILE_SITE_KEY=${VITE_TURNSTILE_SITE_KEY}
 ENV VITE_WS_URL=${VITE_WS_URL}
 RUN pnpm --filter @boardnest/web build
 

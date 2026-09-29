@@ -41,7 +41,7 @@ export interface CompleteConfirmationInput {
 }
 
 export interface AuthService {
-  anonymous: () => Promise<AuthSessionResult>;
+  anonymous: (captchaToken: string) => Promise<AuthSessionResult>;
   completeConfirmation: (
     input: CompleteConfirmationInput,
   ) => Promise<AuthSessionResult>;
@@ -81,10 +81,13 @@ export function createSupabaseAuthService({
   }
 
   return {
-    async anonymous() {
+    async anonymous(captchaToken) {
       const client = createAuthClient();
       const { data, error } = await client.auth.signInAnonymously({
-        options: { data: { display_name: 'Guest' } },
+        options: {
+          captchaToken,
+          data: { display_name: 'Guest' },
+        },
       });
       if (error) throw error;
       return mapSession(data.session, data.user);
