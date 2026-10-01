@@ -62,7 +62,8 @@ work.
 ## Deployment setup
 
 1. Apply all database migrations in filename order, including
-   `230_anonymous_guest_limits.sql`.
+   `230_anonymous_guest_limits.sql`. Repository files do not modify the hosted
+   database until their SQL is run in the Supabase SQL Editor.
 2. In Cloudflare Turnstile, create a **Managed** widget and add every deployed
    frontend hostname. Copy its site key and secret key.
 3. In Supabase, enable **Authentication → Providers → Anonymous Sign-Ins**.
@@ -84,6 +85,20 @@ work.
    settings.
 10. Verify the flow from `/login` by completing Turnstile and selecting
     **Continue as guest**.
+
+Confirm that the guest workspace trigger is installed:
+
+```sql
+select tgname
+from pg_trigger
+where tgname = 'workspaces_enforce_anonymous_quota'
+  and not tgisinternal;
+```
+
+The query must return `workspaces_enforce_anonymous_quota`. `Success. No rows
+returned` means migration `230_anonymous_guest_limits.sql` has not been applied.
+Applying the migration does not delete resources that guests created before the
+triggers were installed; it prevents subsequent inserts above the quotas.
 
 For local development, use a real widget that allows `localhost`, or use
 Cloudflare's documented test site/secret pair only with a separate development

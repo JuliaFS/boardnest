@@ -30,6 +30,21 @@ For the current reviewed workflow:
 
 The complete order is listed in [database/README.md](../database/README.md). Each file owns a transaction, so a failure rolls that file back.
 
+After applying `230_anonymous_guest_limits.sql`, verify its workspace quota
+trigger explicitly:
+
+```sql
+select tgname
+from pg_trigger
+where tgname = 'workspaces_enforce_anonymous_quota'
+  and not tgisinternal;
+```
+
+The query must return one row named `workspaces_enforce_anonymous_quota`. A
+successful query with no returned rows means the migration is not installed.
+The migration affects future inserts and does not remove guest resources that
+were created before it was applied.
+
 Do not run `database/tests/001_schema_smoke.sql` against the hosted project. It is intended for an isolated disposable database.
 
 ## 3. Verify the result
