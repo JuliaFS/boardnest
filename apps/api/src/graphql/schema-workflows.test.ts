@@ -3,7 +3,13 @@ import { describe, expect, it, vi } from 'vitest';
 import type { PublicAuthUser } from '../auth/auth-service.js';
 import type { RealtimeEventBus, TaskEvent } from '../realtime/event-bus.js';
 import type { BoardnestDataService } from './data-service.js';
-import type { Project, Task, TaskAssignee } from './domain.js';
+import type {
+  NotificationPreferences,
+  Project,
+  Task,
+  TaskAssignee,
+  TaskReminder,
+} from './domain.js';
 import { resolvers, type GraphQLContext } from './schema.js';
 
 const user: PublicAuthUser = {
@@ -19,7 +25,9 @@ const taskId = 'ae248328-e9e4-4416-a92d-47af95406e4d';
 const statusId = '6954de6d-ed8e-4409-8be8-9e0ce72ba8c4';
 const nextStatusId = '67b31b8b-abbb-4134-b2d8-32984172c3ed';
 const assigneeId = 'b6067e89-1702-49b6-92f7-d2f2ccbc4685';
+const reminderId = '98fa7790-e43b-4e9e-a600-8f8a56fc9864';
 const timestamp = new Date(0).toISOString();
+const nextRunAt = '2030-01-15T08:00:00.000Z';
 
 const project: Project = {
   archived_at: null,
@@ -51,6 +59,37 @@ const task: Task = {
   updated_at: timestamp,
 };
 
+const reminder: TaskReminder = {
+  created_at: timestamp,
+  created_by: user.id,
+  email_enabled: true,
+  ends_at: null,
+  id: reminderId,
+  in_app_enabled: true,
+  last_run_at: null,
+  next_run_at: nextRunAt,
+  project_id: projectId,
+  recipient_ids: [user.id, assigneeId],
+  schedule_kind: 'weekly',
+  status: 'active',
+  stop_when_completed: true,
+  task_id: taskId,
+  timezone: 'Europe/Sofia',
+  updated_at: timestamp,
+  workspace_id: workspaceId,
+};
+
+const preferences: NotificationPreferences = {
+  created_at: timestamp,
+  email_enabled: true,
+  in_app_enabled: true,
+  reminder_enabled: true,
+  task_assigned_enabled: true,
+  task_created_enabled: true,
+  updated_at: timestamp,
+  user_id: user.id,
+};
+
 type MutationResolver = (
   parent: unknown,
   args: Record<string, unknown>,
@@ -61,6 +100,7 @@ const mutations = resolvers.Mutation as unknown as Record<
   string,
   MutationResolver
 >;
+const queries = resolvers.Query as unknown as Record<string, MutationResolver>;
 
 function createEvents() {
   return {
@@ -89,6 +129,16 @@ function runMutation(
 ) {
   const resolver = mutations[name];
   if (!resolver) throw new Error(`Unknown mutation resolver: ${name}`);
+  return Promise.resolve(resolver(undefined, args, value));
+}
+
+function runQuery(
+  name: string,
+  args: Record<string, unknown>,
+  value: GraphQLContext,
+) {
+  const resolver = queries[name];
+  if (!resolver) throw new Error(`Unknown query resolver: ${name}`);
   return Promise.resolve(resolver(undefined, args, value));
 }
 
@@ -249,5 +299,155 @@ describe('GraphQL project and task workflow resolvers', () => {
       ),
     ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
     expect(createTask).not.toHaveBeenCalled();
+  });
+});
+
+describe('GraphQL reminder workflow resolvers', () => {
+  it('creates a reminder with normalized schedule, channels, and recipients', async () => {
+    const createTaskReminder = vi.fn().mockResolvedValue(reminder);
+
+    await expect(
+      runMutation(
+        'createTaskReminder',
+        {
+          input: {
+            emailEnabled: true,
+            nextRunAt,
+            recipientIds: [user.id, assigneeId],
+            scheduleKind: 'weekly',
+            taskId,
+            timezone: ' Europe/Sofia ',
+          },
+        },
+        context(createDataService({ createTaskReminder })),
+      ),
+    ).resolves.toEqual(reminder);
+    expect(createTaskReminder).toHaveBeenCalledWith({
+      email_enabled: true,
+      in_app_enabled: true,
+      next_run_at: nextRunAt,
+      recipient_ids: [user.id, assigneeId],
+      schedule_kind: 'weekly',
+      stop_when_completed: true,
+      task_id: taskId,
+      timezone: 'Europe/Sofia',
+    });
+  });
+
+  it('updates, pauses, resumes, replaces recipients, and deletes a reminder', async () => {
+    const updateTaskReminder = vi.fn().mockResolvedValue(reminder);
+    const updateTaskReminderStatus = vi.fn().mockResolvedValue(reminder);
+    const replaceTaskReminderRecipients = vi.fn().mockResolvedValue(reminder);
+    const deleteTaskReminder = vi.fn().mockResolvedValue(reminderId);
+    const value = context(
+      createDataService({
+        deleteTaskReminder,
+        replaceTaskReminderRecipients,
+        updateTaskReminder,
+        updateTaskReminderStatus,
+      }),
+    );
+
+    await runMutation(
+      'updateTaskReminder',
+      {
+        id: reminderId,
+        input: { emailEnabled: true, scheduleKind: 'monthly' },
+      },
+      value,
+    );
+    await runMutation('pauseTaskReminder', { id: reminderId }, value);
+    await runMutation('resumeTaskReminder', { id: reminderId }, value);
+    await runMutation(
+      'replaceTaskReminderRecipients',
+      { id: reminderId, recipientIds: [assigneeId] },
+      value,
+    );
+    await expect(
+      runMutation('deleteTaskReminder', { id: reminderId }, value),
+    ).resolves.toEqual({ id: reminderId });
+
+    expect(updateTaskReminder).toHaveBeenCalledWith(reminderId, {
+      email_enabled: true,
+      schedule_kind: 'monthly',
+    });
+    expect(updateTaskReminderStatus).toHaveBeenNthCalledWith(
+      1,
+      reminderId,
+      'paused',
+    );
+    expect(updateTaskReminderStatus).toHaveBeenNthCalledWith(
+      2,
+      reminderId,
+      'active',
+    );
+    expect(replaceTaskReminderRecipients).toHaveBeenCalledWith(reminderId, [
+      assigneeId,
+    ]);
+    expect(deleteTaskReminder).toHaveBeenCalledWith(reminderId);
+  });
+
+  it('reads reminders, preferences, and the workspace plan through the authenticated service', async () => {
+    const taskReminders = vi.fn().mockResolvedValue([reminder]);
+    const notificationPreferences = vi.fn().mockResolvedValue(preferences);
+    const workspaceSubscription = vi.fn().mockResolvedValue({ plan: {} });
+    const value = context(
+      createDataService({
+        notificationPreferences,
+        taskReminders,
+        workspaceSubscription,
+      }),
+    );
+
+    await expect(runQuery('taskReminders', { taskId }, value)).resolves.toEqual(
+      [reminder],
+    );
+    await expect(
+      runQuery('notificationPreferences', {}, value),
+    ).resolves.toEqual(preferences);
+    await runQuery('workspaceSubscription', { workspaceId }, value);
+
+    expect(taskReminders).toHaveBeenCalledWith(taskId);
+    expect(notificationPreferences).toHaveBeenCalledWith(user.id);
+    expect(workspaceSubscription).toHaveBeenCalledWith(workspaceId);
+  });
+
+  it('updates only the supplied notification preferences for the current user', async () => {
+    const updateNotificationPreferences = vi
+      .fn()
+      .mockResolvedValue({ ...preferences, reminder_enabled: false });
+
+    await runMutation(
+      'updateNotificationPreferences',
+      { input: { reminderEnabled: false } },
+      context(createDataService({ updateNotificationPreferences })),
+    );
+
+    expect(updateNotificationPreferences).toHaveBeenCalledWith(user.id, {
+      reminder_enabled: false,
+    });
+  });
+
+  it('rejects duplicate recipients and disabled channels before persistence', async () => {
+    const createTaskReminder = vi.fn();
+    const value = context(createDataService({ createTaskReminder }));
+
+    await expect(
+      runMutation(
+        'createTaskReminder',
+        {
+          input: {
+            emailEnabled: false,
+            inAppEnabled: false,
+            nextRunAt,
+            recipientIds: [user.id, user.id],
+            scheduleKind: 'once',
+            taskId,
+          },
+        },
+        value,
+      ),
+    ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
+    expect(createTaskReminder).not.toHaveBeenCalled();
   });
 });

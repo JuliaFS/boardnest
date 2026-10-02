@@ -45,7 +45,7 @@ successful query with no returned rows means the migration is not installed.
 The migration affects future inserts and does not remove guest resources that
 were created before it was applied.
 
-Continue through `300_notification_grants.sql` in filename order. Do not run
+Continue through `310_reminder_api_functions.sql` in filename order. Do not run
 files under `database/tests` against the hosted project; they are intended only
 for an isolated disposable database.
 

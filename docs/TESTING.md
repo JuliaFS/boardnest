@@ -64,6 +64,8 @@ documented in `docs/SUPABASE.md`; they are destructive and must not be executed
 against the hosted project. The notification model smoke test also verifies
 automatic plan assignment, preference creation, the three-task guest reminder
 limit, quota release after pausing, and rejection of guest email reminders.
+The reminder API function smoke test verifies atomic reminder creation and
+rollback when recipient replacement violates task-recipient constraints.
 
 ## Covered critical behavior
 
@@ -76,3 +78,5 @@ limit, quota release after pausing, and rejection of guest email reminders.
 - unauthenticated access denial and SQL RLS smoke checks;
 - GraphQL WebSocket delivery and Redis Pub/Sub validation/distribution.
 - notification plan assignment and database-enforced guest reminder limits.
+- GraphQL reminder creation, lifecycle actions, recipients, preferences, and
+  workspace capability queries.

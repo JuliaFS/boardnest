@@ -91,6 +91,61 @@ export interface Notification {
   workspace_id: string;
 }
 
+export interface NotificationPreferences {
+  created_at: string;
+  email_enabled: boolean;
+  in_app_enabled: boolean;
+  reminder_enabled: boolean;
+  task_assigned_enabled: boolean;
+  task_created_enabled: boolean;
+  updated_at: string;
+  user_id: string;
+}
+
+export interface SubscriptionPlan {
+  code: string;
+  description: string;
+  display_name: string;
+  email_enabled: boolean;
+  max_active_reminder_tasks: number;
+  max_recipients_per_reminder: number;
+  max_reminders_per_task: number;
+  monthly_email_limit: number;
+  notification_retention_days: number;
+}
+
+export interface WorkspaceSubscription {
+  cancel_at_period_end: boolean;
+  current_period_end: string | null;
+  current_period_start: string | null;
+  effective_plan_code: string;
+  plan: SubscriptionPlan;
+  plan_code: string;
+  provider: string;
+  status: string;
+  workspace_id: string;
+}
+
+export interface TaskReminder {
+  created_at: string;
+  created_by: string;
+  email_enabled: boolean;
+  ends_at: string | null;
+  id: string;
+  in_app_enabled: boolean;
+  last_run_at: string | null;
+  next_run_at: string;
+  project_id: string;
+  recipient_ids: string[];
+  schedule_kind: string;
+  status: string;
+  stop_when_completed: boolean;
+  task_id: string;
+  timezone: string;
+  updated_at: string;
+  workspace_id: string;
+}
+
 export interface ActivityLog {
   actor_id: string | null;
   created_at: string;
@@ -160,4 +215,34 @@ export interface UpdateTaskData {
   due_at?: string | null;
   priority?: string;
   title?: string;
+}
+
+export interface CreateTaskReminderData {
+  email_enabled: boolean;
+  ends_at?: string | null;
+  in_app_enabled: boolean;
+  next_run_at: string;
+  recipient_ids: string[];
+  schedule_kind: string;
+  stop_when_completed: boolean;
+  task_id: string;
+  timezone: string;
+}
+
+export interface UpdateTaskReminderData {
+  email_enabled?: boolean;
+  ends_at?: string | null;
+  in_app_enabled?: boolean;
+  next_run_at?: string;
+  schedule_kind?: string;
+  stop_when_completed?: boolean;
+  timezone?: string;
+}
+
+export interface UpdateNotificationPreferencesData {
+  email_enabled?: boolean;
+  in_app_enabled?: boolean;
+  reminder_enabled?: boolean;
+  task_assigned_enabled?: boolean;
+  task_created_enabled?: boolean;
 }
