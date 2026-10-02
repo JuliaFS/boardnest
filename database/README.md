@@ -66,6 +66,7 @@ Run every file exactly once and in filename order:
 | `280_notification_deliveries.sql`    | Durable email outbox and monthly email quota enforcement    |
 | `290_notification_authorization.sql` | Reminder and subscription RLS policies                      |
 | `300_notification_grants.sql`        | Explicit grants for notification scheduling tables          |
+| `310_reminder_api_functions.sql`     | Atomic reminder and recipient API transactions              |
 
 Do not run `database/tests/*.sql` as migrations. The smoke test inserts deterministic temporary records and rolls the transaction back.
 
@@ -102,6 +103,13 @@ represented by `schedule_kind = 'once'` and its chosen `next_run_at`.
 idempotency key prevents one reminder occurrence from being queued twice. The
 worker and email provider integration are intentionally implemented after this
 database foundation.
+
+The GraphQL API creates a reminder and its first recipient set through
+`create_task_reminder_with_recipients`. Recipient edits use
+`replace_task_reminder_recipients`. Both narrowly granted functions verify the
+authenticated JWT actor through the same private authorization helpers used by
+RLS. Existing plan, quota, and recipient triggers still apply, while a failure
+rolls the whole operation back.
 
 ## Project visibility and status
 

@@ -47,18 +47,22 @@ check.
 
 ## Queries
 
-| Query           | Purpose                                      |
-| --------------- | -------------------------------------------- |
-| `currentUser`   | Return the verified session user             |
-| `workspaces`    | List accessible active workspaces            |
-| `workspace`     | Read one accessible workspace                |
-| `projects`      | List accessible active projects by workspace |
-| `project`       | Read one accessible project                  |
-| `tasks`         | List or search active project tasks          |
-| `task`          | Read one accessible task                     |
-| `taskStatuses`  | List ordered Kanban columns for a project    |
-| `notifications` | List the current user's notifications        |
-| `activityFeed`  | List workspace or project activity           |
+| Query                     | Purpose                                              |
+| ------------------------- | ---------------------------------------------------- |
+| `currentUser`             | Return the verified session user                     |
+| `workspaces`              | List accessible active workspaces                    |
+| `workspace`               | Read one accessible workspace                        |
+| `projects`                | List accessible active projects by workspace         |
+| `project`                 | Read one accessible project                          |
+| `tasks`                   | List or search active project tasks                  |
+| `task`                    | Read one accessible task                             |
+| `taskStatuses`            | List ordered Kanban columns for a project            |
+| `notifications`           | List the current user's notifications                |
+| `notificationPreferences` | Read the current user's channel and event choices    |
+| `workspaceSubscription`   | Read effective reminder capabilities for a workspace |
+| `taskReminders`           | List authorized reminder schedules for a task        |
+| `taskReminder`            | Read one authorized reminder schedule                |
+| `activityFeed`            | List workspace or project activity                   |
 
 List queries return `nodes` and `pageInfo`. `limit` is restricted to 1–100 and
 `offset` cannot be negative. One extra row is fetched to derive `hasNextPage`.
@@ -69,8 +73,9 @@ option for large, frequently updated feeds.
 
 The schema supports workspace and project creation, project update/deletion,
 task creation/update/deletion/movement, task assignment, comments, invitations,
-and marking notifications as read. GraphQL enums map to the lowercase values
-enforced by PostgreSQL.
+marking notifications as read, reminder lifecycle management, recipient
+replacement, and notification preference updates. GraphQL enums map to the
+lowercase values enforced by PostgreSQL.
 
 ```graphql
 mutation CreateProject($input: CreateProjectInput!) {
@@ -97,6 +102,58 @@ mutation CreateProject($input: CreateProjectInput!) {
 `inviteMember` generates a cryptographically random token, stores only its
 SHA-256 hash, and returns the raw token once. Email delivery and invitation
 acceptance are outside the current browser workflow.
+
+### Reminder scheduling
+
+`createTaskReminder` accepts one-time, weekly, monthly, quarterly, and yearly
+schedules. A custom date uses `ONCE` with the selected UTC `nextRunAt`; the IANA
+`timezone` preserves local recurrence intent. At least one channel and one
+unique recipient are required. Recipients must be the task creator or an
+assignee, and PostgreSQL enforces the workspace plan limits.
+
+```graphql
+mutation CreateReminder($input: CreateTaskReminderInput!) {
+  createTaskReminder(input: $input) {
+    id
+    scheduleKind
+    nextRunAt
+    recipientIds
+    status
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "taskId": "ae248328-e9e4-4416-a92d-47af95406e4d",
+    "scheduleKind": "WEEKLY",
+    "timezone": "Europe/Sofia",
+    "nextRunAt": "2030-01-15T08:00:00.000Z",
+    "inAppEnabled": true,
+    "emailEnabled": false,
+    "recipientIds": ["4ac60f36-9f7a-419f-b447-d8f9d2bc7cd8"]
+  }
+}
+```
+
+`pauseTaskReminder` releases active plan quota. `resumeTaskReminder` rechecks
+the current plan before activation. Schedule fields are changed through
+`updateTaskReminder`; recipient edits use
+`replaceTaskReminderRecipients`; deletion is explicit. Reminder creation and
+recipient replacement are atomic database functions. They explicitly authorize
+the caller from the RLS-aware JWT before writing, and the existing plan, quota,
+and recipient triggers remain authoritative.
+
+`workspaceSubscription.plan` returns the effective capabilities used by the
+database. For example, a past-due Pro subscription exposes Free capabilities,
+while an anonymous workspace remains on Guest. This lets the future frontend
+show limits without hardcoding them, but the database remains authoritative.
+
+Plan and recipient validation errors are returned as `BAD_USER_INPUT`, while
+authorization failures remain `FORBIDDEN`. This allows the UI to display clear
+quota and email-entitlement messages without exposing unexpected database
+details.
 
 ## Subscriptions
 

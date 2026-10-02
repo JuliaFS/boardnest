@@ -11,9 +11,12 @@ import type { BoardnestDataService } from './data-service.js';
 import type {
   CreateProjectData,
   CreateTaskData,
+  CreateTaskReminderData,
   Pagination,
+  UpdateNotificationPreferencesData,
   UpdateProjectData,
   UpdateTaskData,
+  UpdateTaskReminderData,
 } from './domain.js';
 
 export interface GraphQLContext {
@@ -78,6 +81,74 @@ const inviteSchema = z.object({
   role: z.enum(['admin', 'member', 'viewer']),
   workspaceId: z.uuid(),
 });
+const reminderScheduleKindSchema = z.enum([
+  'once',
+  'weekly',
+  'monthly',
+  'quarterly',
+  'yearly',
+]);
+const recipientIdsSchema = z
+  .array(z.uuid())
+  .min(1)
+  .max(100)
+  .refine((ids) => new Set(ids).size === ids.length, {
+    message: 'Recipients must be unique.',
+  });
+const createTaskReminderSchema = z
+  .object({
+    emailEnabled: z.boolean().default(false),
+    endsAt: z.iso.datetime().nullable().optional(),
+    inAppEnabled: z.boolean().default(true),
+    nextRunAt: z.iso.datetime(),
+    recipientIds: recipientIdsSchema,
+    scheduleKind: reminderScheduleKindSchema,
+    stopWhenCompleted: z.boolean().default(true),
+    taskId: z.uuid(),
+    timezone: z.string().trim().min(1).max(100).default('UTC'),
+  })
+  .refine((input) => input.inAppEnabled || input.emailEnabled, {
+    message: 'At least one notification channel must be enabled.',
+  })
+  .refine(
+    (input) =>
+      input.endsAt === null ||
+      input.endsAt === undefined ||
+      Date.parse(input.endsAt) > Date.parse(input.nextRunAt),
+    { message: 'The end date must be after the next run date.' },
+  );
+const updateTaskReminderSchema = z
+  .object({
+    emailEnabled: z.boolean().optional(),
+    endsAt: z.iso.datetime().nullable().optional(),
+    inAppEnabled: z.boolean().optional(),
+    nextRunAt: z.iso.datetime().optional(),
+    scheduleKind: reminderScheduleKindSchema.optional(),
+    stopWhenCompleted: z.boolean().optional(),
+    timezone: z.string().trim().min(1).max(100).optional(),
+  })
+  .refine((input) => Object.keys(input).length > 0, 'No changes supplied.')
+  .refine(
+    (input) => !(input.inAppEnabled === false && input.emailEnabled === false),
+    'At least one notification channel must be enabled.',
+  )
+  .refine(
+    (input) =>
+      input.endsAt === null ||
+      input.endsAt === undefined ||
+      input.nextRunAt === undefined ||
+      Date.parse(input.endsAt) > Date.parse(input.nextRunAt),
+    'The end date must be after the next run date.',
+  );
+const updateNotificationPreferencesSchema = z
+  .object({
+    emailEnabled: z.boolean().optional(),
+    inAppEnabled: z.boolean().optional(),
+    reminderEnabled: z.boolean().optional(),
+    taskAssignedEnabled: z.boolean().optional(),
+    taskCreatedEnabled: z.boolean().optional(),
+  })
+  .refine((input) => Object.keys(input).length > 0, 'No changes supplied.');
 
 export const typeDefs = `#graphql
   scalar JSON
@@ -86,6 +157,8 @@ export const typeDefs = `#graphql
   enum ProjectStatus { PLANNED ACTIVE ON_HOLD COMPLETED }
   enum TaskPriority { NONE LOW MEDIUM HIGH URGENT }
   enum WorkspaceRole { OWNER ADMIN MEMBER VIEWER }
+  enum ReminderScheduleKind { ONCE WEEKLY MONTHLY QUARTERLY YEARLY }
+  enum ReminderStatus { ACTIVE PAUSED COMPLETED CANCELED }
 
   type User {
     id: ID!
@@ -183,6 +256,61 @@ export const typeDefs = `#graphql
     createdAt: String!
   }
 
+  type NotificationPreferences {
+    userId: ID!
+    inAppEnabled: Boolean!
+    emailEnabled: Boolean!
+    taskCreatedEnabled: Boolean!
+    taskAssignedEnabled: Boolean!
+    reminderEnabled: Boolean!
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  type SubscriptionPlan {
+    code: String!
+    displayName: String!
+    description: String!
+    maxActiveReminderTasks: Int!
+    maxRemindersPerTask: Int!
+    maxRecipientsPerReminder: Int!
+    monthlyEmailLimit: Int!
+    emailEnabled: Boolean!
+    notificationRetentionDays: Int!
+  }
+
+  type WorkspaceSubscription {
+    workspaceId: ID!
+    planCode: String!
+    effectivePlanCode: String!
+    status: String!
+    provider: String!
+    currentPeriodStart: String
+    currentPeriodEnd: String
+    cancelAtPeriodEnd: Boolean!
+    plan: SubscriptionPlan!
+  }
+
+  type TaskReminder {
+    id: ID!
+    taskId: ID!
+    projectId: ID!
+    workspaceId: ID!
+    createdBy: ID!
+    scheduleKind: ReminderScheduleKind!
+    timezone: String!
+    nextRunAt: String!
+    endsAt: String
+    lastRunAt: String
+    inAppEnabled: Boolean!
+    emailEnabled: Boolean!
+    stopWhenCompleted: Boolean!
+    status: ReminderStatus!
+    recipientIds: [ID!]!
+    createdAt: String!
+    updatedAt: String!
+  }
+
   type ActivityLog {
     id: ID!
     workspaceId: ID!
@@ -260,6 +388,33 @@ export const typeDefs = `#graphql
     email: String!
     role: WorkspaceRole = MEMBER
   }
+  input CreateTaskReminderInput {
+    taskId: ID!
+    scheduleKind: ReminderScheduleKind!
+    timezone: String = "UTC"
+    nextRunAt: String!
+    endsAt: String
+    inAppEnabled: Boolean = true
+    emailEnabled: Boolean = false
+    stopWhenCompleted: Boolean = true
+    recipientIds: [ID!]!
+  }
+  input UpdateTaskReminderInput {
+    scheduleKind: ReminderScheduleKind
+    timezone: String
+    nextRunAt: String
+    endsAt: String
+    inAppEnabled: Boolean
+    emailEnabled: Boolean
+    stopWhenCompleted: Boolean
+  }
+  input UpdateNotificationPreferencesInput {
+    inAppEnabled: Boolean
+    emailEnabled: Boolean
+    taskCreatedEnabled: Boolean
+    taskAssignedEnabled: Boolean
+    reminderEnabled: Boolean
+  }
 
   type Query {
     currentUser: User
@@ -271,6 +426,10 @@ export const typeDefs = `#graphql
     task(id: ID!): Task
     taskStatuses(projectId: ID!): [TaskStatus!]!
     notifications(unreadOnly: Boolean = false, limit: Int = 25, offset: Int = 0): NotificationConnection!
+    notificationPreferences: NotificationPreferences!
+    workspaceSubscription(workspaceId: ID!): WorkspaceSubscription
+    taskReminders(taskId: ID!): [TaskReminder!]!
+    taskReminder(id: ID!): TaskReminder
     activityFeed(workspaceId: ID!, projectId: ID, limit: Int = 25, offset: Int = 0): ActivityConnection!
   }
 
@@ -287,6 +446,13 @@ export const typeDefs = `#graphql
     addComment(taskId: ID!, body: String!): TaskComment!
     inviteMember(input: InviteMemberInput!): InvitationPayload!
     markNotificationAsRead(id: ID!): Notification!
+    createTaskReminder(input: CreateTaskReminderInput!): TaskReminder!
+    updateTaskReminder(id: ID!, input: UpdateTaskReminderInput!): TaskReminder!
+    pauseTaskReminder(id: ID!): TaskReminder!
+    resumeTaskReminder(id: ID!): TaskReminder!
+    replaceTaskReminderRecipients(id: ID!, recipientIds: [ID!]!): TaskReminder!
+    deleteTaskReminder(id: ID!): DeletePayload!
+    updateNotificationPreferences(input: UpdateNotificationPreferencesInput!): NotificationPreferences!
   }
 
   type Subscription {
@@ -331,6 +497,19 @@ export const resolvers = {
     MEMBER: 'member',
     OWNER: 'owner',
     VIEWER: 'viewer',
+  },
+  ReminderScheduleKind: {
+    MONTHLY: 'monthly',
+    ONCE: 'once',
+    QUARTERLY: 'quarterly',
+    WEEKLY: 'weekly',
+    YEARLY: 'yearly',
+  },
+  ReminderStatus: {
+    ACTIVE: 'active',
+    CANCELED: 'canceled',
+    COMPLETED: 'completed',
+    PAUSED: 'paused',
   },
   Workspace: snakeCaseFields([
     'createdBy',
@@ -377,6 +556,49 @@ export const resolvers = {
     'taskId',
     'readAt',
     'createdAt',
+  ]),
+  NotificationPreferences: snakeCaseFields([
+    'userId',
+    'inAppEnabled',
+    'emailEnabled',
+    'taskCreatedEnabled',
+    'taskAssignedEnabled',
+    'reminderEnabled',
+    'createdAt',
+    'updatedAt',
+  ]),
+  SubscriptionPlan: snakeCaseFields([
+    'displayName',
+    'maxActiveReminderTasks',
+    'maxRemindersPerTask',
+    'maxRecipientsPerReminder',
+    'monthlyEmailLimit',
+    'emailEnabled',
+    'notificationRetentionDays',
+  ]),
+  WorkspaceSubscription: snakeCaseFields([
+    'workspaceId',
+    'planCode',
+    'effectivePlanCode',
+    'currentPeriodStart',
+    'currentPeriodEnd',
+    'cancelAtPeriodEnd',
+  ]),
+  TaskReminder: snakeCaseFields([
+    'taskId',
+    'projectId',
+    'workspaceId',
+    'createdBy',
+    'scheduleKind',
+    'nextRunAt',
+    'endsAt',
+    'lastRunAt',
+    'inAppEnabled',
+    'emailEnabled',
+    'stopWhenCompleted',
+    'recipientIds',
+    'createdAt',
+    'updatedAt',
   ]),
   ActivityLog: snakeCaseFields([
     'workspaceId',
@@ -462,6 +684,30 @@ export const resolvers = {
         pagination(args),
       );
     },
+    notificationPreferences: async (
+      _parent: unknown,
+      _args: unknown,
+      context: GraphQLContext,
+    ) => {
+      const authenticated = requireAuth(context);
+      return authenticated.data.notificationPreferences(authenticated.user.id);
+    },
+    workspaceSubscription: async (
+      _parent: unknown,
+      args: { workspaceId: string },
+      context: GraphQLContext,
+    ) =>
+      requireAuth(context).data.workspaceSubscription(uuid(args.workspaceId)),
+    taskReminders: async (
+      _parent: unknown,
+      args: { taskId: string },
+      context: GraphQLContext,
+    ) => requireAuth(context).data.taskReminders(uuid(args.taskId)),
+    taskReminder: async (
+      _parent: unknown,
+      args: { id: string },
+      context: GraphQLContext,
+    ) => requireAuth(context).data.taskReminder(uuid(args.id)),
     activityFeed: async (
       _parent: unknown,
       args: PaginationArguments & {
@@ -621,6 +867,70 @@ export const resolvers = {
       args: { id: string },
       context: GraphQLContext,
     ) => requireAuth(context).data.markNotificationAsRead(uuid(args.id)),
+    createTaskReminder: async (
+      _parent: unknown,
+      args: { input: unknown },
+      context: GraphQLContext,
+    ) =>
+      requireAuth(context).data.createTaskReminder(
+        toCreateTaskReminderData(parse(createTaskReminderSchema, args.input)),
+      ),
+    updateTaskReminder: async (
+      _parent: unknown,
+      args: { id: string; input: unknown },
+      context: GraphQLContext,
+    ) =>
+      requireAuth(context).data.updateTaskReminder(
+        uuid(args.id),
+        toUpdateTaskReminderData(parse(updateTaskReminderSchema, args.input)),
+      ),
+    pauseTaskReminder: async (
+      _parent: unknown,
+      args: { id: string },
+      context: GraphQLContext,
+    ) =>
+      requireAuth(context).data.updateTaskReminderStatus(
+        uuid(args.id),
+        'paused',
+      ),
+    resumeTaskReminder: async (
+      _parent: unknown,
+      args: { id: string },
+      context: GraphQLContext,
+    ) =>
+      requireAuth(context).data.updateTaskReminderStatus(
+        uuid(args.id),
+        'active',
+      ),
+    replaceTaskReminderRecipients: async (
+      _parent: unknown,
+      args: { id: string; recipientIds: unknown },
+      context: GraphQLContext,
+    ) =>
+      requireAuth(context).data.replaceTaskReminderRecipients(
+        uuid(args.id),
+        parse(recipientIdsSchema, args.recipientIds),
+      ),
+    deleteTaskReminder: async (
+      _parent: unknown,
+      args: { id: string },
+      context: GraphQLContext,
+    ) => ({
+      id: await requireAuth(context).data.deleteTaskReminder(uuid(args.id)),
+    }),
+    updateNotificationPreferences: async (
+      _parent: unknown,
+      args: { input: unknown },
+      context: GraphQLContext,
+    ) => {
+      const authenticated = requireAuth(context);
+      return authenticated.data.updateNotificationPreferences(
+        authenticated.user.id,
+        toUpdateNotificationPreferencesData(
+          parse(updateNotificationPreferencesSchema, args.input),
+        ),
+      );
+    },
   },
   Subscription: {
     taskCreated: taskSubscription('created'),
@@ -804,6 +1114,66 @@ function toUpdateTaskData(
     ...(input.dueAt !== undefined ? { due_at: input.dueAt } : {}),
     ...(input.priority !== undefined ? { priority: input.priority } : {}),
     ...(input.title !== undefined ? { title: input.title } : {}),
+  };
+}
+
+function toCreateTaskReminderData(
+  input: z.infer<typeof createTaskReminderSchema>,
+): CreateTaskReminderData {
+  return {
+    email_enabled: input.emailEnabled,
+    ...(input.endsAt !== undefined ? { ends_at: input.endsAt } : {}),
+    in_app_enabled: input.inAppEnabled,
+    next_run_at: input.nextRunAt,
+    recipient_ids: input.recipientIds,
+    schedule_kind: input.scheduleKind,
+    stop_when_completed: input.stopWhenCompleted,
+    task_id: input.taskId,
+    timezone: input.timezone,
+  };
+}
+
+function toUpdateTaskReminderData(
+  input: z.infer<typeof updateTaskReminderSchema>,
+): UpdateTaskReminderData {
+  return {
+    ...(input.emailEnabled !== undefined
+      ? { email_enabled: input.emailEnabled }
+      : {}),
+    ...(input.endsAt !== undefined ? { ends_at: input.endsAt } : {}),
+    ...(input.inAppEnabled !== undefined
+      ? { in_app_enabled: input.inAppEnabled }
+      : {}),
+    ...(input.nextRunAt !== undefined ? { next_run_at: input.nextRunAt } : {}),
+    ...(input.scheduleKind !== undefined
+      ? { schedule_kind: input.scheduleKind }
+      : {}),
+    ...(input.stopWhenCompleted !== undefined
+      ? { stop_when_completed: input.stopWhenCompleted }
+      : {}),
+    ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
+  };
+}
+
+function toUpdateNotificationPreferencesData(
+  input: z.infer<typeof updateNotificationPreferencesSchema>,
+): UpdateNotificationPreferencesData {
+  return {
+    ...(input.emailEnabled !== undefined
+      ? { email_enabled: input.emailEnabled }
+      : {}),
+    ...(input.inAppEnabled !== undefined
+      ? { in_app_enabled: input.inAppEnabled }
+      : {}),
+    ...(input.reminderEnabled !== undefined
+      ? { reminder_enabled: input.reminderEnabled }
+      : {}),
+    ...(input.taskAssignedEnabled !== undefined
+      ? { task_assigned_enabled: input.taskAssignedEnabled }
+      : {}),
+    ...(input.taskCreatedEnabled !== undefined
+      ? { task_created_enabled: input.taskCreatedEnabled }
+      : {}),
   };
 }
 

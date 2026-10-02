@@ -9,17 +9,24 @@ import type {
   Connection,
   CreateProjectData,
   CreateTaskData,
+  CreateTaskReminderData,
   Invitation,
   Notification,
+  NotificationPreferences,
   Pagination,
   Project,
+  SubscriptionPlan,
   Task,
   TaskAssignee,
   TaskComment,
+  TaskReminder,
   TaskStatus,
+  UpdateNotificationPreferencesData,
   UpdateProjectData,
   UpdateTaskData,
+  UpdateTaskReminderData,
   Workspace,
+  WorkspaceSubscription,
 } from './domain.js';
 
 const workspaceSchema = z.object({
@@ -123,6 +130,58 @@ const invitationSchema = z.object({
   updated_at: z.string(),
   workspace_id: z.uuid(),
 });
+const notificationPreferencesSchema = z.object({
+  created_at: z.string(),
+  email_enabled: z.boolean(),
+  in_app_enabled: z.boolean(),
+  reminder_enabled: z.boolean(),
+  task_assigned_enabled: z.boolean(),
+  task_created_enabled: z.boolean(),
+  updated_at: z.string(),
+  user_id: z.uuid(),
+});
+const subscriptionPlanSchema = z.object({
+  code: z.string(),
+  description: z.string(),
+  display_name: z.string(),
+  email_enabled: z.boolean(),
+  max_active_reminder_tasks: z.number().int().nonnegative(),
+  max_recipients_per_reminder: z.number().int().nonnegative(),
+  max_reminders_per_task: z.number().int().nonnegative(),
+  monthly_email_limit: z.number().int().nonnegative(),
+  notification_retention_days: z.number().int().positive(),
+});
+const workspaceSubscriptionRowSchema = z.object({
+  cancel_at_period_end: z.boolean(),
+  current_period_end: z.string().nullable(),
+  current_period_start: z.string().nullable(),
+  plan_code: z.string(),
+  provider: z.string(),
+  status: z.string(),
+  workspace_id: z.uuid(),
+});
+const taskReminderRowSchema = z.object({
+  created_at: z.string(),
+  created_by: z.uuid(),
+  email_enabled: z.boolean(),
+  ends_at: z.string().nullable(),
+  id: z.uuid(),
+  in_app_enabled: z.boolean(),
+  last_run_at: z.string().nullable(),
+  next_run_at: z.string(),
+  project_id: z.uuid(),
+  schedule_kind: z.string(),
+  status: z.string(),
+  stop_when_completed: z.boolean(),
+  task_id: z.uuid(),
+  timezone: z.string(),
+  updated_at: z.string(),
+  workspace_id: z.uuid(),
+});
+const reminderRecipientSchema = z.object({
+  reminder_id: z.uuid(),
+  user_id: z.uuid(),
+});
 
 export interface InviteResult {
   invitation: Invitation;
@@ -147,6 +206,7 @@ export interface BoardnestDataService {
   ) => Promise<TaskAssignee>;
   createProject: (input: CreateProjectData, userId: string) => Promise<Project>;
   createTask: (input: CreateTaskData, userId: string) => Promise<Task>;
+  createTaskReminder: (input: CreateTaskReminderData) => Promise<TaskReminder>;
   createWorkspace: (
     name: string,
     slug: string,
@@ -154,6 +214,7 @@ export interface BoardnestDataService {
   ) => Promise<Workspace>;
   deleteProject: (id: string) => Promise<string>;
   deleteTask: (id: string) => Promise<string>;
+  deleteTaskReminder: (id: string) => Promise<string>;
   inviteMember: (
     workspaceId: string,
     email: string,
@@ -163,6 +224,7 @@ export interface BoardnestDataService {
   markNotificationAsRead: (id: string) => Promise<Notification>;
   moveTask: (id: string, statusId: string, position: number) => Promise<Task>;
   notification: (id: string) => Promise<Notification | null>;
+  notificationPreferences: (userId: string) => Promise<NotificationPreferences>;
   notifications: (
     userId: string,
     unreadOnly: boolean,
@@ -174,6 +236,8 @@ export interface BoardnestDataService {
     pagination: Pagination,
   ) => Promise<Connection<Project>>;
   task: (id: string) => Promise<Task | null>;
+  taskReminder: (id: string) => Promise<TaskReminder | null>;
+  taskReminders: (taskId: string) => Promise<TaskReminder[]>;
   taskStatuses: (projectId: string) => Promise<TaskStatus[]>;
   tasks: (
     projectId: string,
@@ -182,8 +246,27 @@ export interface BoardnestDataService {
     pagination: Pagination,
   ) => Promise<Connection<Task>>;
   updateProject: (id: string, input: UpdateProjectData) => Promise<Project>;
+  updateNotificationPreferences: (
+    userId: string,
+    input: UpdateNotificationPreferencesData,
+  ) => Promise<NotificationPreferences>;
   updateTask: (id: string, input: UpdateTaskData) => Promise<Task>;
+  updateTaskReminder: (
+    id: string,
+    input: UpdateTaskReminderData,
+  ) => Promise<TaskReminder>;
+  updateTaskReminderStatus: (
+    id: string,
+    status: 'active' | 'paused',
+  ) => Promise<TaskReminder>;
+  replaceTaskReminderRecipients: (
+    id: string,
+    recipientIds: string[],
+  ) => Promise<TaskReminder>;
   workspace: (id: string) => Promise<Workspace | null>;
+  workspaceSubscription: (
+    workspaceId: string,
+  ) => Promise<WorkspaceSubscription | null>;
   workspaces: (pagination: Pagination) => Promise<Connection<Workspace>>;
 }
 
@@ -354,6 +437,172 @@ class SupabaseBoardnestDataService implements BoardnestDataService {
     return required(taskSchema, response);
   }
 
+  async taskReminders(taskId: string): Promise<TaskReminder[]> {
+    const response = await this.client
+      .from('task_reminders')
+      .select('*')
+      .eq('task_id', taskId)
+      .order('created_at', { ascending: false });
+    throwForError(response.error);
+    const rows = z.array(taskReminderRowSchema).parse(response.data);
+    return this.withReminderRecipients(rows);
+  }
+
+  async taskReminder(id: string): Promise<TaskReminder | null> {
+    const response = await this.client
+      .from('task_reminders')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    throwForError(response.error);
+    if (response.data === null) return null;
+    const [reminder] = await this.withReminderRecipients([
+      taskReminderRowSchema.parse(response.data),
+    ]);
+    return reminder ?? null;
+  }
+
+  async createTaskReminder(
+    input: CreateTaskReminderData,
+  ): Promise<TaskReminder> {
+    const response = await this.client
+      .rpc('create_task_reminder_with_recipients', {
+        p_email_enabled: input.email_enabled,
+        p_ends_at: input.ends_at ?? null,
+        p_in_app_enabled: input.in_app_enabled,
+        p_next_run_at: input.next_run_at,
+        p_recipient_ids: input.recipient_ids,
+        p_schedule_kind: input.schedule_kind,
+        p_stop_when_completed: input.stop_when_completed,
+        p_task_id: input.task_id,
+        p_timezone: input.timezone,
+      })
+      .single();
+    const row = required(taskReminderRowSchema, response);
+    const [reminder] = await this.withReminderRecipients([row]);
+    if (!reminder) throw new Error('Created reminder was not returned.');
+    return reminder;
+  }
+
+  async updateTaskReminder(
+    id: string,
+    input: UpdateTaskReminderData,
+  ): Promise<TaskReminder> {
+    const response = await this.client
+      .from('task_reminders')
+      .update(input)
+      .eq('id', id)
+      .select('*')
+      .single();
+    const row = required(taskReminderRowSchema, response);
+    const [reminder] = await this.withReminderRecipients([row]);
+    if (!reminder) throw new Error('Updated reminder was not returned.');
+    return reminder;
+  }
+
+  async updateTaskReminderStatus(
+    id: string,
+    status: 'active' | 'paused',
+  ): Promise<TaskReminder> {
+    const response = await this.client
+      .from('task_reminders')
+      .update({ status })
+      .eq('id', id)
+      .select('*')
+      .single();
+    const row = required(taskReminderRowSchema, response);
+    const [reminder] = await this.withReminderRecipients([row]);
+    if (!reminder) throw new Error('Updated reminder was not returned.');
+    return reminder;
+  }
+
+  async replaceTaskReminderRecipients(
+    id: string,
+    recipientIds: string[],
+  ): Promise<TaskReminder> {
+    const response = await this.client.rpc('replace_task_reminder_recipients', {
+      p_recipient_ids: recipientIds,
+      p_reminder_id: id,
+    });
+    throwForError(response.error);
+    const reminder = await this.taskReminder(id);
+    if (!reminder) {
+      throw new GraphQLError('The requested resource was not found.', {
+        extensions: { code: 'NOT_FOUND' },
+      });
+    }
+    return reminder;
+  }
+
+  async deleteTaskReminder(id: string): Promise<string> {
+    const response = await this.client
+      .from('task_reminders')
+      .delete()
+      .eq('id', id)
+      .select('id')
+      .single();
+    return deletedId(response);
+  }
+
+  async notificationPreferences(
+    userId: string,
+  ): Promise<NotificationPreferences> {
+    const response = await this.client
+      .from('notification_preferences')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+    return required(notificationPreferencesSchema, response);
+  }
+
+  async updateNotificationPreferences(
+    userId: string,
+    input: UpdateNotificationPreferencesData,
+  ): Promise<NotificationPreferences> {
+    const response = await this.client
+      .from('notification_preferences')
+      .update(input)
+      .eq('user_id', userId)
+      .select('*')
+      .single();
+    return required(notificationPreferencesSchema, response);
+  }
+
+  async workspaceSubscription(
+    workspaceId: string,
+  ): Promise<WorkspaceSubscription | null> {
+    const subscriptionResponse = await this.client
+      .from('workspace_subscriptions')
+      .select('*')
+      .eq('workspace_id', workspaceId)
+      .maybeSingle();
+    throwForError(subscriptionResponse.error);
+    if (subscriptionResponse.data === null) return null;
+
+    const subscription = workspaceSubscriptionRowSchema.parse(
+      subscriptionResponse.data,
+    );
+    const effectivePlanCode =
+      subscription.plan_code === 'guest' ||
+      ['active', 'trialing'].includes(subscription.status)
+        ? subscription.plan_code
+        : 'free';
+    const planResponse = await this.client
+      .from('subscription_plans')
+      .select('*')
+      .eq('code', effectivePlanCode)
+      .single();
+    const plan: SubscriptionPlan = required(
+      subscriptionPlanSchema,
+      planResponse,
+    );
+    return {
+      ...subscription,
+      effective_plan_code: effectivePlanCode,
+      plan,
+    };
+  }
+
   async updateTask(id: string, input: UpdateTaskData): Promise<Task> {
     const response = await this.client
       .from('tasks')
@@ -491,6 +740,31 @@ class SupabaseBoardnestDataService implements BoardnestDataService {
       .single();
     return { invitation: required(invitationSchema, response), token };
   }
+
+  private async withReminderRecipients(
+    rows: z.infer<typeof taskReminderRowSchema>[],
+  ): Promise<TaskReminder[]> {
+    if (rows.length === 0) return [];
+    const response = await this.client
+      .from('task_reminder_recipients')
+      .select('reminder_id,user_id')
+      .in(
+        'reminder_id',
+        rows.map((row) => row.id),
+      );
+    throwForError(response.error);
+    const recipients = z.array(reminderRecipientSchema).parse(response.data);
+    const recipientIdsByReminder = new Map<string, string[]>();
+    for (const recipient of recipients) {
+      const ids = recipientIdsByReminder.get(recipient.reminder_id) ?? [];
+      ids.push(recipient.user_id);
+      recipientIdsByReminder.set(recipient.reminder_id, ids);
+    }
+    return rows.map((row) => ({
+      ...row,
+      recipient_ids: [...(recipientIdsByReminder.get(row.id) ?? [])].sort(),
+    }));
+  }
 }
 
 interface DataResponse {
@@ -551,7 +825,14 @@ function throwForError(
       extensions: { code: 'BAD_USER_INPUT' },
     });
   }
-  if (code === 'P0001' && error.message.startsWith('Guest limit reached:')) {
+  if (
+    code === 'P0001' &&
+    (error.message.startsWith('Guest limit reached:') ||
+      error.message.startsWith('Plan limit reached:') ||
+      /^The [a-z0-9_]+ plan does not include email reminders$/.test(
+        error.message,
+      ))
+  ) {
     throw new GraphQLError(error.message, {
       extensions: { code: 'BAD_USER_INPUT' },
     });
