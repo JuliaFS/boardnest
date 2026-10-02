@@ -58,10 +58,12 @@ REDIS_INTEGRATION_URL=redis://127.0.0.1:6379 \
   pnpm --filter @boardnest/api test
 ```
 
-Database RLS and trigger behavior is verified by
-`database/tests/001_schema_smoke.sql`. Run it only against an isolated,
-disposable database as documented in `docs/SUPABASE.md`; it is destructive and
-must not be executed against the hosted project.
+Database RLS and trigger behavior is verified by the SQL files under
+`database/tests`. Run them only against an isolated, disposable database as
+documented in `docs/SUPABASE.md`; they are destructive and must not be executed
+against the hosted project. The notification model smoke test also verifies
+automatic plan assignment, preference creation, the three-task guest reminder
+limit, quota release after pausing, and rejection of guest email reminders.
 
 ## Covered critical behavior
 
@@ -73,3 +75,4 @@ must not be executed against the hosted project.
 - task assignment resolver inputs and authenticated actor identity;
 - unauthenticated access denial and SQL RLS smoke checks;
 - GraphQL WebSocket delivery and Redis Pub/Sub validation/distribution.
+- notification plan assignment and database-enforced guest reminder limits.

@@ -14,19 +14,20 @@
 
 Project roles never elevate a workspace role. A workspace `viewer` remains read-only even if accidentally added as a project `member`.
 
-| Action                         | Owner | Admin              | Member / project lead | Member / project member | Viewer              |
-| ------------------------------ | ----- | ------------------ | --------------------- | ----------------------- | ------------------- |
-| View workspace-visible project | Yes   | Yes                | Yes                   | Yes                     | Yes                 |
-| View private project           | Yes   | Yes                | If explicitly added   | If explicitly added     | If explicitly added |
-| Create project                 | Yes   | Yes                | Yes                   | Yes                     | No                  |
-| Change project status/metadata | Yes   | Yes                | Yes                   | No                      | No                  |
-| Change project visibility      | Yes   | Yes                | No                    | No                      | No                  |
-| Hard-delete project            | Yes   | Yes                | No                    | No                      | No                  |
-| Manage project members         | Yes   | Yes                | Yes                   | No                      | No                  |
-| Create/edit tasks              | Yes   | Yes                | Yes                   | Yes                     | No                  |
-| Comment on accessible tasks    | Yes   | Yes                | Yes                   | Yes                     | Yes                 |
-| Manage workspace membership    | Yes   | Yes, except owners | No                    | No                      | No                  |
-| Delete workspace               | Yes   | No                 | No                    | No                      | No                  |
+| Action                             | Owner | Admin              | Member / project lead | Member / project member | Viewer              |
+| ---------------------------------- | ----- | ------------------ | --------------------- | ----------------------- | ------------------- |
+| View workspace-visible project     | Yes   | Yes                | Yes                   | Yes                     | Yes                 |
+| View private project               | Yes   | Yes                | If explicitly added   | If explicitly added     | If explicitly added |
+| Create project                     | Yes   | Yes                | Yes                   | Yes                     | No                  |
+| Change project status/metadata     | Yes   | Yes                | Yes                   | No                      | No                  |
+| Change project visibility          | Yes   | Yes                | No                    | No                      | No                  |
+| Hard-delete project                | Yes   | Yes                | No                    | No                      | No                  |
+| Manage project members             | Yes   | Yes                | Yes                   | No                      | No                  |
+| Create/edit tasks                  | Yes   | Yes                | Yes                   | Yes                     | No                  |
+| Comment on accessible tasks        | Yes   | Yes                | Yes                   | Yes                     | Yes                 |
+| Create reminders on editable tasks | Yes   | Yes                | Yes                   | Yes                     | No                  |
+| Manage workspace membership        | Yes   | Yes, except owners | No                    | No                      | No                  |
+| Delete workspace                   | Yes   | No                 | No                    | No                      | No                  |
 
 For a workspace-visible project, a workspace member can work on tasks without an explicit `project_members` row. An explicit project `viewer` role narrows that user's task editing rights.
 
@@ -165,6 +166,58 @@ For a workspace-visible project, a workspace member can work on tasks without an
 **Indexes:** Recipient timeline and partial unread index.
 
 **Security:** Recipients can read, mark read, and delete. Only the trusted API creates notifications.
+
+### `subscription_plans`
+
+**Purpose:** Data-driven Guest, Free, and Pro notification capabilities.
+
+**Important columns:** Active reminder-task limit, reminders per task, recipients per reminder, monthly email quota, email entitlement, and history retention days.
+
+**Security:** Authenticated users may read public plan capabilities. Only trusted server operations may change them.
+
+### `workspace_subscriptions`
+
+**Purpose:** Assign one effective plan and billing lifecycle to a workspace.
+
+**Important columns:** `plan_code`, `status`, provider identifiers, billing period, and cancellation flag.
+
+**Relationships:** A workspace receives `guest` when its creator is an anonymous Supabase user and `free` otherwise. The trigger also backfills existing workspaces when the migration is applied.
+
+**Security:** Workspace members may read the subscription. Only the trusted server may change it. A canceled or past-due paid subscription receives Free capabilities; Guest remains Guest.
+
+### `notification_preferences`
+
+**Purpose:** Store each user's global channel and notification-event choices.
+
+**Important columns:** In-app, email, task-created, task-assigned, and reminder toggles.
+
+**Relationships:** Created automatically with a profile and removed with it.
+
+**Security:** Users may read and update only their own preferences. A preference cannot override a plan restriction.
+
+### `task_reminders`
+
+**Purpose:** Persist one-time, weekly, monthly, quarterly, or yearly task schedules.
+
+**Important columns:** Task/workspace context, creator, IANA timezone, `next_run_at`, optional end, channels, completion behavior, and lifecycle status.
+
+**Relationships:** Context is derived from the task by a protected trigger. Recipients are normalized through `task_reminder_recipients` and must be the task creator or an assignee.
+
+**Indexes:** Due active reminders, active reminder tasks per workspace, task history, and creator history.
+
+**Security:** Contributors create reminders. Reminder creators, recipients, and task managers can view them; creators and task managers can change them. Database locks enforce all plan limits under concurrent writes.
+
+Guest workspaces may have active reminders on at most three distinct guest-created tasks, one reminder per task and one recipient per reminder. Guest email is rejected by PostgreSQL even if a client bypasses the UI.
+
+### `notification_deliveries`
+
+**Purpose:** Durable email outbox for scheduled and immediate task notifications.
+
+**Important columns:** Recipient, schedule time, retry state, provider result, unique idempotency key, and JSON payload.
+
+**Indexes:** Pending retry queue, workspace history, recipient history, and unique idempotency.
+
+**Security:** Recipients have read-only access to their delivery history. Only trusted workers create or mutate deliveries. Inserts validate workspace membership, selected reminder recipients, plan email entitlement, and the monthly email quota.
 
 ### `invitations`
 

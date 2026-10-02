@@ -45,11 +45,13 @@ successful query with no returned rows means the migration is not installed.
 The migration affects future inserts and does not remove guest resources that
 were created before it was applied.
 
-Do not run `database/tests/001_schema_smoke.sql` against the hosted project. It is intended for an isolated disposable database.
+Continue through `300_notification_grants.sql` in filename order. Do not run
+files under `database/tests` against the hosted project; they are intended only
+for an isolated disposable database.
 
 ## 3. Verify the result
 
-In Table Editor, confirm that these 14 public tables exist:
+In Table Editor, confirm that these 20 public tables exist:
 
 - `profiles`
 - `workspaces`
@@ -65,12 +67,21 @@ In Table Editor, confirm that these 14 public tables exist:
 - `activity_logs`
 - `notifications`
 - `invitations`
+- `subscription_plans`
+- `workspace_subscriptions`
+- `notification_preferences`
+- `task_reminders`
+- `task_reminder_recipients`
+- `notification_deliveries`
 
 Open the RLS settings for every table and confirm RLS is enabled. The migrations enable it automatically; the Dashboard check is verification only.
 
 Create a temporary user through Supabase Authentication and verify that a
 matching `profiles` row appears. A failure in the profile trigger can block
 signup, so perform this check before testing application authentication.
+The same user must also receive a `notification_preferences` row. Creating a
+workspace must create exactly one `workspace_subscriptions` row with `free` for
+a registered user or `guest` for an anonymous user.
 
 ## 4. Project configuration values
 

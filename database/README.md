@@ -7,10 +7,13 @@ Boardnest uses a SQL-first PostgreSQL schema hosted by Supabase. Every table is 
 ```text
 auth.users 1 ─── 1 profiles
                     │
+                    ├── 1 notification_preferences
                     ├──< workspace_members >── workspaces
                     │                              │
+                    │                              ├── 1 workspace_subscriptions >── subscription_plans
                     │                              ├──< invitations
                     │                              ├──< notifications
+                    │                              ├──< notification_deliveries
                     │                              ├──< activity_logs
                     │                              └──< projects
                     │                                     │
@@ -22,6 +25,8 @@ auth.users 1 ─── 1 profiles
                                                                  ├──< task_assignees >── profiles
                                                                  ├──< task_labels >────── labels
                                                                  ├──< task_comments
+                                                                 ├──< task_reminders
+                                                                 │      └──< task_reminder_recipients >── profiles
                                                                  ├──< activity_logs
                                                                  └──< notifications
 ```
@@ -32,28 +37,35 @@ auth.users 1 ─── 1 profiles
 
 Run every file exactly once and in filename order:
 
-| Migration                         | Responsibility                                              |
-| --------------------------------- | ----------------------------------------------------------- |
-| `000_extensions.sql`              | PostgreSQL extension and private schemas                    |
-| `001_common_functions.sql`        | Shared `updated_at` trigger function                        |
-| `010_profiles.sql`                | Auth-linked profiles and signup trigger                     |
-| `020_workspaces.sql`              | Tenant records                                              |
-| `030_workspace_members.sql`       | Workspace roles and owner invariants                        |
-| `040_projects.sql`                | Project visibility, status, and archival                    |
-| `050_project_members.sql`         | Explicit private-project access                             |
-| `060_task_statuses.sql`           | Configurable Kanban columns and defaults                    |
-| `070_tasks.sql`                   | Tasks, priorities, ordering, and search index               |
-| `080_task_assignees.sql`          | Multi-assignee relationship and access validation           |
-| `090_labels.sql`                  | Project-scoped labels                                       |
-| `100_task_labels.sql`             | Task-to-label relationship                                  |
-| `110_task_comments.sql`           | Task discussion                                             |
-| `120_activity_logs.sql`           | Append-only audit events                                    |
-| `130_notifications.sql`           | Per-user notifications                                      |
-| `140_invitations.sql`             | Hashed, expiring workspace invitations                      |
-| `200_authorization_functions.sql` | Non-exposed RLS helper functions                            |
-| `210_rls_policies.sql`            | Per-operation RLS policies                                  |
-| `220_api_grants.sql`              | Explicit `anon`, `authenticated`, and `service_role` grants |
-| `230_anonymous_guest_limits.sql`  | Concurrency-safe quotas for anonymous guest sessions        |
+| Migration                            | Responsibility                                              |
+| ------------------------------------ | ----------------------------------------------------------- |
+| `000_extensions.sql`                 | PostgreSQL extension and private schemas                    |
+| `001_common_functions.sql`           | Shared `updated_at` trigger function                        |
+| `010_profiles.sql`                   | Auth-linked profiles and signup trigger                     |
+| `020_workspaces.sql`                 | Tenant records                                              |
+| `030_workspace_members.sql`          | Workspace roles and owner invariants                        |
+| `040_projects.sql`                   | Project visibility, status, and archival                    |
+| `050_project_members.sql`            | Explicit private-project access                             |
+| `060_task_statuses.sql`              | Configurable Kanban columns and defaults                    |
+| `070_tasks.sql`                      | Tasks, priorities, ordering, and search index               |
+| `080_task_assignees.sql`             | Multi-assignee relationship and access validation           |
+| `090_labels.sql`                     | Project-scoped labels                                       |
+| `100_task_labels.sql`                | Task-to-label relationship                                  |
+| `110_task_comments.sql`              | Task discussion                                             |
+| `120_activity_logs.sql`              | Append-only audit events                                    |
+| `130_notifications.sql`              | Per-user notifications                                      |
+| `140_invitations.sql`                | Hashed, expiring workspace invitations                      |
+| `200_authorization_functions.sql`    | Non-exposed RLS helper functions                            |
+| `210_rls_policies.sql`               | Per-operation RLS policies                                  |
+| `220_api_grants.sql`                 | Explicit `anon`, `authenticated`, and `service_role` grants |
+| `230_anonymous_guest_limits.sql`     | Concurrency-safe quotas for anonymous guest sessions        |
+| `240_subscription_plans.sql`         | Guest, Free, and Pro notification capabilities              |
+| `250_workspace_subscriptions.sql`    | Workspace plan assignment and billing-ready state           |
+| `260_notification_preferences.sql`   | Per-user channel and event preferences                      |
+| `270_task_reminders.sql`             | Reminder schedules, recipients, and plan enforcement        |
+| `280_notification_deliveries.sql`    | Durable email outbox and monthly email quota enforcement    |
+| `290_notification_authorization.sql` | Reminder and subscription RLS policies                      |
+| `300_notification_grants.sql`        | Explicit grants for notification scheduling tables          |
 
 Do not run `database/tests/*.sql` as migrations. The smoke test inserts deterministic temporary records and rolls the transaction back.
 
@@ -66,6 +78,30 @@ comments per guest. Updates and task moves remain unlimited. Counts include
 archived rows so archival cannot bypass storage limits; hard deletion releases
 the corresponding quota. Per-user advisory transaction locks keep concurrent
 inserts from exceeding a limit.
+
+Guest workspaces receive the `guest` plan automatically. They may enable one
+in-app reminder per task on at most three distinct tasks. Email reminders are
+not available to guests. Pausing or deleting a reminder releases its active-task
+quota; completing a task will stop its reminders when the reminder worker is
+implemented.
+
+## Notification plans and scheduling
+
+Registered workspaces receive the `free` plan automatically. Plan limits are
+stored in `subscription_plans`, while `workspace_subscriptions` records the
+workspace's current plan and billing lifecycle. The database serializes quota
+changes with advisory transaction locks so parallel requests cannot exceed the
+active-task, per-task, recipient, or monthly-email limits.
+
+`task_reminders.next_run_at` is stored as an absolute UTC instant. Its IANA
+`timezone` preserves the user's local recurrence intent for monthly, quarterly,
+yearly, and daylight-saving calculations in the future worker. A custom date is
+represented by `schedule_kind = 'once'` and its chosen `next_run_at`.
+
+`notification_deliveries` is a durable server-managed email outbox. Its unique
+idempotency key prevents one reminder occurrence from being queued twice. The
+worker and email provider integration are intentionally implemented after this
+database foundation.
 
 ## Project visibility and status
 
