@@ -4,6 +4,7 @@ export interface AuthUser {
   displayName: string | null;
   email: string | null;
   id: string;
+  isAnonymous: boolean;
   role: 'authenticated';
 }
 
@@ -36,6 +37,14 @@ export async function login(
 ): Promise<AuthUser> {
   const body = await request<AuthResponse>('/auth/login', {
     body: JSON.stringify({ email, password }),
+    method: 'POST',
+  });
+  return body.user;
+}
+
+export async function continueAsGuest(captchaToken: string): Promise<AuthUser> {
+  const body = await request<AuthResponse>('/auth/guest', {
+    body: JSON.stringify({ captchaToken }),
     method: 'POST',
   });
   return body.user;

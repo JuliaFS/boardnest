@@ -20,6 +20,7 @@ export default defineConfig({
     env: {
       VITE_API_URL: 'http://localhost:4000',
       VITE_GRAPHQL_URL: 'http://localhost:4000/graphql',
+      VITE_TURNSTILE_SITE_KEY: '1x00000000000000000000AA',
       VITE_WS_URL: 'ws://localhost:4000/graphql',
     },
   },

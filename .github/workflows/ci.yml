@@ -105,6 +105,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
+      GUEST_RATE_LIMIT_SECRET: ci-placeholder-guest-rate-limit-secret
       SUPABASE_PUBLISHABLE_KEY: ci-placeholder
       SUPABASE_URL: https://example.supabase.co
     steps:

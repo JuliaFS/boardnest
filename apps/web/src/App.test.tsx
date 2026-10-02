@@ -6,6 +6,7 @@ import { App } from './App';
 
 const { authState } = vi.hoisted(() => ({
   authState: {
+    continueAsGuest: vi.fn(),
     isLoading: false,
     signIn: vi.fn(),
     signOut: vi.fn(),

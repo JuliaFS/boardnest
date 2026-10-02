@@ -17,6 +17,14 @@ export function getAuthErrorMessage(error: unknown): string {
     return 'An account with this email already exists.';
   }
 
+  if (message.includes('anonymous') && message.includes('disabled')) {
+    return 'The guest demo is temporarily unavailable.';
+  }
+
+  if (message.includes('rate limit')) {
+    return 'Too many guest sessions were started. Please try again later.';
+  }
+
   if (message.includes('password')) {
     return error.message;
   }

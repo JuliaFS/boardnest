@@ -31,6 +31,8 @@ in a portfolio presentation.
 
 - Supabase email/password registration, email confirmation through a PKCE
   callback, login, refresh, and logout;
+- Turnstile-protected anonymous guest sessions with Redis admission limits and
+  database-enforced demo quotas;
 - access and refresh tokens stored only in secure `HttpOnly` cookies;
 - multi-tenant workspaces with owner, admin, member, and viewer roles;
 - workspace-visible and private projects with independent lifecycle status;
@@ -156,11 +158,14 @@ Copy [.env.example](.env.example) to `.env`. Never commit the populated file.
 | `VITE_API_URL`             | Public               | Browser authentication API origin             |
 | `VITE_GRAPHQL_URL`         | Public               | GraphQL HTTP endpoint                         |
 | `VITE_WS_URL`              | Public               | GraphQL WebSocket endpoint                    |
+| `VITE_TURNSTILE_SITE_KEY`  | Public               | Cloudflare Turnstile widget site key          |
 | `API_URL`                  | Server               | Public API origin used for Auth callback URLs |
 | `COOKIE_SAME_SITE`         | Server               | `lax` or production-only `none` cookie mode   |
 | `SUPABASE_URL`             | Server               | Supabase project URL                          |
 | `SUPABASE_PUBLISHABLE_KEY` | Server               | Public key used by the API with user JWTs     |
 | `REDIS_URL`                | Secret in production | Redis/Upstash protocol URL                    |
+| `GUEST_RATE_LIMIT_SECRET`  | Secret               | HMAC key for pseudonymous guest IP counters   |
+| `TRUST_PROXY_HOPS`         | Server               | Trusted reverse-proxy hop count               |
 | `PORT`                     | Server               | API listening port                            |
 | `CORS_ORIGIN`              | Server               | Exact trusted frontend origin                 |
 | `NODE_ENV`                 | Server               | `development`, `test`, or `production`        |
@@ -233,6 +238,7 @@ GitHub `production` environment, never by the application repository.
 
 ## Documentation
 
+- [Public demo](docs/PUBLIC_DEMO.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Authentication](docs/AUTHENTICATION.md)
 - [Database](docs/DATABASE.md)

@@ -15,6 +15,7 @@ import { WebSocketServer } from 'ws';
 import { z } from 'zod';
 
 import type { AuthService } from './auth/auth-service.js';
+import type { GuestAdmission } from './auth/guest-admission.js';
 import {
   clearSessionCookies,
   type CookieSameSite,
@@ -35,6 +36,9 @@ const credentialsSchema = z.object({
   email: z.email(),
   password: z.string().min(1),
 });
+const guestSchema = z.object({
+  captchaToken: z.string().min(1).max(2048),
+});
 const registrationSchema = credentialsSchema.extend({
   displayName: z.string().trim().min(2).max(80),
 });
@@ -45,8 +49,10 @@ export interface ServerOptions {
   createDataService: (accessToken: string) => BoardnestDataService;
   cookieSameSite?: CookieSameSite;
   events?: RealtimeEventBus;
+  guestAdmission: GuestAdmission;
   introspection?: boolean;
   secureCookies: boolean;
+  trustProxyHops?: number;
 }
 
 export interface BoardnestServer extends Server {
@@ -61,6 +67,7 @@ export async function createServer(
     throw new Error('SameSite=None cookies require secureCookies=true.');
   }
   const app = express();
+  app.set('trust proxy', options.trustProxyHops ?? 0);
   const httpServer = createHttpServer(app);
   const events = options.events ?? createInMemoryEventBus();
   const schema = makeExecutableSchema({ resolvers, typeDefs });
@@ -112,7 +119,10 @@ export async function createServer(
           return Promise.resolve({
             async drainServer() {
               await websocketCleanup.dispose();
-              await events.close();
+              await Promise.all([
+                events.close(),
+                options.guestAdmission.close(),
+              ]);
             },
           });
         },
@@ -200,6 +210,65 @@ export async function createServer(
         });
       } catch (error) {
         response.status(400).json({ error: authErrorMessage(error) });
+      }
+    },
+  );
+
+  app.post(
+    '/auth/guest',
+    trustedOrigin(options.corsOrigin),
+    async (request, response) => {
+      let captchaToken: string;
+      try {
+        captchaToken = guestSchema.parse(request.body).captchaToken;
+      } catch {
+        response.status(400).json({ error: 'Complete the security check.' });
+        return;
+      }
+
+      let reservation: string;
+      try {
+        const clientIp =
+          request.ip ?? request.socket.remoteAddress ?? 'unknown-client';
+        const decision = await options.guestAdmission.consume(clientIp);
+        if (!decision.allowed) {
+          response.setHeader(
+            'Retry-After',
+            String(decision.retryAfterSeconds ?? 3600),
+          );
+          response.status(429).json({
+            error:
+              'Too many guest sessions were started. Please try again later.',
+          });
+          return;
+        }
+        reservation = decision.reservation;
+      } catch {
+        response.status(503).json({
+          error: 'The guest demo is temporarily unavailable.',
+        });
+        return;
+      }
+
+      try {
+        const result = await options.authService.anonymous(captchaToken);
+        setSessionCookies(
+          response,
+          result.session,
+          options.secureCookies,
+          cookieSameSite,
+        );
+        response.status(201).json({ user: result.user });
+      } catch (error) {
+        await options.guestAdmission
+          .release(reservation)
+          .catch((releaseError) => {
+            console.error(
+              'Failed to release guest admission reservation',
+              releaseError,
+            );
+          });
+        response.status(429).json({ error: authErrorMessage(error) });
       }
     },
   );

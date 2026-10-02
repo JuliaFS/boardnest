@@ -9,6 +9,14 @@
 
 Do not create Boardnest tables through Table Editor. The SQL files in this repository are the schema source of truth.
 
+Enable **Authentication → Providers → Anonymous Sign-Ins** for the guest demo.
+Under **Authentication → Bot and Abuse Protection**, select Cloudflare
+Turnstile, enter the widget secret key, and enable CAPTCHA protection. The
+frontend sends the widget token through the API and Supabase validates it during
+anonymous sign-in. Keep the anonymous-sign-in provider limit enabled as an
+additional boundary. Supabase does not automatically remove abandoned anonymous
+users, so add a scheduled retention cleanup appropriate for the deployment.
+
 ## 2. Apply the migrations manually
 
 For the current reviewed workflow:
@@ -21,6 +29,21 @@ For the current reviewed workflow:
 6. Stop immediately if any file reports an error; do not continue with later files.
 
 The complete order is listed in [database/README.md](../database/README.md). Each file owns a transaction, so a failure rolls that file back.
+
+After applying `230_anonymous_guest_limits.sql`, verify its workspace quota
+trigger explicitly:
+
+```sql
+select tgname
+from pg_trigger
+where tgname = 'workspaces_enforce_anonymous_quota'
+  and not tgisinternal;
+```
+
+The query must return one row named `workspaces_enforce_anonymous_quota`. A
+successful query with no returned rows means the migration is not installed.
+The migration affects future inserts and does not remove guest resources that
+were created before it was applied.
 
 Do not run `database/tests/001_schema_smoke.sql` against the hosted project. It is intended for an isolated disposable database.
 

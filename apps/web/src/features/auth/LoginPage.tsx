@@ -1,17 +1,25 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useLocation, useNavigate } from 'react-router';
 
 import { getAuthErrorMessage } from './auth-errors';
 import { loginSchema, type LoginValues } from './auth-schemas';
 import { useAuth } from './AuthProvider';
+import { TurnstileWidget } from './TurnstileWidget';
 
 export function LoginPage() {
-  const { signIn } = useAuth();
+  const { continueAsGuest, signIn } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [guestLoading, setGuestLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
+  const handleCaptchaToken = useCallback(
+    (token: string | null) => setCaptchaToken(token),
+    [],
+  );
   const {
     formState: { errors, isSubmitting },
     handleSubmit,
@@ -67,6 +75,40 @@ export function LoginPage() {
           {isSubmitting ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
+      <div className="auth-divider" aria-hidden="true">
+        <span>or</span>
+      </div>
+      <TurnstileWidget
+        onTokenChange={handleCaptchaToken}
+        resetKey={turnstileResetKey}
+      />
+      <button
+        className="guest-button"
+        disabled={isSubmitting || guestLoading || !captchaToken}
+        onClick={() => {
+          if (!captchaToken) return;
+          setSubmissionError(null);
+          setGuestLoading(true);
+          void continueAsGuest(captchaToken)
+            .then(() => navigate('/dashboard', { replace: true }))
+            .catch((error: unknown) =>
+              setSubmissionError(getAuthErrorMessage(error)),
+            )
+            .finally(() => {
+              setGuestLoading(false);
+              setCaptchaToken(null);
+              setTurnstileResetKey((current) => current + 1);
+            });
+        }}
+        type="button"
+      >
+        {guestLoading ? 'Starting demo…' : 'Continue as guest'}
+      </button>
+      <p className="guest-copy">
+        No registration required. Guest accounts are limited to 1 workspace, 1
+        project, 20 tasks, 1 invitation, and 10 comments. Task edits and moves
+        are unlimited.
+      </p>
       <p className="auth-switch">
         New to Boardnest? <Link to="/register">Create an account</Link>
       </p>

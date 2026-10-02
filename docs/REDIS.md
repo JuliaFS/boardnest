@@ -2,8 +2,9 @@
 
 ## Responsibility
 
-Redis distributes live task events between Boardnest API instances. It does not
-store task state, sessions, permissions, or an event history. PostgreSQL remains
+Redis distributes live task events between Boardnest API instances and stores
+short-lived counters for guest-session admission limits. It does not store task
+state, sessions, permissions, or an event history. PostgreSQL remains
 the source of truth and GraphQL subscription resolvers continue to authorize
 access through the user's RLS-aware data service.
 
@@ -37,7 +38,8 @@ The corresponding development configuration is:
 REDIS_URL=redis://localhost:6379
 ```
 
-No volume is required because Pub/Sub messages are not persisted. The full
+No volume is required because Pub/Sub messages and guest rate-limit counters
+are ephemeral. The full
 Compose topology also builds and runs the API and static web services.
 
 ## Connections and lifecycle
@@ -75,6 +77,12 @@ REDIS_URL=rediss://default:<password>@<host>:<port>
 `REDIS_URL` is a server secret when it contains credentials. Store it in the
 Railway environment, never prefix it with `VITE_`, never expose it to the
 browser, and never commit it to Git.
+
+Guest admission also requires `GUEST_RATE_LIMIT_SECRET`, a random value of at
+least 32 characters used to HMAC IP addresses before they become Redis keys.
+Set `TRUST_PROXY_HOPS` to the deployment's exact trusted proxy count so the
+limiter receives the real client address without accepting spoofed forwarding
+headers.
 
 ## Troubleshooting
 

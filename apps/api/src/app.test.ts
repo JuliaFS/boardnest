@@ -9,6 +9,7 @@ import { WebSocket } from 'ws';
 
 import { createServer } from './app.js';
 import type { AuthService, PublicAuthUser } from './auth/auth-service.js';
+import type { GuestAdmission } from './auth/guest-admission.js';
 import type { BoardnestDataService } from './graphql/data-service.js';
 import {
   createInMemoryEventBus,
@@ -20,6 +21,7 @@ const user: PublicAuthUser = {
   displayName: 'Test User',
   email: 'person@example.com',
   id: '4ac60f36-9f7a-419f-b447-d8f9d2bc7cd8',
+  isAnonymous: false,
   role: 'authenticated',
 };
 const session = {
@@ -50,8 +52,23 @@ afterEach(async () => {
   servers.clear();
 });
 
+function createGuestAdmission(): GuestAdmission {
+  return {
+    close: vi.fn().mockResolvedValue(undefined),
+    consume: vi.fn().mockResolvedValue({
+      allowed: true,
+      reservation: 'boardnest:v1:guest:global:day:1',
+    }),
+    release: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
 function createAuthService(): AuthService {
   return {
+    anonymous: vi.fn().mockResolvedValue({
+      session,
+      user: { ...user, displayName: 'Guest', email: null, isAnonymous: true },
+    }),
     completeConfirmation: vi.fn().mockResolvedValue({ session, user }),
     login: vi.fn().mockResolvedValue({ session, user }),
     refresh: vi.fn().mockResolvedValue({ session, user }),
@@ -73,6 +90,7 @@ async function startServer(
     authService,
     corsOrigin: origin,
     createDataService: vi.fn(() => dataService),
+    guestAdmission: createGuestAdmission(),
     ...(events ? { events } : {}),
     introspection: true,
     secureCookies: false,
@@ -123,12 +141,33 @@ describe('API server', () => {
     );
   });
 
+  it('starts a guest session without returning tokens', async () => {
+    const { authService, server } = await startServer();
+    const response = await fetch(await getUrl(server, '/auth/guest'), {
+      body: JSON.stringify({ captchaToken: 'turnstile-token' }),
+      headers: { 'content-type': 'application/json', origin },
+      method: 'POST',
+    });
+    const body = (await response.json()) as { user: PublicAuthUser };
+
+    expect(response.status).toBe(201);
+    expect(authService.anonymous).toHaveBeenCalledWith('turnstile-token');
+    expect(body.user).toMatchObject({
+      displayName: 'Guest',
+      email: null,
+      isAnonymous: true,
+    });
+    expect(JSON.stringify(body)).not.toContain('access-token');
+    expect(response.headers.getSetCookie()).toHaveLength(2);
+  });
+
   it('sets secure cross-site cookies when explicitly configured', async () => {
     const server = await createServer({
       authService: createAuthService(),
       cookieSameSite: 'None',
       corsOrigin: origin,
       createDataService: vi.fn(() => ({}) as BoardnestDataService),
+      guestAdmission: createGuestAdmission(),
       introspection: true,
       secureCookies: true,
     });
@@ -235,7 +274,7 @@ describe('API server', () => {
     const response = await fetch(await getUrl(server, '/graphql'), {
       body: JSON.stringify({
         query:
-          'query CurrentUser { currentUser { id email displayName role } }',
+          'query CurrentUser { currentUser { id email displayName isAnonymous role } }',
       }),
       headers: {
         'content-type': 'application/json',

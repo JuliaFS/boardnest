@@ -551,6 +551,11 @@ function throwForError(
       extensions: { code: 'BAD_USER_INPUT' },
     });
   }
+  if (code === 'P0001' && error.message.startsWith('Guest limit reached:')) {
+    throw new GraphQLError(error.message, {
+      extensions: { code: 'BAD_USER_INPUT' },
+    });
+  }
   if (code === 'PGRST116') {
     throw new GraphQLError('The requested resource was not found.', {
       extensions: { code: 'NOT_FOUND' },

@@ -91,6 +91,7 @@ export const typeDefs = `#graphql
     id: ID!
     email: String
     displayName: String
+    isAnonymous: Boolean!
     role: String!
   }
 
