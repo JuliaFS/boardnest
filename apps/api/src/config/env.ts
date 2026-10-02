@@ -12,7 +12,27 @@ const environmentSchema = z
       .default('development'),
     PORT: z.coerce.number().int().min(1).max(65_535).default(4000),
     REDIS_URL: z.url(),
+    REMINDER_SCHEDULER_BATCH_SIZE: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(500)
+      .default(100),
+    REMINDER_SCHEDULER_ENABLED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+    REMINDER_SCHEDULER_INTERVAL_MS: z.coerce
+      .number()
+      .int()
+      .min(5_000)
+      .max(300_000)
+      .default(30_000),
     SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
+    SUPABASE_SERVICE_ROLE_KEY: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().min(1).optional(),
+    ),
     SUPABASE_URL: z.url(),
     TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
   })
@@ -25,6 +45,17 @@ const environmentSchema = z
         code: 'custom',
         message: 'COOKIE_SAME_SITE=none requires NODE_ENV=production.',
         path: ['COOKIE_SAME_SITE'],
+      });
+    }
+    if (
+      environment.REMINDER_SCHEDULER_ENABLED &&
+      !environment.SUPABASE_SERVICE_ROLE_KEY
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message:
+          'SUPABASE_SERVICE_ROLE_KEY is required when the reminder scheduler is enabled.',
+        path: ['SUPABASE_SERVICE_ROLE_KEY'],
       });
     }
   });

@@ -29,6 +29,8 @@ export interface NotificationSummary {
   id: string;
   title: string;
   body: string | null;
+  reminderId: string | null;
+  scheduledFor: string | null;
   readAt: string | null;
   createdAt: string;
 }
@@ -359,6 +361,8 @@ export const NOTIFICATIONS_QUERY = gql`
         id
         title
         body
+        reminderId
+        scheduledFor
         readAt
         createdAt
       }

@@ -60,7 +60,8 @@ exactly, including scheme and port.
 - Private projects require explicit project membership, except that workspace
   owners and admins retain administrative access.
 - GraphQL resolvers require authentication and use a Supabase client carrying
-  the current user's JWT. Normal requests never use the service-role key.
+  the current user's JWT. Normal requests never use the service-role key; only
+  the background reminder scheduler uses it to call its dedicated RPC.
 - RLS helpers live in a non-exposed `private` schema with controlled execution
   grants and fully qualified relation names.
 - Database triggers protect cross-tenant relationships and invariants such as

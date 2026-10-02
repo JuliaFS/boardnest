@@ -19,8 +19,10 @@ Browser + HttpOnly cookies
 Browser requests must use `credentials: 'include'`. The browser never reads or
 submits a bearer token. The API extracts the access token from its `HttpOnly`
 cookie, rotates an expired session when possible, and passes the authenticated
-user's JWT to Supabase. The service-role key is deliberately not used, so the
-RLS policies remain the resource-authorization boundary.
+user's JWT to Supabase. GraphQL request handling deliberately does not use the
+service-role key, so RLS remains its resource-authorization boundary. The
+separate background reminder scheduler uses that key only for its dedicated,
+non-GraphQL RPC.
 
 Subscriptions use the same `/graphql` path with the `graphql-transport-ws`
 protocol. The WebSocket handshake carries the eligible `HttpOnly` access cookie;

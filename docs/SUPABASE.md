@@ -45,7 +45,9 @@ successful query with no returned rows means the migration is not installed.
 The migration affects future inserts and does not remove guest resources that
 were created before it was applied.
 
-Continue through `310_reminder_api_functions.sql` in filename order. Do not run
+Continue through `320_in_app_reminder_scheduler.sql` in filename order. The
+scheduler migration adds columns, an index, and narrowly granted functions; it
+does not delete existing reminder or notification data. Do not run
 files under `database/tests` against the hosted project; they are intended only
 for an isolated disposable database.
 
@@ -89,10 +91,13 @@ The Dashboard project settings provide:
 
 - Project URL → backend `SUPABASE_URL`
 - Public publishable key → backend `SUPABASE_PUBLISHABLE_KEY`
-- Server secret/service-role key, reserved for future privileged tooling
+- Server secret/service-role key → scheduler-only Railway secret
 - PostgreSQL connection string, reserved for CLI administration
 
-Boardnest uses the current `sb_publishable_...` key format on the API server. The browser does not receive a Supabase client or key. The deployed application needs only `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`. Use a server-only secret key only for future privileged backend operations.
+Boardnest uses the current `sb_publishable_...` key format on the API server.
+The browser does not receive a Supabase client or key. Normal request handling
+needs `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`; the enabled background
+scheduler also needs the service-role key for its narrowly granted RPC.
 
 ## 5. Secret boundaries
 

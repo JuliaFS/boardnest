@@ -67,6 +67,7 @@ Run every file exactly once and in filename order:
 | `290_notification_authorization.sql` | Reminder and subscription RLS policies                      |
 | `300_notification_grants.sql`        | Explicit grants for notification scheduling tables          |
 | `310_reminder_api_functions.sql`     | Atomic reminder and recipient API transactions              |
+| `320_in_app_reminder_scheduler.sql`  | Due-reminder processing, recurrence, and idempotency        |
 
 Do not run `database/tests/*.sql` as migrations. The smoke test inserts deterministic temporary records and rolls the transaction back.
 
@@ -83,8 +84,8 @@ inserts from exceeding a limit.
 Guest workspaces receive the `guest` plan automatically. They may enable one
 in-app reminder per task on at most three distinct tasks. Email reminders are
 not available to guests. Pausing or deleting a reminder releases its active-task
-quota; completing a task will stop its reminders when the reminder worker is
-implemented.
+quota; completing a task stops reminders configured with
+`stop_when_completed` when the scheduler processes them.
 
 ## Notification plans and scheduling
 
@@ -95,14 +96,21 @@ changes with advisory transaction locks so parallel requests cannot exceed the
 active-task, per-task, recipient, or monthly-email limits.
 
 `task_reminders.next_run_at` is stored as an absolute UTC instant. Its IANA
-`timezone` preserves the user's local recurrence intent for monthly, quarterly,
-yearly, and daylight-saving calculations in the future worker. A custom date is
+`timezone` preserves the user's local recurrence intent for weekly, monthly,
+quarterly, yearly, and daylight-saving calculations. A custom date is
 represented by `schedule_kind = 'once'` and its chosen `next_run_at`.
 
 `notification_deliveries` is a durable server-managed email outbox. Its unique
 idempotency key prevents one reminder occurrence from being queued twice. The
-worker and email provider integration are intentionally implemented after this
-database foundation.
+scheduler queues eligible email occurrences here; provider delivery is a
+separate worker stage.
+
+`process_due_task_reminders` is a service-role-only scheduler transaction. It
+claims bounded batches with `FOR UPDATE SKIP LOCKED`, creates idempotent in-app
+notifications, queues eligible email deliveries, and advances or completes the
+schedule. Multiple API instances can run it without delivering the same
+occurrence twice. Missed recurring runs advance to the next future occurrence
+instead of flooding the recipient after downtime.
 
 The GraphQL API creates a reminder and its first recipient set through
 `create_task_reminder_with_recipients`. Recipient edits use

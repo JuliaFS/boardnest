@@ -84,14 +84,17 @@ These values are read only by the API process:
 - `REDIS_URL`
 - `PORT`
 - `CORS_ORIGIN`
+- `REMINDER_SCHEDULER_ENABLED`
+- `REMINDER_SCHEDULER_INTERVAL_MS`
+- `REMINDER_SCHEDULER_BATCH_SIZE`
 - `NODE_ENV`
 
 `SUPABASE_PUBLISHABLE_KEY` is deliberately public and is also used by the API
 client to support every Supabase signing-key mode. The service-role key and
-direct database URL shown as reserved placeholders in `.env.example` are not
-used by the application. They and a production `REDIS_URL` containing
-credentials are secrets. Never prefix secrets with `VITE_`, log them, commit
-them, or send them to a browser.
+direct database URL shown in `.env.example` are secrets. The service-role key is
+required only when `REMINDER_SCHEDULER_ENABLED=true`; keep the scheduler disabled
+for ordinary local UI development. Never prefix secrets with `VITE_`, log them,
+commit them, or send them to a browser.
 
 ## Workspace conventions
 

@@ -31,6 +31,7 @@ import {
   createInMemoryEventBus,
   type RealtimeEventBus,
 } from './realtime/event-bus.js';
+import type { ReminderScheduler } from './reminders/reminder-scheduler.js';
 
 const credentialsSchema = z.object({
   email: z.email(),
@@ -51,6 +52,7 @@ export interface ServerOptions {
   events?: RealtimeEventBus;
   guestAdmission: GuestAdmission;
   introspection?: boolean;
+  reminderScheduler?: ReminderScheduler;
   secureCookies: boolean;
   trustProxyHops?: number;
 }
@@ -122,6 +124,7 @@ export async function createServer(
               await Promise.all([
                 events.close(),
                 options.guestAdmission.close(),
+                options.reminderScheduler?.close() ?? Promise.resolve(),
               ]);
             },
           });

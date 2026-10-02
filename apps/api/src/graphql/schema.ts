@@ -248,6 +248,8 @@ export const typeDefs = `#graphql
     workspaceId: ID!
     projectId: ID
     taskId: ID
+    reminderId: ID
+    scheduledFor: String
     type: String!
     title: String!
     body: String
@@ -554,6 +556,8 @@ export const resolvers = {
     'workspaceId',
     'projectId',
     'taskId',
+    'reminderId',
+    'scheduledFor',
     'readAt',
     'createdAt',
   ]),

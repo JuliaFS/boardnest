@@ -84,6 +84,8 @@ export interface Notification {
   payload: Record<string, unknown>;
   project_id: string | null;
   read_at: string | null;
+  reminder_id: string | null;
+  scheduled_for: string | null;
   task_id: string | null;
   title: string;
   type: string;

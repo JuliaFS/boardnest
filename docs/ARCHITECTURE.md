@@ -86,6 +86,12 @@ service. Transport code does not duplicate database policy logic.
 - PostgreSQL and Auth: Supabase
 - Redis: local Docker in development, managed Redis in production
 
+The API process also hosts a lightweight reminder scheduler. PostgreSQL owns
+claiming, idempotency, preference checks, recurrence, and schedule advancement
+inside one transaction, so horizontally scaled API instances remain safe. The
+Node timer only invokes the bounded service-role RPC; provider email delivery
+remains a separate outbox consumer.
+
 HTTPS terminates at the platform edge. Production WebSocket connections use WSS.
 
 ## Architecture decision records
@@ -247,6 +253,10 @@ long-running Railway service uses the root Dockerfile's final `api-runtime`
 stage so HTTP and WebSocket traffic share one process. Supabase continues to
 own PostgreSQL and authentication, while Upstash supplies a TLS Redis protocol
 endpoint for cross-instance Pub/Sub.
+
+The scheduler is disabled by default locally and enabled explicitly in
+Railway. Its Supabase service-role credential is held only by the API service;
+it is never sent to Vercel, GitHub build output, or the browser.
 
 The preferred public URLs are same-site custom subdomains such as
 `app.example.com` and `api.example.com`. This preserves `SameSite=Lax`
