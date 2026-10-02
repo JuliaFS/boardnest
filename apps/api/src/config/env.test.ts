@@ -18,6 +18,9 @@ describe('API environment', () => {
       COOKIE_SAME_SITE: 'lax',
       NODE_ENV: 'development',
       PORT: 4000,
+      REMINDER_SCHEDULER_BATCH_SIZE: 100,
+      REMINDER_SCHEDULER_ENABLED: false,
+      REMINDER_SCHEDULER_INTERVAL_MS: 30_000,
       TRUST_PROXY_HOPS: 0,
     });
   });
@@ -32,5 +35,28 @@ describe('API environment', () => {
     expect(() =>
       parseEnvironment({ ...required, COOKIE_SAME_SITE: 'none' }),
     ).toThrow('COOKIE_SAME_SITE=none requires NODE_ENV=production');
+  });
+
+  it('requires a service role key only when the reminder scheduler is enabled', () => {
+    expect(() =>
+      parseEnvironment({ ...required, REMINDER_SCHEDULER_ENABLED: 'true' }),
+    ).toThrow(
+      'SUPABASE_SERVICE_ROLE_KEY is required when the reminder scheduler is enabled',
+    );
+
+    expect(
+      parseEnvironment({
+        ...required,
+        REMINDER_SCHEDULER_BATCH_SIZE: '50',
+        REMINDER_SCHEDULER_ENABLED: 'true',
+        REMINDER_SCHEDULER_INTERVAL_MS: '5000',
+        SUPABASE_SERVICE_ROLE_KEY: 'server-only-secret',
+      }),
+    ).toMatchObject({
+      REMINDER_SCHEDULER_BATCH_SIZE: 50,
+      REMINDER_SCHEDULER_ENABLED: true,
+      REMINDER_SCHEDULER_INTERVAL_MS: 5_000,
+      SUPABASE_SERVICE_ROLE_KEY: 'server-only-secret',
+    });
   });
 });

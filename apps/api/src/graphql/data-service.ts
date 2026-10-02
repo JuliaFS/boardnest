@@ -98,6 +98,8 @@ const notificationSchema = z.object({
   payload: z.record(z.string(), z.unknown()),
   project_id: z.uuid().nullable(),
   read_at: z.string().nullable(),
+  reminder_id: z.uuid().nullable(),
+  scheduled_for: z.string().nullable(),
   task_id: z.uuid().nullable(),
   title: z.string(),
   type: z.string(),

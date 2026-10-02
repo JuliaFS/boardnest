@@ -66,6 +66,8 @@ automatic plan assignment, preference creation, the three-task guest reminder
 limit, quota release after pausing, and rejection of guest email reminders.
 The reminder API function smoke test verifies atomic reminder creation and
 rollback when recipient replacement violates task-recipient constraints.
+The scheduler smoke test verifies one-time completion, recurrence across a DST
+boundary, in-app generation, email outbox queuing, and occurrence idempotency.
 
 ## Covered critical behavior
 
@@ -80,3 +82,4 @@ rollback when recipient replacement violates task-recipient constraints.
 - notification plan assignment and database-enforced guest reminder limits.
 - GraphQL reminder creation, lifecycle actions, recipients, preferences, and
   workspace capability queries.
+- concurrency-safe reminder scheduling and local-time recurrence.

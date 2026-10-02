@@ -52,9 +52,10 @@ Use the existing Boardnest Supabase project and schema.
    `https://api.example.com/auth/callback`.
 5. Keep the localhost callback while local development is still needed.
 
-The deployed API does not require a service-role key or direct database URL.
 Normal queries use the authenticated user's access token and remain protected
-by Row Level Security.
+by Row Level Security. The enabled reminder scheduler separately requires the
+service-role key for its single narrowly granted RPC; the API does not require
+a direct database URL.
 
 ### Existing database migration baseline
 
@@ -107,18 +108,25 @@ selected by the `rediss://` scheme.
    Dockerfile's local default.
 7. Add these service variables:
 
-| Variable                   | Production value                                  |
-| -------------------------- | ------------------------------------------------- |
-| `API_URL`                  | Exact public API origin, without a trailing slash |
-| `COOKIE_SAME_SITE`         | `lax` for same-site subdomains; otherwise `none`  |
-| `CORS_ORIGIN`              | Exact Vercel/custom web origin                    |
-| `NODE_ENV`                 | `production`                                      |
-| `REDIS_URL`                | Private Upstash `rediss://...` connection string  |
-| `SUPABASE_PUBLISHABLE_KEY` | Supabase public publishable key                   |
-| `SUPABASE_URL`             | Supabase project URL                              |
+| Variable                         | Production value                                  |
+| -------------------------------- | ------------------------------------------------- |
+| `API_URL`                        | Exact public API origin, without a trailing slash |
+| `COOKIE_SAME_SITE`               | `lax` for same-site subdomains; otherwise `none`  |
+| `CORS_ORIGIN`                    | Exact Vercel/custom web origin                    |
+| `NODE_ENV`                       | `production`                                      |
+| `REDIS_URL`                      | Private Upstash `rediss://...` connection string  |
+| `REMINDER_SCHEDULER_ENABLED`     | `true`                                            |
+| `REMINDER_SCHEDULER_INTERVAL_MS` | `30000`                                           |
+| `REMINDER_SCHEDULER_BATCH_SIZE`  | `100`                                             |
+| `SUPABASE_PUBLISHABLE_KEY`       | Supabase public publishable key                   |
+| `SUPABASE_SERVICE_ROLE_KEY`      | Supabase secret service-role key                  |
+| `SUPABASE_URL`                   | Supabase project URL                              |
 
 The API serves HTTP, GraphQL, and WebSockets from the same process. Railway
 must not be configured as a short-lived serverless function.
+`SUPABASE_SERVICE_ROLE_KEY` belongs only in Railway. Never add it to Vercel,
+prefix it with `VITE_`, print it in logs, or store it in GitHub for this runtime
+path. Apply `320_in_app_reminder_scheduler.sql` before enabling the scheduler.
 
 ## 5. Configure Vercel
 

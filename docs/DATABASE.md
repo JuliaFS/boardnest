@@ -209,6 +209,17 @@ For a workspace-visible project, a workspace member can work on tasks without an
 
 Guest workspaces may have active reminders on at most three distinct guest-created tasks, one reminder per task and one recipient per reminder. Guest email is rejected by PostgreSQL even if a client bypasses the UI.
 
+The service-role-only scheduler claims due rows with `FOR UPDATE SKIP LOCKED`.
+It preserves local recurring times across daylight-saving changes, completes
+one-time schedules, skips stale missed occurrences, and stops configured
+reminders for archived or completed tasks.
+
+### Reminder-generated `notifications`
+
+Each generated in-app row records `reminder_id` and `scheduled_for`. Their
+partial unique index makes one reminder occurrence idempotent per recipient,
+including when several API instances poll concurrently.
+
 ### `notification_deliveries`
 
 **Purpose:** Durable email outbox for scheduled and immediate task notifications.

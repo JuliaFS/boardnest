@@ -4,6 +4,10 @@ import { createRedisGuestAdmission } from './auth/guest-admission.js';
 import { loadEnvironmentFile, parseEnvironment } from './config/env.js';
 import { createBoardnestDataService } from './graphql/data-service.js';
 import { createRedisEventBus } from './realtime/redis-event-bus.js';
+import {
+  createSupabaseReminderScheduler,
+  type ReminderScheduler,
+} from './reminders/reminder-scheduler.js';
 
 loadEnvironmentFile();
 
@@ -21,6 +25,21 @@ const guestAdmission = await createRedisGuestAdmission(
   await events.close();
   throw error;
 });
+let reminderScheduler: ReminderScheduler | undefined;
+if (environment.REMINDER_SCHEDULER_ENABLED) {
+  const serviceRoleKey = environment.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceRoleKey) {
+    throw new Error(
+      'SUPABASE_SERVICE_ROLE_KEY is required when the reminder scheduler is enabled.',
+    );
+  }
+  reminderScheduler = createSupabaseReminderScheduler({
+    batchSize: environment.REMINDER_SCHEDULER_BATCH_SIZE,
+    intervalMs: environment.REMINDER_SCHEDULER_INTERVAL_MS,
+    serviceRoleKey,
+    supabaseUrl: environment.SUPABASE_URL,
+  });
+}
 
 const server = await createServer({
   authService,
@@ -34,6 +53,7 @@ const server = await createServer({
   events,
   guestAdmission,
   introspection: environment.NODE_ENV !== 'production',
+  ...(reminderScheduler ? { reminderScheduler } : {}),
   cookieSameSite: environment.COOKIE_SAME_SITE === 'none' ? 'None' : 'Lax',
   secureCookies: environment.NODE_ENV === 'production',
   trustProxyHops: environment.TRUST_PROXY_HOPS,
@@ -43,6 +63,7 @@ const server = await createServer({
 });
 
 server.listen(environment.PORT, () => {
+  reminderScheduler?.start();
   console.info(
     `Boardnest API listening on port ${environment.PORT} (HTTP + WebSocket /graphql)`,
   );
@@ -52,7 +73,9 @@ let shutdownPromise: Promise<void> | null = null;
 
 function shutdown(signal: NodeJS.Signals): void {
   if (shutdownPromise) return;
-  console.info(`${signal} received; closing API, WebSocket, and Redis clients`);
+  console.info(
+    `${signal} received; closing API, WebSocket, scheduler, and Redis clients`,
+  );
   shutdownPromise = server.shutdown().catch((error: unknown) => {
     console.error('API shutdown failed', error);
     process.exitCode = 1;
