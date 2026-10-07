@@ -32,7 +32,7 @@ import type {
 const workspaceSchema = z.object({
   archived_at: z.string().nullable(),
   created_at: z.string(),
-  created_by: z.uuid(),
+  created_by: z.uuid().nullable(),
   id: z.uuid(),
   name: z.string(),
   slug: z.string(),
@@ -41,7 +41,7 @@ const workspaceSchema = z.object({
 const projectSchema = z.object({
   archived_at: z.string().nullable(),
   created_at: z.string(),
-  created_by: z.uuid(),
+  created_by: z.uuid().nullable(),
   description: z.string().nullable(),
   due_date: z.string().nullable(),
   id: z.uuid(),

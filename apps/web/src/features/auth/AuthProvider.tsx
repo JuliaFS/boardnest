@@ -9,6 +9,8 @@ import {
 
 import {
   continueAsGuest,
+  deleteAccount,
+  type DeleteAccountInput,
   getSession,
   login,
   logout,
@@ -25,6 +27,7 @@ interface SignUpInput {
 
 interface AuthContextValue {
   continueAsGuest: (captchaToken: string) => Promise<void>;
+  deleteAccount: (input: DeleteAccountInput) => Promise<void>;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -62,6 +65,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
       continueAsGuest: async (captchaToken) => {
         await apolloClient.clearStore();
         setUser(await continueAsGuest(captchaToken));
+      },
+      deleteAccount: async (input) => {
+        await deleteAccount(input);
+        await apolloClient.clearStore();
+        setUser(null);
       },
       isLoading,
       signIn: async (email, password) => {

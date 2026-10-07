@@ -47,7 +47,7 @@ const MembersPage = lazy(() =>
   })),
 );
 const SettingsPage = lazy(() =>
-  import('./features/core/PlaceholderPage').then((module) => ({
+  import('./features/settings/SettingsPage').then((module) => ({
     default: module.SettingsPage,
   })),
 );

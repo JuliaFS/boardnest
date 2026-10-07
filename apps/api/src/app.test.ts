@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { WebSocket } from 'ws';
 
 import { createServer } from './app.js';
+import type { AccountDeletionService } from './auth/account-deletion-service.js';
 import type { AuthService, PublicAuthUser } from './auth/auth-service.js';
 import type { GuestAdmission } from './auth/guest-admission.js';
 import type { BoardnestDataService } from './graphql/data-service.js';
@@ -81,12 +82,24 @@ function createAuthService(): AuthService {
   };
 }
 
+function createAccountDeletionService(): AccountDeletionService {
+  return {
+    deleteAccount: vi.fn().mockResolvedValue(undefined),
+    impact: vi.fn().mockResolvedValue({
+      ownedWorkspaces: [],
+      userId: user.id,
+    }),
+  };
+}
+
 async function startServer(
   authService = createAuthService(),
   dataService = {} as unknown as BoardnestDataService,
   events?: RealtimeEventBus,
+  accountDeletionService?: AccountDeletionService,
 ) {
   const server = await createServer({
+    ...(accountDeletionService ? { accountDeletionService } : {}),
     authService,
     corsOrigin: origin,
     createDataService: vi.fn(() => dataService),
@@ -262,6 +275,64 @@ describe('API server', () => {
 
     expect(response.status).toBe(204);
     expect(authService.signOut).toHaveBeenCalledWith('access', 'refresh');
+    expect(
+      response.headers
+        .getSetCookie()
+        .every((cookie) => cookie.includes('Max-Age=0')),
+    ).toBe(true);
+  });
+
+  it('returns the authenticated account-deletion impact', async () => {
+    const accountDeletionService = createAccountDeletionService();
+    const { server } = await startServer(
+      createAuthService(),
+      {} as BoardnestDataService,
+      undefined,
+      accountDeletionService,
+    );
+    const response = await fetch(
+      await getUrl(server, '/auth/account-deletion'),
+      { headers: { cookie: 'boardnest-access=access-token' } },
+    );
+
+    expect(response.status).toBe(200);
+    expect(accountDeletionService.impact).toHaveBeenCalledWith(user.id);
+    await expect(response.json()).resolves.toEqual({
+      impact: { ownedWorkspaces: [], userId: user.id },
+    });
+  });
+
+  it('deletes only the authenticated account and clears its cookies', async () => {
+    const accountDeletionService = createAccountDeletionService();
+    const { server } = await startServer(
+      createAuthService(),
+      {} as BoardnestDataService,
+      undefined,
+      accountDeletionService,
+    );
+    const input = {
+      confirmation: 'DELETE',
+      deleteWorkspaceIds: ['10000000-0000-4000-8000-000000000001'],
+      transfers: {},
+    };
+    const response = await fetch(
+      await getUrl(server, '/auth/account-deletion'),
+      {
+        body: JSON.stringify(input),
+        headers: {
+          'content-type': 'application/json',
+          cookie: 'boardnest-access=access-token',
+          origin,
+        },
+        method: 'POST',
+      },
+    );
+
+    expect(response.status).toBe(204);
+    expect(accountDeletionService.deleteAccount).toHaveBeenCalledWith(user.id, {
+      deleteWorkspaceIds: input.deleteWorkspaceIds,
+      transfers: {},
+    });
     expect(
       response.headers
         .getSetCookie()

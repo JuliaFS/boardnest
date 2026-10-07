@@ -12,7 +12,7 @@ export interface Connection<T> {
 export interface Workspace {
   archived_at: string | null;
   created_at: string;
-  created_by: string;
+  created_by: string | null;
   id: string;
   name: string;
   slug: string;
@@ -22,7 +22,7 @@ export interface Workspace {
 export interface Project {
   archived_at: string | null;
   created_at: string;
-  created_by: string;
+  created_by: string | null;
   description: string | null;
   due_date: string | null;
   id: string;

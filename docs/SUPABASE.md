@@ -45,9 +45,10 @@ successful query with no returned rows means the migration is not installed.
 The migration affects future inserts and does not remove guest resources that
 were created before it was applied.
 
-Continue through `320_in_app_reminder_scheduler.sql` in filename order. The
-scheduler migration adds columns, an index, and narrowly granted functions; it
-does not delete existing reminder or notification data. Do not run
+Continue through `330_account_deletion.sql` in filename order. The scheduler
+migration adds columns, an index, and narrowly granted functions; the account
+deletion migration makes creator attribution nullable and adds narrowly granted
+preview/preparation functions. Applying it does not delete an account. Do not run
 files under `database/tests` against the hosted project; they are intended only
 for an isolated disposable database.
 
@@ -96,8 +97,9 @@ The Dashboard project settings provide:
 
 Boardnest uses the current `sb_publishable_...` key format on the API server.
 The browser does not receive a Supabase client or key. Normal request handling
-needs `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`; the enabled background
-scheduler also needs the service-role key for its narrowly granted RPC.
+needs `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`; the account-deletion flow
+and enabled background scheduler also need the service-role key for their
+narrowly granted RPCs.
 
 ## 5. Secret boundaries
 
@@ -116,7 +118,11 @@ The service role bypasses RLS. It belongs only in Railway/backend secrets and lo
 
 Supabase Auth owns users, credentials, sessions, and password recovery. Boardnest references only `auth.users.id` from `public.profiles.id`. An `auth.users` insert trigger creates the profile using signup metadata or a safe fallback display name.
 
-Deleting an Auth user can fail while that user is recorded as a workspace creator or the final owner. Transfer ownership and remove/reassign protected references before account deletion.
+Boardnest performs account deletion through the authenticated Settings flow.
+The backend previews ownership impact, transfers sole ownership or deletes only
+explicitly confirmed personal workspaces, and then removes the Auth user. Do
+not delete owners directly from the Supabase Auth table because that bypasses
+these ownership decisions.
 
 ## 7. Migration automation boundary
 

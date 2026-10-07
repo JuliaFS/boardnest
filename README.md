@@ -168,7 +168,7 @@ Copy [.env.example](.env.example) to `.env`. Never commit the populated file.
 | `REMINDER_SCHEDULER_ENABLED`     | Server               | Enables background due-reminder processing    |
 | `REMINDER_SCHEDULER_INTERVAL_MS` | Server               | Scheduler polling interval                    |
 | `REMINDER_SCHEDULER_BATCH_SIZE`  | Server               | Maximum reminders claimed per poll            |
-| `SUPABASE_SERVICE_ROLE_KEY`      | Secret               | Scheduler-only trusted database credential    |
+| `SUPABASE_SERVICE_ROLE_KEY`      | Secret               | Scheduler and account-deletion credential     |
 | `TRUST_PROXY_HOPS`               | Server               | Trusted reverse-proxy hop count               |
 | `PORT`                           | Server               | API listening port                            |
 | `CORS_ORIGIN`                    | Server               | Exact trusted frontend origin                 |

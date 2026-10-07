@@ -79,19 +79,37 @@ CORS_ORIGIN=http://localhost:5173
 NODE_ENV=development
 ```
 
-The Supabase values are server-side only. `SUPABASE_SERVICE_ROLE_KEY` is not
-needed for authentication and must never be used in a `VITE_*` variable.
+The Supabase values are server-side only. `SUPABASE_SERVICE_ROLE_KEY` is needed
+by account deletion and the optional reminder scheduler. It must never be used
+in a `VITE_*` variable.
 
 ## API endpoints
 
-| Method | Path             | Purpose                               |
-| ------ | ---------------- | ------------------------------------- |
-| POST   | `/auth/register` | Create a Supabase account             |
-| POST   | `/auth/guest`    | Create an anonymous guest session     |
-| POST   | `/auth/login`    | Create the `HttpOnly` cookie session  |
-| GET    | `/auth/callback` | Complete PKCE email confirmation      |
-| GET    | `/auth/session`  | Verify or refresh the current session |
-| POST   | `/auth/logout`   | Revoke and clear the current session  |
+| Method | Path                     | Purpose                               |
+| ------ | ------------------------ | ------------------------------------- |
+| POST   | `/auth/register`         | Create a Supabase account             |
+| POST   | `/auth/guest`            | Create an anonymous guest session     |
+| POST   | `/auth/login`            | Create the `HttpOnly` cookie session  |
+| GET    | `/auth/callback`         | Complete PKCE email confirmation      |
+| GET    | `/auth/session`          | Verify or refresh the current session |
+| POST   | `/auth/logout`           | Revoke and clear the current session  |
+| GET    | `/auth/account-deletion` | Preview ownership decisions           |
+| POST   | `/auth/account-deletion` | Permanently delete the account        |
+
+## Account deletion
+
+The Settings page loads a server-calculated impact preview. A sole owner must
+transfer every shared workspace to an existing member. A workspace containing
+only that owner can instead be selected for permanent deletion. If another
+owner already exists, the workspace remains unchanged.
+
+Submission requires the exact `DELETE` confirmation and passes the current
+session identity to a service-role-only preparation transaction. The API never
+accepts a target user ID from the browser. It deletes the Supabase Auth user
+only after all ownership decisions succeed, then clears the HttpOnly cookies.
+Shared projects are retained and their creator attribution becomes `NULL`;
+personal workspaces selected by the user cascade-delete their projects and
+tasks.
 
 ## Manual verification
 

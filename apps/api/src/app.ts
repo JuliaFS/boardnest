@@ -15,6 +15,10 @@ import { WebSocketServer } from 'ws';
 import { z } from 'zod';
 
 import type { AuthService } from './auth/auth-service.js';
+import {
+  AccountDeletionError,
+  type AccountDeletionService,
+} from './auth/account-deletion-service.js';
 import type { GuestAdmission } from './auth/guest-admission.js';
 import {
   clearSessionCookies,
@@ -43,8 +47,17 @@ const guestSchema = z.object({
 const registrationSchema = credentialsSchema.extend({
   displayName: z.string().trim().min(2).max(80),
 });
+const accountDeletionSchema = z.object({
+  confirmation: z.literal('DELETE'),
+  deleteWorkspaceIds: z
+    .array(z.uuid())
+    .max(100)
+    .refine((ids) => new Set(ids).size === ids.length),
+  transfers: z.record(z.uuid(), z.uuid()),
+});
 
 export interface ServerOptions {
+  accountDeletionService?: AccountDeletionService;
   authService: AuthService;
   corsOrigin: string;
   createDataService: (accessToken: string) => BoardnestDataService;
@@ -314,6 +327,72 @@ export async function createServer(
     },
   );
 
+  app.get('/auth/account-deletion', async (request, response) => {
+    if (!options.accountDeletionService) {
+      response.status(503).json({ error: 'Account deletion is unavailable.' });
+      return;
+    }
+    const session = await resolveRequestSession(
+      request,
+      response,
+      options.authService,
+      options.secureCookies,
+      cookieSameSite,
+    );
+    if (!session) {
+      response.status(401).json({ error: 'Authentication required' });
+      return;
+    }
+
+    try {
+      response.json({
+        impact: await options.accountDeletionService.impact(session.user.id),
+      });
+    } catch (error) {
+      response.status(accountDeletionStatus(error)).json({
+        error: accountDeletionMessage(error),
+      });
+    }
+  });
+
+  app.post(
+    '/auth/account-deletion',
+    trustedOrigin(options.corsOrigin),
+    async (request, response) => {
+      if (!options.accountDeletionService) {
+        response
+          .status(503)
+          .json({ error: 'Account deletion is unavailable.' });
+        return;
+      }
+      const session = await resolveRequestSession(
+        request,
+        response,
+        options.authService,
+        options.secureCookies,
+        cookieSameSite,
+      );
+      if (!session) {
+        response.status(401).json({ error: 'Authentication required' });
+        return;
+      }
+
+      try {
+        const input = accountDeletionSchema.parse(request.body);
+        await options.accountDeletionService.deleteAccount(session.user.id, {
+          deleteWorkspaceIds: input.deleteWorkspaceIds,
+          transfers: input.transfers,
+        });
+        clearSessionCookies(response, options.secureCookies, cookieSameSite);
+        response.status(204).end();
+      } catch (error) {
+        response.status(accountDeletionStatus(error)).json({
+          error: accountDeletionMessage(error),
+        });
+      }
+    },
+  );
+
   const sessionHandler = async (request: Request, response: Response) => {
     const session = await resolveRequestSession(
       request,
@@ -398,4 +477,18 @@ function authErrorMessage(error: unknown): string {
   if (error instanceof z.ZodError) return 'Invalid request data.';
   if (error instanceof Error) return error.message;
   return 'Authentication failed.';
+}
+
+function accountDeletionMessage(error: unknown): string {
+  if (error instanceof z.ZodError) {
+    return 'Confirm account deletion and resolve every owned workspace.';
+  }
+  if (error instanceof AccountDeletionError) return error.message;
+  return 'Account deletion failed. Please try again.';
+}
+
+function accountDeletionStatus(error: unknown): number {
+  if (error instanceof z.ZodError) return 400;
+  if (error instanceof AccountDeletionError) return error.status;
+  return 500;
 }

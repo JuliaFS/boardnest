@@ -68,6 +68,7 @@ Run every file exactly once and in filename order:
 | `300_notification_grants.sql`        | Explicit grants for notification scheduling tables          |
 | `310_reminder_api_functions.sql`     | Atomic reminder and recipient API transactions              |
 | `320_in_app_reminder_scheduler.sql`  | Due-reminder processing, recurrence, and idempotency        |
+| `330_account_deletion.sql`           | Ownership handoff and safe account anonymization            |
 
 Do not run `database/tests/*.sql` as migrations. The smoke test inserts deterministic temporary records and rolls the transaction back.
 
@@ -132,7 +133,9 @@ A new project defaults to `workspace` visibility and `active` status. Its creato
 
 ## Deletion behavior
 
-- Deleting an Auth user cascades to the profile, but ownership restrictions require workspace ownership to be transferred first.
+- Account deletion first previews every owned workspace and requires an explicit decision for each sole-owned workspace.
+- A sole owner transfers a shared workspace to an existing member. A one-member workspace is deleted only after explicit confirmation. Workspaces with another owner need no action.
+- The service-role-only preparation transaction runs before Supabase Auth deletion. Shared projects remain, while nullable creator attribution is anonymized when the profile is removed.
 - Deleting a workspace cascades through all tenant-owned data.
 - Deleting a project cascades through its operational data.
 - Deleting a task cascades through assignments, labels, and comments.
