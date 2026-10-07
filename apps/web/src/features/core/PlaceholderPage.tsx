@@ -10,16 +10,6 @@ export function MembersPage() {
   );
 }
 
-export function SettingsPage() {
-  return (
-    <PlaceholderPage
-      description="Account and workspace preferences are outside the current portfolio scope."
-      eyebrow="Preferences"
-      title="Settings"
-    />
-  );
-}
-
 function PlaceholderPage({
   description,
   eyebrow,

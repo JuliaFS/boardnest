@@ -8,6 +8,33 @@ export interface AuthUser {
   role: 'authenticated';
 }
 
+export interface AccountDeletionSuccessor {
+  displayName: string;
+  id: string;
+  role: 'admin' | 'member' | 'owner' | 'viewer';
+}
+
+export interface AccountDeletionWorkspace {
+  eligibleSuccessors: AccountDeletionSuccessor[];
+  id: string;
+  memberCount: number;
+  name: string;
+  ownershipStatus: 'deletion_required' | 'shared_owner' | 'transfer_required';
+  projectCount: number;
+  taskCount: number;
+}
+
+export interface AccountDeletionImpact {
+  ownedWorkspaces: AccountDeletionWorkspace[];
+  userId: string;
+}
+
+export interface DeleteAccountInput {
+  confirmation: 'DELETE';
+  deleteWorkspaceIds: string[];
+  transfers: Record<string, string>;
+}
+
 interface AuthResponse {
   user: AuthUser;
 }
@@ -63,6 +90,21 @@ export async function register(input: {
 
 export async function logout(): Promise<void> {
   await request<undefined>('/auth/logout', { method: 'POST' });
+}
+
+export async function getAccountDeletionImpact(): Promise<AccountDeletionImpact> {
+  const body = await request<{ impact: AccountDeletionImpact }>(
+    '/auth/account-deletion',
+    { method: 'GET' },
+  );
+  return body.impact;
+}
+
+export async function deleteAccount(input: DeleteAccountInput): Promise<void> {
+  await request<undefined>('/auth/account-deletion', {
+    body: JSON.stringify(input),
+    method: 'POST',
+  });
 }
 
 class AuthRequestError extends Error {

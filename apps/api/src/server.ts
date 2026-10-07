@@ -1,5 +1,6 @@
 import { createServer } from './app.js';
 import { createSupabaseAuthService } from './auth/auth-service.js';
+import { createSupabaseAccountDeletionService } from './auth/account-deletion-service.js';
 import { createRedisGuestAdmission } from './auth/guest-admission.js';
 import { loadEnvironmentFile, parseEnvironment } from './config/env.js';
 import { createBoardnestDataService } from './graphql/data-service.js';
@@ -26,6 +27,12 @@ const guestAdmission = await createRedisGuestAdmission(
   throw error;
 });
 let reminderScheduler: ReminderScheduler | undefined;
+const accountDeletionService = environment.SUPABASE_SERVICE_ROLE_KEY
+  ? createSupabaseAccountDeletionService({
+      serviceRoleKey: environment.SUPABASE_SERVICE_ROLE_KEY,
+      supabaseUrl: environment.SUPABASE_URL,
+    })
+  : undefined;
 if (environment.REMINDER_SCHEDULER_ENABLED) {
   const serviceRoleKey = environment.SUPABASE_SERVICE_ROLE_KEY;
   if (!serviceRoleKey) {
@@ -42,6 +49,7 @@ if (environment.REMINDER_SCHEDULER_ENABLED) {
 }
 
 const server = await createServer({
+  ...(accountDeletionService ? { accountDeletionService } : {}),
   authService,
   corsOrigin: environment.CORS_ORIGIN,
   createDataService: (accessToken) =>

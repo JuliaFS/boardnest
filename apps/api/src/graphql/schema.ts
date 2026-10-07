@@ -178,7 +178,7 @@ export const typeDefs = `#graphql
     id: ID!
     name: String!
     slug: String!
-    createdBy: ID!
+    createdBy: ID
     archivedAt: String
     createdAt: String!
     updatedAt: String!
@@ -191,7 +191,7 @@ export const typeDefs = `#graphql
     description: String
     visibility: ProjectVisibility!
     status: ProjectStatus!
-    createdBy: ID!
+    createdBy: ID
     startDate: String
     dueDate: String
     archivedAt: String

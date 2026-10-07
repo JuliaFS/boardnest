@@ -92,9 +92,10 @@ These values are read only by the API process:
 `SUPABASE_PUBLISHABLE_KEY` is deliberately public and is also used by the API
 client to support every Supabase signing-key mode. The service-role key and
 direct database URL shown in `.env.example` are secrets. The service-role key is
-required only when `REMINDER_SCHEDULER_ENABLED=true`; keep the scheduler disabled
-for ordinary local UI development. Never prefix secrets with `VITE_`, log them,
-commit them, or send them to a browser.
+required for account deletion and when `REMINDER_SCHEDULER_ENABLED=true`.
+Without it, ordinary local UI development still works but the deletion endpoint
+returns 503. Never prefix secrets with `VITE_`, log them, commit them, or send
+them to a browser.
 
 ## Workspace conventions
 

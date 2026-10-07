@@ -68,6 +68,9 @@ The reminder API function smoke test verifies atomic reminder creation and
 rollback when recipient replacement violates task-recipient constraints.
 The scheduler smoke test verifies one-time completion, recurrence across a DST
 boundary, in-app generation, email outbox queuing, and occurrence idempotency.
+The account-deletion smoke test verifies required ownership decisions, personal
+workspace cascade deletion, shared-workspace transfer, membership cleanup, and
+creator anonymization while preserving shared projects.
 
 ## Covered critical behavior
 
@@ -83,3 +86,5 @@ boundary, in-app generation, email outbox queuing, and occurrence idempotency.
 - GraphQL reminder creation, lifecycle actions, recipients, preferences, and
   workspace capability queries.
 - concurrency-safe reminder scheduling and local-time recurrence.
+- account-deletion ownership transfer, explicit personal-workspace deletion,
+  creator anonymization, and cookie cleanup.

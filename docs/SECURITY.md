@@ -60,12 +60,16 @@ exactly, including scheme and port.
 - Private projects require explicit project membership, except that workspace
   owners and admins retain administrative access.
 - GraphQL resolvers require authentication and use a Supabase client carrying
-  the current user's JWT. Normal requests never use the service-role key; only
-  the background reminder scheduler uses it to call its dedicated RPC.
+  the current user's JWT. Normal requests never use the service-role key. Only
+  the background reminder scheduler and authenticated account-deletion service
+  use it to call their dedicated RPCs.
 - RLS helpers live in a non-exposed `private` schema with controlled execution
   grants and fully qualified relation names.
 - Database triggers protect cross-tenant relationships and invariants such as
   the final workspace owner.
+- Account deletion derives the target exclusively from the verified session,
+  validates the exact trusted origin, requires `DELETE`, and makes every
+  sole-owned workspace transfer or deletion explicit.
 
 The detailed permission matrix is in [Database](DATABASE.md).
 
