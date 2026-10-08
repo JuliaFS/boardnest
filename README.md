@@ -55,13 +55,12 @@ in a portfolio presentation.
 ## Current product scope
 
 The portfolio release centers on authentication and the complete workspace →
-project → Kanban task workflow. The GraphQL API also exposes invitations,
-assignments, comments, activity feeds, and notification updates. The `/members`
-and `/settings` routes remain clearly identified extension points, notification
-management is read-only in the current UI, and invitation delivery/acceptance
-is not connected to an email provider. These are product-scope boundaries, not
-security assumptions; the database and API still enforce their documented
-authorization rules.
+project → Kanban task workflow. Workspace member management includes expiring
+email invitations, authenticated acceptance, roles, and removal. The GraphQL
+API also exposes assignments, comments, activity feeds, and notification
+updates. Project-specific member management remains a product extension; the
+database and API enforce the documented authorization rules independently of
+the UI.
 
 ## Architecture
 

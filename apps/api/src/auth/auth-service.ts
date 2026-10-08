@@ -32,6 +32,7 @@ export interface RegisterInput {
   displayName: string;
   email: string;
   password: string;
+  returnTo?: string;
   storage: SupportedStorage;
 }
 
@@ -140,14 +141,23 @@ export function createSupabaseAuthService({
       }
     },
 
-    async register({ captchaToken, displayName, email, password, storage }) {
+    async register({
+      captchaToken,
+      displayName,
+      email,
+      password,
+      returnTo,
+      storage,
+    }) {
       const client = createAuthClient(storage);
       const { data, error } = await client.auth.signUp({
         email,
         options: {
           captchaToken,
           data: { display_name: displayName },
-          emailRedirectTo: callbackUrl,
+          emailRedirectTo: returnTo
+            ? `${callbackUrl}?returnTo=${encodeURIComponent(returnTo)}`
+            : callbackUrl,
         },
         password,
       });

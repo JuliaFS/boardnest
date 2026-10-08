@@ -108,8 +108,11 @@ SHA-256 hash, and returns the raw token once. `updateWorkspaceMemberRole`,
 `removeWorkspaceMember`, and `revokeInvitation` manage the current workspace
 roster and pending invitations. Owner creation, final-owner protection, admin
 restrictions, and all authorization remain database-enforced. Email delivery
-and invitation acceptance are outside the current browser workflow; see
-[Members and invitations](MEMBERS.md).
+uses the optional server-side Resend integration. A successful delivery hides
+the raw token from the response; without delivery, the token is returned once
+as a development fallback. `acceptInvitation` validates the token and
+authenticated email through an atomic database function before creating
+workspace membership. See [Members and invitations](MEMBERS.md).
 
 ### Reminder scheduling
 

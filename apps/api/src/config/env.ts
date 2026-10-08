@@ -7,11 +7,19 @@ const environmentSchema = z
     COOKIE_SAME_SITE: z.enum(['lax', 'none']).default('lax'),
     CORS_ORIGIN: z.url(),
     GUEST_RATE_LIMIT_SECRET: z.string().min(32),
+    INVITATION_EMAIL_FROM: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().trim().min(3).max(320).optional(),
+    ),
     NODE_ENV: z
       .enum(['development', 'test', 'production'])
       .default('development'),
     PORT: z.coerce.number().int().min(1).max(65_535).default(4000),
     REDIS_URL: z.url(),
+    RESEND_API_KEY: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().trim().startsWith('re_').min(6).optional(),
+    ),
     REMINDER_SCHEDULER_BATCH_SIZE: z.coerce
       .number()
       .int()
@@ -43,6 +51,17 @@ const environmentSchema = z
     TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
   })
   .superRefine((environment, context) => {
+    if (
+      Boolean(environment.RESEND_API_KEY) !==
+      Boolean(environment.INVITATION_EMAIL_FROM)
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message:
+          'RESEND_API_KEY and INVITATION_EMAIL_FROM must be configured together.',
+        path: ['RESEND_API_KEY'],
+      });
+    }
     if (
       environment.COOKIE_SAME_SITE === 'none' &&
       environment.NODE_ENV !== 'production'

@@ -8,6 +8,7 @@ import type {
   TaskEventKind,
 } from '../realtime/event-bus.js';
 import type { BoardnestDataService } from './data-service.js';
+import type { InvitationEmailService } from '../invitations/invitation-email.js';
 import type {
   CreateProjectData,
   CreateTaskData,
@@ -22,6 +23,7 @@ import type {
 export interface GraphQLContext {
   data: BoardnestDataService | null;
   events: RealtimeEventBus;
+  invitationEmail?: InvitationEmailService;
   user: PublicAuthUser | null;
 }
 
@@ -82,6 +84,10 @@ const inviteSchema = z.object({
   workspaceId: z.uuid(),
 });
 const workspaceMemberRoleSchema = z.enum(['admin', 'member', 'viewer']);
+const invitationTokenSchema = z
+  .string()
+  .length(43)
+  .regex(/^[A-Za-z0-9_-]{43}$/);
 const reminderScheduleKindSchema = z.enum([
   'once',
   'weekly',
@@ -352,6 +358,13 @@ export const typeDefs = `#graphql
     updatedAt: String!
   }
 
+  type InvitationAcceptance {
+    workspaceId: ID!
+    userId: ID!
+    role: WorkspaceRole!
+    joinedAt: String!
+  }
+
   type WorkspaceConnection { nodes: [Workspace!]!, pageInfo: PageInfo! }
   type ProjectConnection { nodes: [Project!]!, pageInfo: PageInfo! }
   type TaskConnection { nodes: [Task!]!, pageInfo: PageInfo! }
@@ -360,7 +373,7 @@ export const typeDefs = `#graphql
   type WorkspaceMemberConnection { nodes: [WorkspaceMember!]!, pageInfo: PageInfo! }
   type InvitationConnection { nodes: [Invitation!]!, pageInfo: PageInfo! }
   type DeletePayload { id: ID! }
-  type InvitationPayload { invitation: Invitation!, token: String! }
+  type InvitationPayload { invitation: Invitation!, token: String, emailSent: Boolean! }
 
   input CreateWorkspaceInput { name: String!, slug: String! }
   input CreateProjectInput {
@@ -462,6 +475,7 @@ export const typeDefs = `#graphql
     assignTask(taskId: ID!, assigneeId: ID!): TaskAssignee!
     addComment(taskId: ID!, body: String!): TaskComment!
     inviteMember(input: InviteMemberInput!): InvitationPayload!
+    acceptInvitation(token: String!): InvitationAcceptance!
     updateWorkspaceMemberRole(workspaceId: ID!, userId: ID!, role: WorkspaceRole!): WorkspaceMember!
     removeWorkspaceMember(workspaceId: ID!, userId: ID!): DeletePayload!
     revokeInvitation(id: ID!): Invitation!
@@ -650,6 +664,7 @@ export const resolvers = {
     'joinedAt',
     'updatedAt',
   ]),
+  InvitationAcceptance: snakeCaseFields(['workspaceId', 'userId', 'joinedAt']),
   Query: {
     currentUser: (_parent: unknown, _args: unknown, context: GraphQLContext) =>
       context.user,
@@ -903,13 +918,47 @@ export const resolvers = {
     ) => {
       const authenticated = requireAuth(context);
       const input = parse(inviteSchema, args.input);
-      return authenticated.data.inviteMember(
+      const result = await authenticated.data.inviteMember(
         input.workspaceId,
         input.email,
         input.role,
         authenticated.user.id,
       );
+      let emailSent = false;
+      if (context.invitationEmail) {
+        const workspace = await authenticated.data.workspace(input.workspaceId);
+        if (workspace) {
+          try {
+            await context.invitationEmail.sendWorkspaceInvitation({
+              email: result.invitation.email,
+              inviterName:
+                authenticated.user.displayName ?? 'A Boardnest member',
+              token: result.token,
+              workspaceName: workspace.name,
+            });
+            emailSent = true;
+          } catch (error) {
+            console.error(
+              'Invitation email delivery failed',
+              error instanceof Error ? error.message : 'Unknown email error',
+            );
+          }
+        }
+      }
+      return {
+        ...result,
+        emailSent,
+        token: emailSent ? null : result.token,
+      };
     },
+    acceptInvitation: async (
+      _parent: unknown,
+      args: { token: string },
+      context: GraphQLContext,
+    ) =>
+      requireAuth(context).data.acceptInvitation(
+        parse(invitationTokenSchema, args.token),
+      ),
     updateWorkspaceMemberRole: async (
       _parent: unknown,
       args: { role: string; userId: string; workspaceId: string },

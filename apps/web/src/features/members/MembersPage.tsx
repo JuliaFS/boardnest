@@ -22,7 +22,11 @@ import {
 import { primaryButtonClassName } from '../core/form-styles';
 import { InviteMemberForm } from './InviteMemberForm';
 
-type InvitationResult = { invitation: InvitationSummary; token: string };
+type InvitationResult = {
+  emailSent: boolean;
+  invitation: InvitationSummary;
+  token: string | null;
+};
 
 const editableRoles: Exclude<WorkspaceRole, 'OWNER'>[] = [
   'ADMIN',
@@ -74,6 +78,9 @@ export function MembersPage() {
   );
   const actionPending =
     updateRoleState.loading || removeMemberState.loading || revokeState.loading;
+  const invitationLink = invitationResult?.token
+    ? `${window.location.origin}/invite/${invitationResult.token}`
+    : null;
 
   if (workspaces.loading) return <PageSkeleton />;
   if (workspaces.error) {
@@ -280,8 +287,8 @@ export function MembersPage() {
                 Pending invitations
               </h2>
               <p className="mt-1 text-sm text-slate-400">
-                Invitations expire after seven days. Email delivery and
-                acceptance are connected in the next implementation stage.
+                Invitations expire after seven days and can be revoked before
+                they are accepted.
               </p>
               {invitations.loading ? (
                 <div className="mt-4">
@@ -372,31 +379,48 @@ export function MembersPage() {
 
       {invitationResult ? (
         <Modal
-          description="The invitation was stored securely and the raw token is shown only now."
+          description={
+            invitationResult.emailSent
+              ? 'The invitation was stored securely and delivered by email.'
+              : 'The invitation was stored securely and its one-time link is shown only now.'
+          }
           onClose={() => setInvitationResult(null)}
           title="Invitation created"
         >
           <div className="grid gap-4">
             <p className="text-sm leading-6 text-slate-300">
-              Pending invitation for{' '}
-              <strong>{invitationResult.invitation.email}</strong>. Keep this
-              token if you need it while invitation acceptance is implemented.
+              {invitationResult.emailSent ? (
+                <>
+                  The invitation email was sent to{' '}
+                  <strong>{invitationResult.invitation.email}</strong>.
+                </>
+              ) : (
+                <>
+                  Email delivery is not configured or failed. Share the link
+                  below securely with{' '}
+                  <strong>{invitationResult.invitation.email}</strong>.
+                </>
+              )}
             </p>
-            <code className="break-all rounded-xl border border-slate-700 bg-slate-950 p-4 text-xs text-indigo-200">
-              {invitationResult.token}
-            </code>
+            {invitationLink ? (
+              <code className="break-all rounded-xl border border-slate-700 bg-slate-950 p-4 text-xs text-indigo-200">
+                {invitationLink}
+              </code>
+            ) : null}
             <div className="flex justify-end gap-3">
-              <button
-                className="rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-300 hover:bg-slate-800"
-                onClick={() => {
-                  void navigator.clipboard
-                    .writeText(invitationResult.token)
-                    .then(() => setCopied(true));
-                }}
-                type="button"
-              >
-                {copied ? 'Copied' : 'Copy token'}
-              </button>
+              {invitationLink ? (
+                <button
+                  className="rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-300 hover:bg-slate-800"
+                  onClick={() => {
+                    void navigator.clipboard
+                      .writeText(invitationLink)
+                      .then(() => setCopied(true));
+                  }}
+                  type="button"
+                >
+                  {copied ? 'Copied' : 'Copy invitation link'}
+                </button>
+              ) : null}
               <button
                 className={primaryButtonClassName}
                 onClick={() => setInvitationResult(null)}

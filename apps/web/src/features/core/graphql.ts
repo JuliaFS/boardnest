@@ -35,6 +35,13 @@ export interface InvitationSummary {
   createdAt: string;
 }
 
+export interface InvitationAcceptanceSummary {
+  workspaceId: string;
+  userId: string;
+  role: WorkspaceRole;
+  joinedAt: string;
+}
+
 export interface ProjectSummary {
   id: string;
   workspaceId: string;
@@ -227,6 +234,18 @@ export const INVITE_MEMBER_MUTATION = gql`
         createdAt
       }
       token
+      emailSent
+    }
+  }
+`;
+
+export const ACCEPT_INVITATION_MUTATION = gql`
+  mutation AcceptInvitation($token: String!) {
+    acceptInvitation(token: $token) {
+      workspaceId
+      userId
+      role
+      joinedAt
     }
   }
 `;

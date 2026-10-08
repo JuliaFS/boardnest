@@ -111,7 +111,9 @@ Supabase project. Never deploy the always-pass test credentials to production.
   guest data and anonymous users after a defined retention period.
 - Turnstile, Redis admission limits, Supabase's own rate limit, and the database
   quotas are independent layers. Keep all of them enabled for a public demo.
-- Invitation delivery and acceptance are not connected to an email provider.
+- A guest may create one invitation. Delivery works when the server-side Resend
+  integration is configured, but only a registered account with the invited
+  email can accept it.
 - A guest account cannot currently be upgraded in place to a permanent
   Boardnest account.
 

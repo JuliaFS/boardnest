@@ -84,6 +84,8 @@ These values are read only by the API process:
 - `REDIS_URL`
 - `PORT`
 - `CORS_ORIGIN`
+- `RESEND_API_KEY` (optional, secret)
+- `INVITATION_EMAIL_FROM` (required with `RESEND_API_KEY`)
 - `REMINDER_SCHEDULER_ENABLED`
 - `REMINDER_SCHEDULER_INTERVAL_MS`
 - `REMINDER_SCHEDULER_BATCH_SIZE`
@@ -96,6 +98,10 @@ required for account deletion and when `REMINDER_SCHEDULER_ENABLED=true`.
 Without it, ordinary local UI development still works but the deletion endpoint
 returns 503. Never prefix secrets with `VITE_`, log them, commit them, or send
 them to a browser.
+
+Invitation records and manual fallback tokens work without an email provider.
+To deliver invitation links, configure both Resend variables and use a sender
+on a verified domain. Keep the API key only in the API runtime environment.
 
 ## Workspace conventions
 

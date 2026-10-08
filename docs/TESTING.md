@@ -71,6 +71,9 @@ boundary, in-app generation, email outbox queuing, and occurrence idempotency.
 The account-deletion smoke test verifies required ownership decisions, personal
 workspace cascade deletion, shared-workspace transfer, membership cleanup, and
 creator anonymization while preserving shared projects.
+The invitation acceptance smoke test verifies atomic membership creation,
+email ownership matching, lifecycle finalization, and idempotent reuse by the
+same authenticated recipient.
 
 ## Covered critical behavior
 

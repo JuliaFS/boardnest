@@ -4,6 +4,7 @@ import { createSupabaseAccountDeletionService } from './auth/account-deletion-se
 import { createRedisGuestAdmission } from './auth/guest-admission.js';
 import { loadEnvironmentFile, parseEnvironment } from './config/env.js';
 import { createBoardnestDataService } from './graphql/data-service.js';
+import { createResendInvitationEmailService } from './invitations/invitation-email.js';
 import { createRedisEventBus } from './realtime/redis-event-bus.js';
 import {
   createSupabaseReminderScheduler,
@@ -13,6 +14,14 @@ import {
 loadEnvironmentFile();
 
 const environment = parseEnvironment();
+const invitationEmail =
+  environment.RESEND_API_KEY && environment.INVITATION_EMAIL_FROM
+    ? createResendInvitationEmailService({
+        apiKey: environment.RESEND_API_KEY,
+        from: environment.INVITATION_EMAIL_FROM,
+        webUrl: environment.CORS_ORIGIN,
+      })
+    : undefined;
 const authService = createSupabaseAuthService({
   callbackUrl: `${environment.API_URL}/auth/callback`,
   publishableKey: environment.SUPABASE_PUBLISHABLE_KEY,
@@ -61,6 +70,7 @@ const server = await createServer({
   events,
   guestAdmission,
   introspection: environment.NODE_ENV !== 'production',
+  ...(invitationEmail ? { invitationEmail } : {}),
   ...(reminderScheduler ? { reminderScheduler } : {}),
   cookieSameSite: environment.COOKIE_SAME_SITE === 'none' ? 'None' : 'Lax',
   secureCookies: environment.NODE_ENV === 'production',

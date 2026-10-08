@@ -46,6 +46,11 @@ const MembersPage = lazy(() =>
     default: module.MembersPage,
   })),
 );
+const InvitationAcceptancePage = lazy(() =>
+  import('./features/members/InvitationAcceptancePage').then((module) => ({
+    default: module.InvitationAcceptancePage,
+  })),
+);
 const SettingsPage = lazy(() =>
   import('./features/settings/SettingsPage').then((module) => ({
     default: module.SettingsPage,
@@ -61,6 +66,7 @@ export function App() {
           <Route path="/register" element={<RegisterPage />} />
         </Route>
         <Route element={<ProtectedRoute />}>
+          <Route path="/invite/:token" element={<InvitationAcceptancePage />} />
           <Route element={<AppLayout />}>
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route

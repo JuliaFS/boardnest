@@ -186,6 +186,14 @@ export interface WorkspaceMember {
   workspace_id: string;
 }
 
+export interface WorkspaceMembership {
+  joined_at: string;
+  role: string;
+  updated_at: string;
+  user_id: string;
+  workspace_id: string;
+}
+
 export interface Pagination {
   limit: number;
   offset: number;

@@ -92,14 +92,15 @@ workflow.
 | `/projects/:projectId/tasks/:taskId` | Task details and editing                                   |
 | `/notifications`                     | Notification timeline and empty state                      |
 | `/members`                           | Workspace roster, roles, and pending invitation management |
+| `/invite/:token`                     | Authenticated, email-matched invitation acceptance         |
 | `/settings`                          | Reserved UI extension point for preferences                |
 
 All application routes are protected. Anonymous visitors are redirected to
 `/login`; authenticated users are redirected away from login and registration.
 
-Invitation acceptance and private-project membership are intentionally separate
-follow-up stages. See [Members and invitations](MEMBERS.md) for the access model
-and current boundary.
+Private-project membership remains a separate follow-up stage. See
+[Members and invitations](MEMBERS.md) for the workspace invitation flow and
+access model.
 
 ## Environment
 
