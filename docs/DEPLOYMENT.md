@@ -126,8 +126,8 @@ The API serves HTTP, GraphQL, and WebSockets from the same process. Railway
 must not be configured as a short-lived serverless function.
 `SUPABASE_SERVICE_ROLE_KEY` belongs only in Railway. Never add it to Vercel,
 prefix it with `VITE_`, print it in logs, or store it in GitHub for this runtime
-path. Apply migrations through `330_account_deletion.sql` before enabling the
-scheduler or exposing account deletion in Settings.
+path. Apply migrations through `340_workspace_member_cleanup.sql` before
+enabling the scheduler or exposing account and member deletion controls.
 
 ## 5. Configure Vercel
 

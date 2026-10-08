@@ -65,7 +65,7 @@ For a workspace-visible project, a workspace member can work on tasks without an
 
 **Indexes:** Reverse user-to-workspace lookup and role lookup.
 
-**Security:** Members can inspect their workspace roster. Owner/admin manage membership, but admins cannot create, remove, or demote owners. The final owner cannot leave or be demoted.
+**Security:** Members can inspect their workspace roster. Owner/admin manage membership, but admins cannot create, remove, or demote owners. The final owner cannot leave or be demoted. Removing a member also clears their workspace-scoped project membership, task assignments, reminder participation, deliveries, and private notifications.
 
 ### `projects`
 

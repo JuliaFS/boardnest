@@ -143,6 +143,61 @@ function runQuery(
 }
 
 describe('GraphQL project and task workflow resolvers', () => {
+  it('lists members and invitations and validates workspace member management', async () => {
+    const workspaceMembers = vi.fn().mockResolvedValue({ nodes: [] });
+    const workspaceInvitations = vi.fn().mockResolvedValue({ nodes: [] });
+    const updateWorkspaceMemberRole = vi.fn().mockResolvedValue({});
+    const removeWorkspaceMember = vi.fn().mockResolvedValue(assigneeId);
+    const revokeInvitation = vi.fn().mockResolvedValue({});
+    const value = context(
+      createDataService({
+        removeWorkspaceMember,
+        revokeInvitation,
+        updateWorkspaceMemberRole,
+        workspaceInvitations,
+        workspaceMembers,
+      }),
+    );
+
+    await runQuery('workspaceMembers', { workspaceId }, value);
+    await runQuery('workspaceInvitations', { workspaceId }, value);
+    await runMutation(
+      'updateWorkspaceMemberRole',
+      { role: 'viewer', userId: assigneeId, workspaceId },
+      value,
+    );
+    await expect(
+      runMutation(
+        'updateWorkspaceMemberRole',
+        { role: 'owner', userId: assigneeId, workspaceId },
+        value,
+      ),
+    ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
+    await runMutation(
+      'removeWorkspaceMember',
+      { userId: assigneeId, workspaceId },
+      value,
+    );
+    await runMutation('revokeInvitation', { id: reminderId }, value);
+
+    expect(workspaceMembers).toHaveBeenCalledWith(workspaceId, {
+      limit: 25,
+      offset: 0,
+    });
+    expect(workspaceInvitations).toHaveBeenCalledWith(workspaceId, {
+      limit: 25,
+      offset: 0,
+    });
+    expect(updateWorkspaceMemberRole).toHaveBeenCalledOnce();
+    expect(updateWorkspaceMemberRole).toHaveBeenCalledWith(
+      workspaceId,
+      assigneeId,
+      'viewer',
+    );
+    expect(removeWorkspaceMember).toHaveBeenCalledWith(workspaceId, assigneeId);
+    expect(revokeInvitation).toHaveBeenCalledWith(reminderId);
+  });
+
   it('creates a private project with normalized input and the authenticated creator', async () => {
     const createProject = vi.fn().mockResolvedValue(project);
 

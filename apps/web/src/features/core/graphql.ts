@@ -13,6 +13,28 @@ export interface WorkspaceSummary {
   updatedAt: string;
 }
 
+export type WorkspaceRole = 'ADMIN' | 'MEMBER' | 'OWNER' | 'VIEWER';
+
+export interface WorkspaceMemberSummary {
+  workspaceId: string;
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  role: WorkspaceRole;
+  joinedAt: string;
+  updatedAt: string;
+}
+
+export interface InvitationSummary {
+  id: string;
+  workspaceId: string;
+  email: string;
+  role: Exclude<WorkspaceRole, 'OWNER'>;
+  status: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
 export interface ProjectSummary {
   id: string;
   workspaceId: string;
@@ -58,6 +80,14 @@ export interface TaskStatusSummary {
 
 export interface WorkspacesData {
   workspaces: { nodes: WorkspaceSummary[]; pageInfo: PageInfo };
+}
+
+export interface WorkspaceMembersData {
+  workspaceMembers: { nodes: WorkspaceMemberSummary[]; pageInfo: PageInfo };
+}
+
+export interface WorkspaceInvitationsData {
+  workspaceInvitations: { nodes: InvitationSummary[]; pageInfo: PageInfo };
 }
 
 export interface ProjectsData {
@@ -122,6 +152,121 @@ export const WORKSPACE_QUERY = gql`
       name
       slug
       updatedAt
+    }
+  }
+`;
+
+export const WORKSPACE_MEMBERS_QUERY = gql`
+  query WorkspaceMembers(
+    $workspaceId: ID!
+    $limit: Int = 100
+    $offset: Int = 0
+  ) {
+    workspaceMembers(
+      workspaceId: $workspaceId
+      limit: $limit
+      offset: $offset
+    ) {
+      nodes {
+        workspaceId
+        userId
+        displayName
+        avatarUrl
+        role
+        joinedAt
+        updatedAt
+      }
+      pageInfo {
+        hasNextPage
+        limit
+        offset
+      }
+    }
+  }
+`;
+
+export const WORKSPACE_INVITATIONS_QUERY = gql`
+  query WorkspaceInvitations(
+    $workspaceId: ID!
+    $limit: Int = 100
+    $offset: Int = 0
+  ) {
+    workspaceInvitations(
+      workspaceId: $workspaceId
+      limit: $limit
+      offset: $offset
+    ) {
+      nodes {
+        id
+        workspaceId
+        email
+        role
+        status
+        expiresAt
+        createdAt
+      }
+      pageInfo {
+        hasNextPage
+        limit
+        offset
+      }
+    }
+  }
+`;
+
+export const INVITE_MEMBER_MUTATION = gql`
+  mutation InviteMember($input: InviteMemberInput!) {
+    inviteMember(input: $input) {
+      invitation {
+        id
+        workspaceId
+        email
+        role
+        status
+        expiresAt
+        createdAt
+      }
+      token
+    }
+  }
+`;
+
+export const UPDATE_WORKSPACE_MEMBER_ROLE_MUTATION = gql`
+  mutation UpdateWorkspaceMemberRole(
+    $workspaceId: ID!
+    $userId: ID!
+    $role: WorkspaceRole!
+  ) {
+    updateWorkspaceMemberRole(
+      workspaceId: $workspaceId
+      userId: $userId
+      role: $role
+    ) {
+      workspaceId
+      userId
+      displayName
+      avatarUrl
+      role
+      joinedAt
+      updatedAt
+    }
+  }
+`;
+
+export const REMOVE_WORKSPACE_MEMBER_MUTATION = gql`
+  mutation RemoveWorkspaceMember($workspaceId: ID!, $userId: ID!) {
+    removeWorkspaceMember(workspaceId: $workspaceId, userId: $userId) {
+      id
+    }
+  }
+`;
+
+export const REVOKE_INVITATION_MUTATION = gql`
+  mutation RevokeInvitation($id: ID!) {
+    revokeInvitation(id: $id) {
+      id
+      status
+      revokedAt
     }
   }
 `;

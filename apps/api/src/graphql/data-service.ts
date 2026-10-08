@@ -26,6 +26,7 @@ import type {
   UpdateTaskData,
   UpdateTaskReminderData,
   Workspace,
+  WorkspaceMember,
   WorkspaceSubscription,
 } from './domain.js';
 
@@ -132,6 +133,17 @@ const invitationSchema = z.object({
   updated_at: z.string(),
   workspace_id: z.uuid(),
 });
+const workspaceMemberRowSchema = z.object({
+  joined_at: z.string(),
+  profiles: z.object({
+    avatar_url: z.string().nullable(),
+    display_name: z.string(),
+  }),
+  role: z.string(),
+  updated_at: z.string(),
+  user_id: z.uuid(),
+  workspace_id: z.uuid(),
+});
 const notificationPreferencesSchema = z.object({
   created_at: z.string(),
   email_enabled: z.boolean(),
@@ -223,6 +235,11 @@ export interface BoardnestDataService {
     role: string,
     userId: string,
   ) => Promise<InviteResult>;
+  removeWorkspaceMember: (
+    workspaceId: string,
+    userId: string,
+  ) => Promise<string>;
+  revokeInvitation: (id: string) => Promise<Invitation>;
   markNotificationAsRead: (id: string) => Promise<Notification>;
   moveTask: (id: string, statusId: string, position: number) => Promise<Task>;
   notification: (id: string) => Promise<Notification | null>;
@@ -266,10 +283,23 @@ export interface BoardnestDataService {
     recipientIds: string[],
   ) => Promise<TaskReminder>;
   workspace: (id: string) => Promise<Workspace | null>;
+  workspaceInvitations: (
+    workspaceId: string,
+    pagination: Pagination,
+  ) => Promise<Connection<Invitation>>;
+  workspaceMembers: (
+    workspaceId: string,
+    pagination: Pagination,
+  ) => Promise<Connection<WorkspaceMember>>;
   workspaceSubscription: (
     workspaceId: string,
   ) => Promise<WorkspaceSubscription | null>;
   workspaces: (pagination: Pagination) => Promise<Connection<Workspace>>;
+  updateWorkspaceMemberRole: (
+    workspaceId: string,
+    userId: string,
+    role: string,
+  ) => Promise<WorkspaceMember>;
 }
 
 export function createBoardnestDataService(
@@ -305,6 +335,78 @@ class SupabaseBoardnestDataService implements BoardnestDataService {
       .eq('id', id)
       .maybeSingle();
     return optional(workspaceSchema, response);
+  }
+
+  async workspaceMembers(
+    workspaceId: string,
+    pagination: Pagination,
+  ): Promise<Connection<WorkspaceMember>> {
+    const response = await this.client
+      .from('workspace_members')
+      .select(
+        'workspace_id,user_id,role,joined_at,updated_at,profiles!inner(display_name,avatar_url)',
+      )
+      .eq('workspace_id', workspaceId)
+      .order('joined_at', { ascending: true })
+      .range(pagination.offset, pagination.offset + pagination.limit);
+    throwForError(response.error);
+    const rows = z.array(workspaceMemberRowSchema).parse(response.data);
+    return {
+      nodes: rows.slice(0, pagination.limit).map(workspaceMember),
+      pageInfo: {
+        hasNextPage: rows.length > pagination.limit,
+        limit: pagination.limit,
+        offset: pagination.offset,
+      },
+    };
+  }
+
+  async workspaceInvitations(
+    workspaceId: string,
+    pagination: Pagination,
+  ): Promise<Connection<Invitation>> {
+    const response = await this.client
+      .from('invitations')
+      .select(
+        'id,workspace_id,email,role,status,invited_by,accepted_by,expires_at,accepted_at,revoked_at,created_at,updated_at',
+      )
+      .eq('workspace_id', workspaceId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .range(pagination.offset, pagination.offset + pagination.limit);
+    return connection(invitationSchema, response, pagination);
+  }
+
+  async updateWorkspaceMemberRole(
+    workspaceId: string,
+    userId: string,
+    role: string,
+  ): Promise<WorkspaceMember> {
+    const response = await this.client
+      .from('workspace_members')
+      .update({ role })
+      .eq('workspace_id', workspaceId)
+      .eq('user_id', userId)
+      .select(
+        'workspace_id,user_id,role,joined_at,updated_at,profiles!inner(display_name,avatar_url)',
+      )
+      .single();
+    return workspaceMember(required(workspaceMemberRowSchema, response));
+  }
+
+  async removeWorkspaceMember(
+    workspaceId: string,
+    userId: string,
+  ): Promise<string> {
+    const response = await this.client
+      .from('workspace_members')
+      .delete()
+      .eq('workspace_id', workspaceId)
+      .eq('user_id', userId)
+      .select('user_id')
+      .single();
+    throwForError(response.error);
+    return z.object({ user_id: z.uuid() }).parse(response.data).user_id;
   }
 
   async createWorkspace(
@@ -740,7 +842,27 @@ class SupabaseBoardnestDataService implements BoardnestDataService {
         'id,workspace_id,email,role,status,invited_by,accepted_by,expires_at,accepted_at,revoked_at,created_at,updated_at',
       )
       .single();
-    return { invitation: required(invitationSchema, response), token };
+    throwForError(
+      response.error,
+      'A pending invitation already exists for this email in the workspace.',
+    );
+    return { invitation: invitationSchema.parse(response.data), token };
+  }
+
+  async revokeInvitation(id: string): Promise<Invitation> {
+    const response = await this.client
+      .from('invitations')
+      .update({
+        revoked_at: new Date().toISOString(),
+        status: 'revoked',
+      })
+      .eq('id', id)
+      .eq('status', 'pending')
+      .select(
+        'id,workspace_id,email,role,status,invited_by,accepted_by,expires_at,accepted_at,revoked_at,created_at,updated_at',
+      )
+      .single();
+    return required(invitationSchema, response);
   }
 
   private async withReminderRecipients(
@@ -767,6 +889,20 @@ class SupabaseBoardnestDataService implements BoardnestDataService {
       recipient_ids: [...(recipientIdsByReminder.get(row.id) ?? [])].sort(),
     }));
   }
+}
+
+function workspaceMember(
+  row: z.infer<typeof workspaceMemberRowSchema>,
+): WorkspaceMember {
+  return {
+    avatar_url: row.profiles.avatar_url,
+    display_name: row.profiles.display_name,
+    joined_at: row.joined_at,
+    role: row.role,
+    updated_at: row.updated_at,
+    user_id: row.user_id,
+    workspace_id: row.workspace_id,
+  };
 }
 
 interface DataResponse {

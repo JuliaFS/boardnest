@@ -18,6 +18,7 @@ The application provides:
 - pointer and keyboard drag-and-drop with optimistic movement and rollback;
 - live task create/update/delete synchronization through subscriptions;
 - notification reads;
+- workspace member rosters, role management, and pending invitations;
 - reusable loading, retryable error, empty, and not-found states.
 
 ## Data flow
@@ -79,27 +80,26 @@ workflow.
 
 ## Routes
 
-| Route                                | Behavior                                                    |
-| ------------------------------------ | ----------------------------------------------------------- |
-| `/login`                             | Public login form                                           |
-| `/register`                          | Public registration and confirmation flow                   |
-| `/dashboard`                         | Workspace count and recent projects                         |
-| `/workspaces/:workspaceId`           | Workspace details and accessible projects                   |
-| `/projects`                          | Workspace selection, workspace creation, and project list   |
-| `/projects/:projectId`               | Project details and management                              |
-| `/projects/:projectId/board`         | Interactive real-time Kanban board                          |
-| `/projects/:projectId/tasks/:taskId` | Task details and editing                                    |
-| `/notifications`                     | Notification timeline and empty state                       |
-| `/members`                           | Reserved UI extension point for the existing invitation API |
-| `/settings`                          | Reserved UI extension point for preferences                 |
+| Route                                | Behavior                                                   |
+| ------------------------------------ | ---------------------------------------------------------- |
+| `/login`                             | Public login form                                          |
+| `/register`                          | Public registration and confirmation flow                  |
+| `/dashboard`                         | Workspace count and recent projects                        |
+| `/workspaces/:workspaceId`           | Workspace details and accessible projects                  |
+| `/projects`                          | Workspace selection, workspace creation, and project list  |
+| `/projects/:projectId`               | Project details and management                             |
+| `/projects/:projectId/board`         | Interactive real-time Kanban board                         |
+| `/projects/:projectId/tasks/:taskId` | Task details and editing                                   |
+| `/notifications`                     | Notification timeline and empty state                      |
+| `/members`                           | Workspace roster, roles, and pending invitation management |
+| `/settings`                          | Reserved UI extension point for preferences                |
 
 All application routes are protected. Anonymous visitors are redirected to
 `/login`; authenticated users are redirected away from login and registration.
 
-The reserved routes are intentionally disclosed instead of being described as
-complete features. Invitation creation, assignment, comments, activity feeds,
-and notification updates already exist in GraphQL and can be connected in a
-future product iteration.
+Invitation acceptance and private-project membership are intentionally separate
+follow-up stages. See [Members and invitations](MEMBERS.md) for the access model
+and current boundary.
 
 ## Environment
 
