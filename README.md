@@ -249,6 +249,7 @@ GitHub `production` environment, never by the application repository.
 - [Supabase](docs/SUPABASE.md)
 - [GraphQL](docs/GRAPHQL.md)
 - [Frontend](docs/FRONTEND.md)
+- [Members and invitations](docs/MEMBERS.md)
 - [WebSockets](docs/WEBSOCKETS.md)
 - [Redis](docs/REDIS.md)
 - [Security](docs/SECURITY.md)

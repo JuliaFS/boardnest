@@ -54,6 +54,8 @@ check.
 | `currentUser`             | Return the verified session user                     |
 | `workspaces`              | List accessible active workspaces                    |
 | `workspace`               | Read one accessible workspace                        |
+| `workspaceMembers`        | List the accessible workspace roster                 |
+| `workspaceInvitations`    | List pending invitations for a managed workspace     |
 | `projects`                | List accessible active projects by workspace         |
 | `project`                 | Read one accessible project                          |
 | `tasks`                   | List or search active project tasks                  |
@@ -102,8 +104,12 @@ mutation CreateProject($input: CreateProjectInput!) {
 ```
 
 `inviteMember` generates a cryptographically random token, stores only its
-SHA-256 hash, and returns the raw token once. Email delivery and invitation
-acceptance are outside the current browser workflow.
+SHA-256 hash, and returns the raw token once. `updateWorkspaceMemberRole`,
+`removeWorkspaceMember`, and `revokeInvitation` manage the current workspace
+roster and pending invitations. Owner creation, final-owner protection, admin
+restrictions, and all authorization remain database-enforced. Email delivery
+and invitation acceptance are outside the current browser workflow; see
+[Members and invitations](MEMBERS.md).
 
 ### Reminder scheduling
 

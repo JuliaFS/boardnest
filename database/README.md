@@ -69,6 +69,7 @@ Run every file exactly once and in filename order:
 | `310_reminder_api_functions.sql`     | Atomic reminder and recipient API transactions              |
 | `320_in_app_reminder_scheduler.sql`  | Due-reminder processing, recurrence, and idempotency        |
 | `330_account_deletion.sql`           | Ownership handoff and safe account anonymization            |
+| `340_workspace_member_cleanup.sql`   | Workspace-scoped cleanup after membership removal           |
 
 Do not run `database/tests/*.sql` as migrations. The smoke test inserts deterministic temporary records and rolls the transaction back.
 

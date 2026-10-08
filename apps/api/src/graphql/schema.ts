@@ -81,6 +81,7 @@ const inviteSchema = z.object({
   role: z.enum(['admin', 'member', 'viewer']),
   workspaceId: z.uuid(),
 });
+const workspaceMemberRoleSchema = z.enum(['admin', 'member', 'viewer']);
 const reminderScheduleKindSchema = z.enum([
   'once',
   'weekly',
@@ -341,11 +342,23 @@ export const typeDefs = `#graphql
     updatedAt: String!
   }
 
+  type WorkspaceMember {
+    workspaceId: ID!
+    userId: ID!
+    displayName: String!
+    avatarUrl: String
+    role: WorkspaceRole!
+    joinedAt: String!
+    updatedAt: String!
+  }
+
   type WorkspaceConnection { nodes: [Workspace!]!, pageInfo: PageInfo! }
   type ProjectConnection { nodes: [Project!]!, pageInfo: PageInfo! }
   type TaskConnection { nodes: [Task!]!, pageInfo: PageInfo! }
   type NotificationConnection { nodes: [Notification!]!, pageInfo: PageInfo! }
   type ActivityConnection { nodes: [ActivityLog!]!, pageInfo: PageInfo! }
+  type WorkspaceMemberConnection { nodes: [WorkspaceMember!]!, pageInfo: PageInfo! }
+  type InvitationConnection { nodes: [Invitation!]!, pageInfo: PageInfo! }
   type DeletePayload { id: ID! }
   type InvitationPayload { invitation: Invitation!, token: String! }
 
@@ -422,6 +435,8 @@ export const typeDefs = `#graphql
     currentUser: User
     workspaces(limit: Int = 25, offset: Int = 0): WorkspaceConnection!
     workspace(id: ID!): Workspace
+    workspaceMembers(workspaceId: ID!, limit: Int = 100, offset: Int = 0): WorkspaceMemberConnection!
+    workspaceInvitations(workspaceId: ID!, limit: Int = 100, offset: Int = 0): InvitationConnection!
     projects(workspaceId: ID!, limit: Int = 25, offset: Int = 0): ProjectConnection!
     project(id: ID!): Project
     tasks(projectId: ID!, statusId: ID, search: String, limit: Int = 50, offset: Int = 0): TaskConnection!
@@ -447,6 +462,9 @@ export const typeDefs = `#graphql
     assignTask(taskId: ID!, assigneeId: ID!): TaskAssignee!
     addComment(taskId: ID!, body: String!): TaskComment!
     inviteMember(input: InviteMemberInput!): InvitationPayload!
+    updateWorkspaceMemberRole(workspaceId: ID!, userId: ID!, role: WorkspaceRole!): WorkspaceMember!
+    removeWorkspaceMember(workspaceId: ID!, userId: ID!): DeletePayload!
+    revokeInvitation(id: ID!): Invitation!
     markNotificationAsRead(id: ID!): Notification!
     createTaskReminder(input: CreateTaskReminderInput!): TaskReminder!
     updateTaskReminder(id: ID!, input: UpdateTaskReminderInput!): TaskReminder!
@@ -624,6 +642,14 @@ export const resolvers = {
     'createdAt',
     'updatedAt',
   ]),
+  WorkspaceMember: snakeCaseFields([
+    'workspaceId',
+    'userId',
+    'displayName',
+    'avatarUrl',
+    'joinedAt',
+    'updatedAt',
+  ]),
   Query: {
     currentUser: (_parent: unknown, _args: unknown, context: GraphQLContext) =>
       context.user,
@@ -637,6 +663,24 @@ export const resolvers = {
       args: { id: string },
       context: GraphQLContext,
     ) => requireAuth(context).data.workspace(uuid(args.id)),
+    workspaceMembers: async (
+      _parent: unknown,
+      args: PaginationArguments & { workspaceId: string },
+      context: GraphQLContext,
+    ) =>
+      requireAuth(context).data.workspaceMembers(
+        uuid(args.workspaceId),
+        pagination(args),
+      ),
+    workspaceInvitations: async (
+      _parent: unknown,
+      args: PaginationArguments & { workspaceId: string },
+      context: GraphQLContext,
+    ) =>
+      requireAuth(context).data.workspaceInvitations(
+        uuid(args.workspaceId),
+        pagination(args),
+      ),
     projects: async (
       _parent: unknown,
       args: PaginationArguments & { workspaceId: string },
@@ -866,6 +910,31 @@ export const resolvers = {
         authenticated.user.id,
       );
     },
+    updateWorkspaceMemberRole: async (
+      _parent: unknown,
+      args: { role: string; userId: string; workspaceId: string },
+      context: GraphQLContext,
+    ) =>
+      requireAuth(context).data.updateWorkspaceMemberRole(
+        uuid(args.workspaceId),
+        uuid(args.userId),
+        parse(workspaceMemberRoleSchema, args.role),
+      ),
+    removeWorkspaceMember: async (
+      _parent: unknown,
+      args: { userId: string; workspaceId: string },
+      context: GraphQLContext,
+    ) => ({
+      id: await requireAuth(context).data.removeWorkspaceMember(
+        uuid(args.workspaceId),
+        uuid(args.userId),
+      ),
+    }),
+    revokeInvitation: async (
+      _parent: unknown,
+      args: { id: string },
+      context: GraphQLContext,
+    ) => requireAuth(context).data.revokeInvitation(uuid(args.id)),
     markNotificationAsRead: async (
       _parent: unknown,
       args: { id: string },

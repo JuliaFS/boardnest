@@ -42,7 +42,7 @@ const NotificationsPage = lazy(() =>
   })),
 );
 const MembersPage = lazy(() =>
-  import('./features/core/PlaceholderPage').then((module) => ({
+  import('./features/members/MembersPage').then((module) => ({
     default: module.MembersPage,
   })),
 );
