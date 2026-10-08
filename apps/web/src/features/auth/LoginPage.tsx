@@ -27,14 +27,21 @@ export function LoginPage() {
   } = useForm<LoginValues>({ resolver: zodResolver(loginSchema) });
 
   const onSubmit = handleSubmit(async (values) => {
+    if (!captchaToken) {
+      setSubmissionError('Complete the security check.');
+      return;
+    }
     setSubmissionError(null);
 
     try {
-      await signIn(values.email, values.password);
+      await signIn(values.email, values.password, captchaToken);
       const returnPath = getReturnPath(location.state);
       await navigate(returnPath, { replace: true });
     } catch (error) {
       setSubmissionError(getAuthErrorMessage(error));
+    } finally {
+      setCaptchaToken(null);
+      setTurnstileResetKey((current) => current + 1);
     }
   });
 
@@ -62,6 +69,11 @@ export function LoginPage() {
           type="password"
           {...register('password')}
         />
+        <TurnstileWidget
+          action="authentication"
+          onTokenChange={handleCaptchaToken}
+          resetKey={turnstileResetKey}
+        />
         {submissionError ? (
           <p className="form-message error-message" role="alert">
             {submissionError}
@@ -69,7 +81,7 @@ export function LoginPage() {
         ) : null}
         <button
           className="primary-button"
-          disabled={isSubmitting}
+          disabled={isSubmitting || guestLoading || !captchaToken}
           type="submit"
         >
           {isSubmitting ? 'Signing in…' : 'Sign in'}
@@ -78,10 +90,6 @@ export function LoginPage() {
       <div className="auth-divider" aria-hidden="true">
         <span>or</span>
       </div>
-      <TurnstileWidget
-        onTokenChange={handleCaptchaToken}
-        resetKey={turnstileResetKey}
-      />
       <button
         className="guest-button"
         disabled={isSubmitting || guestLoading || !captchaToken}

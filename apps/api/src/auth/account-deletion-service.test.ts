@@ -89,4 +89,23 @@ describe('account deletion service', () => {
       ownedWorkspaces: [{ ownershipStatus: 'deletion_required' }],
     });
   });
+
+  it('does not expose a raw invalid API key error', async () => {
+    rpc.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'Invalid API key' },
+    });
+    const service = createSupabaseAccountDeletionService({
+      serviceRoleKey: 'invalid',
+      supabaseUrl: 'https://example.supabase.co',
+    });
+
+    await expect(
+      service.impact('00000000-0000-4000-8000-000000000001'),
+    ).rejects.toMatchObject({
+      message:
+        'Account deletion is temporarily unavailable because the server credential is invalid.',
+      status: 503,
+    });
+  });
 });

@@ -26,9 +26,11 @@ declare global {
 let scriptPromise: Promise<TurnstileApi> | null = null;
 
 export function TurnstileWidget({
+  action,
   onTokenChange,
   resetKey,
 }: {
+  action: string;
   onTokenChange: (token: string | null) => void;
   resetKey: number;
 }) {
@@ -45,7 +47,7 @@ export function TurnstileWidget({
       .then((turnstile) => {
         if (!active || !container.current) return;
         widgetId = turnstile.render(container.current, {
-          action: 'guest_signup',
+          action,
           callback: (token) => onTokenChange(token),
           'error-callback': () => {
             onTokenChange(null);
@@ -64,7 +66,7 @@ export function TurnstileWidget({
       active = false;
       if (widgetId && window.turnstile) window.turnstile.remove(widgetId);
     };
-  }, [onTokenChange, resetKey]);
+  }, [action, onTokenChange, resetKey]);
 
   return (
     <div className="turnstile-shell">

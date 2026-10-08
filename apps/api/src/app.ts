@@ -38,6 +38,7 @@ import {
 import type { ReminderScheduler } from './reminders/reminder-scheduler.js';
 
 const credentialsSchema = z.object({
+  captchaToken: z.string().min(1).max(2048),
   email: z.email(),
   password: z.string().min(1),
 });
@@ -298,6 +299,7 @@ export async function createServer(
         const result = await options.authService.login(
           input.email,
           input.password,
+          input.captchaToken,
         );
         setSessionCookies(
           response,

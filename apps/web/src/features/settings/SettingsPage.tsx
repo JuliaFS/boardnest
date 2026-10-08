@@ -20,6 +20,7 @@ export function SettingsPage() {
     new Set(),
   );
   const [confirmation, setConfirmation] = useState('');
+  const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -70,9 +71,12 @@ export function SettingsPage() {
       <section className="max-w-3xl rounded-2xl border border-rose-900/70 bg-rose-950/15 p-6">
         <h2 className="text-xl font-bold text-rose-100">Delete account</h2>
         <p className="mt-2 text-sm leading-6 text-slate-300">
-          This permanently removes {user?.email ?? 'your account'}, memberships,
-          assignments, reminders, and private notification data. Shared projects
-          remain available to their workspace.
+          This permanently removes{' '}
+          <strong className="font-bold text-indigo-300">
+            {user?.email ?? 'your account'}
+          </strong>
+          , memberships, assignments, reminders, and private notification data.
+          Shared projects remain available to their workspace.
         </p>
 
         {!impact && !loadError ? <PageSkeleton /> : null}
@@ -153,32 +157,61 @@ export function SettingsPage() {
               </div>
             ))}
 
-            <label className="mt-2 grid gap-2 text-sm font-semibold text-slate-200">
-              Type DELETE to confirm
-              <input
-                autoComplete="off"
-                className="rounded-lg border border-rose-800 bg-slate-950 px-3 py-2 text-white outline-none focus:border-rose-500"
-                onChange={(event) => setConfirmation(event.target.value)}
-                value={confirmation}
-              />
-            </label>
+            {!confirmationOpen ? (
+              <button
+                className="mt-2 rounded-lg bg-rose-700 px-4 py-3 font-bold text-white hover:bg-rose-600"
+                onClick={() => setConfirmationOpen(true)}
+                type="button"
+              >
+                Permanently delete account
+              </button>
+            ) : (
+              <div className="mt-2 grid gap-4 rounded-xl border border-rose-900/70 bg-rose-950/30 p-4">
+                <label className="grid gap-2 text-sm font-semibold text-slate-200">
+                  Type DELETE to confirm
+                  <input
+                    autoComplete="off"
+                    autoFocus
+                    className="rounded-lg border border-rose-800 bg-slate-950 px-3 py-2 text-white outline-none focus:border-rose-500"
+                    onChange={(event) => setConfirmation(event.target.value)}
+                    value={confirmation}
+                  />
+                </label>
 
-            {submitError ? (
-              <p className="text-sm text-rose-300" role="alert">
-                {submitError}
-              </p>
-            ) : null}
+                {submitError ? (
+                  <p className="text-sm text-rose-300" role="alert">
+                    {submitError}
+                  </p>
+                ) : null}
 
-            <button
-              className="rounded-lg bg-rose-700 px-4 py-3 font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={
-                submitting || confirmation !== 'DELETE' || !planComplete
-              }
-              onClick={() => void handleDeleteAccount()}
-              type="button"
-            >
-              {submitting ? 'Deleting account…' : 'Permanently delete account'}
-            </button>
+                <div className="flex flex-wrap justify-end gap-3">
+                  <button
+                    className="rounded-lg border border-slate-700 px-4 py-3 font-semibold text-slate-200 hover:bg-slate-800"
+                    disabled={submitting}
+                    onClick={() => {
+                      setConfirmation('');
+                      setSubmitError(null);
+                      setConfirmationOpen(false);
+                    }}
+                    type="button"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="rounded-lg bg-rose-700 px-4 py-3 font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={
+                      submitting || confirmation !== 'DELETE' || !planComplete
+                    }
+                    onClick={() => void handleDeleteAccount()}
+                    type="button"
+                  >
+                    {submitting
+                      ? 'Deleting account…'
+                      : 'Confirm permanent deletion'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ) : null}
       </section>

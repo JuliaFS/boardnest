@@ -28,6 +28,7 @@ export interface AuthSessionResult {
 }
 
 export interface RegisterInput {
+  captchaToken: string;
   displayName: string;
   email: string;
   password: string;
@@ -45,7 +46,11 @@ export interface AuthService {
   completeConfirmation: (
     input: CompleteConfirmationInput,
   ) => Promise<AuthSessionResult>;
-  login: (email: string, password: string) => Promise<AuthSessionResult>;
+  login: (
+    email: string,
+    password: string,
+    captchaToken: string,
+  ) => Promise<AuthSessionResult>;
   refresh: (refreshToken: string) => Promise<AuthSessionResult>;
   register: (input: RegisterInput) => Promise<{
     confirmationRequired: boolean;
@@ -103,10 +108,11 @@ export function createSupabaseAuthService({
       return mapSession(data.session, data.user);
     },
 
-    async login(email, password) {
+    async login(email, password, captchaToken) {
       const client = createAuthClient();
       const { data, error } = await client.auth.signInWithPassword({
         email,
+        options: { captchaToken },
         password,
       });
       if (error) throw error;
@@ -134,11 +140,12 @@ export function createSupabaseAuthService({
       }
     },
 
-    async register({ displayName, email, password, storage }) {
+    async register({ captchaToken, displayName, email, password, storage }) {
       const client = createAuthClient(storage);
       const { data, error } = await client.auth.signUp({
         email,
         options: {
+          captchaToken,
           data: { display_name: displayName },
           emailRedirectTo: callbackUrl,
         },

@@ -74,9 +74,17 @@ describe('SettingsPage account deletion', () => {
       </MemoryRouter>,
     );
 
-    const button = await screen.findByRole('button', {
+    const revealButton = await screen.findByRole('button', {
       name: 'Permanently delete account',
     });
+    expect(screen.queryByLabelText('Type DELETE to confirm')).toBeNull();
+
+    await user.click(revealButton);
+
+    const button = screen.getByRole('button', {
+      name: 'Confirm permanent deletion',
+    });
+    expect(screen.getByLabelText('Type DELETE to confirm')).toBeTruthy();
     expect(button.hasAttribute('disabled')).toBe(true);
 
     await user.selectOptions(

@@ -4,7 +4,7 @@ import { parseEnvironment } from './env.js';
 
 const required = {
   API_URL: 'http://localhost:4000',
-  CORS_ORIGIN: 'http://localhost:5173',
+  CORS_ORIGIN: 'http://localhost:5174',
   GUEST_RATE_LIMIT_SECRET: 'x'.repeat(32),
   REDIS_URL: 'redis://localhost:6379',
   SUPABASE_PUBLISHABLE_KEY: 'test-key',
@@ -50,13 +50,22 @@ describe('API environment', () => {
         REMINDER_SCHEDULER_BATCH_SIZE: '50',
         REMINDER_SCHEDULER_ENABLED: 'true',
         REMINDER_SCHEDULER_INTERVAL_MS: '5000',
-        SUPABASE_SERVICE_ROLE_KEY: 'server-only-secret',
+        SUPABASE_SERVICE_ROLE_KEY: 'sb_secret_boardnest_server_only_test_value',
       }),
     ).toMatchObject({
       REMINDER_SCHEDULER_BATCH_SIZE: 50,
       REMINDER_SCHEDULER_ENABLED: true,
       REMINDER_SCHEDULER_INTERVAL_MS: 5_000,
-      SUPABASE_SERVICE_ROLE_KEY: 'server-only-secret',
+      SUPABASE_SERVICE_ROLE_KEY: 'sb_secret_boardnest_server_only_test_value',
     });
+  });
+
+  it('rejects a placeholder instead of failing later at request time', () => {
+    expect(() =>
+      parseEnvironment({
+        ...required,
+        SUPABASE_SERVICE_ROLE_KEY: 'your-server-only-service-role-key',
+      }),
+    ).toThrow('not the example placeholder');
   });
 });

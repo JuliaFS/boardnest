@@ -5,6 +5,13 @@ export function getAuthErrorMessage(error: unknown): string {
 
   const message = error.message.toLowerCase();
 
+  if (
+    error instanceof TypeError &&
+    (message.includes('fetch') || message.includes('network'))
+  ) {
+    return 'Cannot reach the API. Make sure the backend is running and try again.';
+  }
+
   if (message.includes('invalid login credentials')) {
     return 'Incorrect email or password.';
   }
@@ -23,6 +30,10 @@ export function getAuthErrorMessage(error: unknown): string {
 
   if (message.includes('rate limit')) {
     return 'Too many guest sessions were started. Please try again later.';
+  }
+
+  if (message.includes('captcha')) {
+    return 'Complete the security check and try again.';
   }
 
   if (message.includes('password')) {

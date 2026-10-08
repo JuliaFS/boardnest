@@ -20,6 +20,7 @@ import {
 import { apolloClient } from '../../lib/apollo-client';
 
 interface SignUpInput {
+  captchaToken: string;
   displayName: string;
   email: string;
   password: string;
@@ -29,7 +30,11 @@ interface AuthContextValue {
   continueAsGuest: (captchaToken: string) => Promise<void>;
   deleteAccount: (input: DeleteAccountInput) => Promise<void>;
   isLoading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (
+    email: string,
+    password: string,
+    captchaToken: string,
+  ) => Promise<void>;
   signOut: () => Promise<void>;
   signUp: (input: SignUpInput) => Promise<boolean>;
   user: AuthUser | null;
@@ -72,9 +77,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
         setUser(null);
       },
       isLoading,
-      signIn: async (email, password) => {
+      signIn: async (email, password, captchaToken) => {
         await apolloClient.clearStore();
-        setUser(await login(email, password));
+        setUser(await login(email, password, captchaToken));
       },
       signOut: async () => {
         try {

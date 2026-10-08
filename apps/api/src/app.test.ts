@@ -17,7 +17,7 @@ import {
   type RealtimeEventBus,
 } from './realtime/event-bus.js';
 
-const origin = 'http://localhost:5173';
+const origin = 'http://localhost:5174';
 const user: PublicAuthUser = {
   displayName: 'Test User',
   email: 'person@example.com',
@@ -132,9 +132,10 @@ describe('API server', () => {
   });
 
   it('sets HttpOnly cookies without returning tokens on login', async () => {
-    const { server } = await startServer();
+    const { authService, server } = await startServer();
     const response = await fetch(await getUrl(server, '/auth/login'), {
       body: JSON.stringify({
+        captchaToken: 'turnstile-token',
         email: 'person@example.com',
         password: 'StrongPass1',
       }),
@@ -145,12 +146,41 @@ describe('API server', () => {
     const cookies = response.headers.getSetCookie();
 
     expect(response.status).toBe(200);
+    expect(authService.login).toHaveBeenCalledWith(
+      'person@example.com',
+      'StrongPass1',
+      'turnstile-token',
+    );
     expect(body).toEqual({ user });
     expect(JSON.stringify(body)).not.toContain('access-token');
     expect(cookies).toHaveLength(2);
     expect(cookies.every((cookie) => cookie.includes('HttpOnly'))).toBe(true);
     expect(cookies.every((cookie) => cookie.includes('SameSite=Lax'))).toBe(
       true,
+    );
+  });
+
+  it('forwards the CAPTCHA token during registration', async () => {
+    const { authService, server } = await startServer();
+    const response = await fetch(await getUrl(server, '/auth/register'), {
+      body: JSON.stringify({
+        captchaToken: 'registration-token',
+        displayName: 'Test User',
+        email: 'person@example.com',
+        password: 'StrongPass1',
+      }),
+      headers: { 'content-type': 'application/json', origin },
+      method: 'POST',
+    });
+
+    expect(response.status).toBe(201);
+    expect(authService.register).toHaveBeenCalledWith(
+      expect.objectContaining({
+        captchaToken: 'registration-token',
+        displayName: 'Test User',
+        email: 'person@example.com',
+        password: 'StrongPass1',
+      }),
     );
   });
 
@@ -189,6 +219,7 @@ describe('API server', () => {
 
     const response = await fetch(await getUrl(server, '/auth/login'), {
       body: JSON.stringify({
+        captchaToken: 'turnstile-token',
         email: 'person@example.com',
         password: 'StrongPass1',
       }),
@@ -209,7 +240,11 @@ describe('API server', () => {
   it('rejects cross-origin auth mutations', async () => {
     const { authService, server } = await startServer();
     const response = await fetch(await getUrl(server, '/auth/login'), {
-      body: JSON.stringify({ email: 'person@example.com', password: 'secret' }),
+      body: JSON.stringify({
+        captchaToken: 'turnstile-token',
+        email: 'person@example.com',
+        password: 'secret',
+      }),
       headers: {
         'content-type': 'application/json',
         origin: 'https://attacker.example',
