@@ -45,13 +45,16 @@ successful query with no returned rows means the migration is not installed.
 The migration affects future inserts and does not remove guest resources that
 were created before it was applied.
 
-Continue through `340_workspace_member_cleanup.sql` in filename order. The scheduler
+Continue through `350_invitation_acceptance.sql` in filename order. The scheduler
 migration adds columns, an index, and narrowly granted functions; the account
 deletion migration makes creator attribution nullable and adds narrowly granted
 preview/preparation functions. The member cleanup migration installs a trigger
 but does not remove existing memberships. Applying these migrations does not
 delete an account or member. Do not run files under `database/tests` against the
 hosted project; they are intended only for an isolated disposable database.
+The invitation acceptance migration grants only its email-matched atomic
+function to authenticated users and does not accept or modify existing pending
+invitations when installed.
 
 ## 3. Verify the result
 

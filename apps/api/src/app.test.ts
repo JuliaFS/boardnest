@@ -168,6 +168,7 @@ describe('API server', () => {
         displayName: 'Test User',
         email: 'person@example.com',
         password: 'StrongPass1',
+        returnTo: `/invite/${'a'.repeat(43)}`,
       }),
       headers: { 'content-type': 'application/json', origin },
       method: 'POST',
@@ -180,6 +181,7 @@ describe('API server', () => {
         displayName: 'Test User',
         email: 'person@example.com',
         password: 'StrongPass1',
+        returnTo: `/invite/${'a'.repeat(43)}`,
       }),
     );
   });
@@ -296,6 +298,35 @@ describe('API server', () => {
       expect.objectContaining({ code: 'one-time-code' }),
     );
     expect(response.headers.getSetCookie()).toHaveLength(2);
+  });
+
+  it('restores a safe invitation path after email confirmation', async () => {
+    const { server } = await startServer();
+    const returnTo = `/invite/${'a'.repeat(43)}`;
+    const response = await fetch(
+      await getUrl(
+        server,
+        `/auth/callback?code=one-time-code&returnTo=${encodeURIComponent(returnTo)}`,
+      ),
+      { redirect: 'manual' },
+    );
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get('location')).toBe(`${origin}${returnTo}`);
+  });
+
+  it('does not redirect outside the web application after confirmation', async () => {
+    const { server } = await startServer();
+    const response = await fetch(
+      await getUrl(
+        server,
+        '/auth/callback?code=one-time-code&returnTo=https%3A%2F%2Fattacker.example',
+      ),
+      { redirect: 'manual' },
+    );
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get('location')).toBe(`${origin}/dashboard`);
   });
 
   it('clears both cookies on logout', async () => {

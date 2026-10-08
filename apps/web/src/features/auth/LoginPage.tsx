@@ -118,7 +118,13 @@ export function LoginPage() {
         are unlimited.
       </p>
       <p className="auth-switch">
-        New to Boardnest? <Link to="/register">Create an account</Link>
+        New to Boardnest?{' '}
+        <Link
+          state={{ from: getReturnPath(location.state as unknown) }}
+          to="/register"
+        >
+          Create an account
+        </Link>
       </p>
     </AuthShell>
   );

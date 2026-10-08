@@ -22,6 +22,11 @@ The API verifies the access token for authenticated requests. When it expires,
 the API rotates the one-time refresh token and replaces both cookies. Concurrent
 refreshes inside one API process share the same rotation request.
 
+An invitation return path is carried through login and registration. When
+email confirmation is required, the API adds the validated relative return
+path to its Supabase PKCE callback and redirects back to `/invite/:token` only
+after establishing the `HttpOnly` cookie session.
+
 Responses that create, refresh, or clear a session use `Cache-Control: private,
 no-store` so a proxy must not cache `Set-Cookie` headers.
 

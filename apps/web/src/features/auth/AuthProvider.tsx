@@ -24,6 +24,7 @@ interface SignUpInput {
   displayName: string;
   email: string;
   password: string;
+  returnTo?: string;
 }
 
 interface AuthContextValue {

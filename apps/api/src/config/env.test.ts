@@ -68,4 +68,23 @@ describe('API environment', () => {
       }),
     ).toThrow('not the example placeholder');
   });
+
+  it('requires invitation email settings as a pair', () => {
+    expect(() =>
+      parseEnvironment({ ...required, RESEND_API_KEY: 're_test' }),
+    ).toThrow(
+      'RESEND_API_KEY and INVITATION_EMAIL_FROM must be configured together',
+    );
+
+    expect(
+      parseEnvironment({
+        ...required,
+        INVITATION_EMAIL_FROM: 'Boardnest <invites@example.com>',
+        RESEND_API_KEY: 're_test',
+      }),
+    ).toMatchObject({
+      INVITATION_EMAIL_FROM: 'Boardnest <invites@example.com>',
+      RESEND_API_KEY: 're_test',
+    });
+  });
 });

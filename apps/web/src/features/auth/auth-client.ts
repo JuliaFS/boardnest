@@ -83,6 +83,7 @@ export async function register(input: {
   displayName: string;
   email: string;
   password: string;
+  returnTo?: string;
 }): Promise<{ confirmationRequired: boolean; user: AuthUser | null }> {
   return request('/auth/register', {
     body: JSON.stringify(input),

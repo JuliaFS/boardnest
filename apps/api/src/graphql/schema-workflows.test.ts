@@ -143,6 +143,75 @@ function runQuery(
 }
 
 describe('GraphQL project and task workflow resolvers', () => {
+  it('accepts an invitation token through the authenticated data service', async () => {
+    const token = 'a'.repeat(43);
+    const membership = {
+      joined_at: timestamp,
+      role: 'member',
+      updated_at: timestamp,
+      user_id: user.id,
+      workspace_id: workspaceId,
+    };
+    const acceptInvitation = vi.fn().mockResolvedValue(membership);
+
+    await expect(
+      runMutation(
+        'acceptInvitation',
+        { token },
+        context(createDataService({ acceptInvitation })),
+      ),
+    ).resolves.toEqual(membership);
+    expect(acceptInvitation).toHaveBeenCalledWith(token);
+  });
+
+  it('delivers a workspace invitation and hides the raw token after email success', async () => {
+    const token = 'b'.repeat(43);
+    const invitation = {
+      accepted_at: null,
+      accepted_by: null,
+      created_at: timestamp,
+      email: 'member@example.com',
+      expires_at: new Date(Date.now() + 60_000).toISOString(),
+      id: reminderId,
+      invited_by: user.id,
+      revoked_at: null,
+      role: 'member',
+      status: 'pending',
+      updated_at: timestamp,
+      workspace_id: workspaceId,
+    };
+    const inviteMember = vi.fn().mockResolvedValue({ invitation, token });
+    const workspace = vi.fn().mockResolvedValue({
+      id: workspaceId,
+      name: 'Product team',
+    });
+    const sendWorkspaceInvitation = vi.fn().mockResolvedValue(undefined);
+    const value = {
+      ...context(createDataService({ inviteMember, workspace })),
+      invitationEmail: { sendWorkspaceInvitation },
+    };
+
+    await expect(
+      runMutation(
+        'inviteMember',
+        {
+          input: {
+            email: 'member@example.com',
+            role: 'member',
+            workspaceId,
+          },
+        },
+        value,
+      ),
+    ).resolves.toMatchObject({ emailSent: true, invitation, token: null });
+    expect(sendWorkspaceInvitation).toHaveBeenCalledWith({
+      email: 'member@example.com',
+      inviterName: user.displayName,
+      token,
+      workspaceName: 'Product team',
+    });
+  });
+
   it('lists members and invitations and validates workspace member management', async () => {
     const workspaceMembers = vi.fn().mockResolvedValue({ nodes: [] });
     const workspaceInvitations = vi.fn().mockResolvedValue({ nodes: [] });

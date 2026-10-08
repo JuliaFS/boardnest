@@ -113,8 +113,10 @@ selected by the `rediss://` scheme.
 | `API_URL`                        | Exact public API origin, without a trailing slash |
 | `COOKIE_SAME_SITE`               | `lax` for same-site subdomains; otherwise `none`  |
 | `CORS_ORIGIN`                    | Exact Vercel/custom web origin                    |
+| `INVITATION_EMAIL_FROM`          | Sender on a verified Resend domain                |
 | `NODE_ENV`                       | `production`                                      |
 | `REDIS_URL`                      | Private Upstash `rediss://...` connection string  |
+| `RESEND_API_KEY`                 | Server-only Resend sending key                    |
 | `REMINDER_SCHEDULER_ENABLED`     | `true`                                            |
 | `REMINDER_SCHEDULER_INTERVAL_MS` | `30000`                                           |
 | `REMINDER_SCHEDULER_BATCH_SIZE`  | `100`                                             |
@@ -126,8 +128,9 @@ The API serves HTTP, GraphQL, and WebSockets from the same process. Railway
 must not be configured as a short-lived serverless function.
 `SUPABASE_SERVICE_ROLE_KEY` belongs only in Railway. Never add it to Vercel,
 prefix it with `VITE_`, print it in logs, or store it in GitHub for this runtime
-path. Apply migrations through `340_workspace_member_cleanup.sql` before
-enabling the scheduler or exposing account and member deletion controls.
+path. `RESEND_API_KEY` and `INVITATION_EMAIL_FROM` are optional but must be set
+together to enable invitation delivery. Apply migrations through
+`350_invitation_acceptance.sql` before exposing invitation acceptance.
 
 ## 5. Configure Vercel
 

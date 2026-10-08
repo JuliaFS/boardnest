@@ -31,6 +31,7 @@ import { resolveRequestSession } from './auth/session.js';
 import type { BoardnestDataService } from './graphql/data-service.js';
 import { type GraphQLContext, resolvers, typeDefs } from './graphql/schema.js';
 import { createMaxDepthRule } from './graphql/security.js';
+import type { InvitationEmailService } from './invitations/invitation-email.js';
 import {
   createInMemoryEventBus,
   type RealtimeEventBus,
@@ -47,6 +48,11 @@ const guestSchema = z.object({
 });
 const registrationSchema = credentialsSchema.extend({
   displayName: z.string().trim().min(2).max(80),
+  returnTo: z
+    .string()
+    .max(2048)
+    .refine(isSafeReturnPath, 'Invalid return path.')
+    .optional(),
 });
 const accountDeletionSchema = z.object({
   confirmation: z.literal('DELETE'),
@@ -66,6 +72,7 @@ export interface ServerOptions {
   events?: RealtimeEventBus;
   guestAdmission: GuestAdmission;
   introspection?: boolean;
+  invitationEmail?: InvitationEmailService;
   reminderScheduler?: ReminderScheduler;
   secureCookies: boolean;
   trustProxyHops?: number;
@@ -166,6 +173,7 @@ export async function createServer(
   app.get('/auth/callback', async (request, response) => {
     const code = readQueryString(request.query.code);
     const flowId = readQueryString(request.query.sb_flow_id);
+    const returnTo = safeReturnPath(readQueryString(request.query.returnTo));
     if (!code) {
       response.redirect(303, `${options.corsOrigin}/login?confirmation=failed`);
       return;
@@ -189,7 +197,7 @@ export async function createServer(
         options.secureCookies,
         cookieSameSite,
       );
-      response.redirect(303, `${options.corsOrigin}/dashboard`);
+      response.redirect(303, `${options.corsOrigin}${returnTo}`);
     } catch {
       clearSessionCookies(response, options.secureCookies, cookieSameSite);
       response.redirect(303, `${options.corsOrigin}/login?confirmation=failed`);
@@ -210,7 +218,11 @@ export async function createServer(
           cookieSameSite,
         );
         const registration = await options.authService.register({
-          ...input,
+          captchaToken: input.captchaToken,
+          displayName: input.displayName,
+          email: input.email,
+          password: input.password,
+          ...(input.returnTo ? { returnTo: input.returnTo } : {}),
           storage,
         });
         if (registration.result) {
@@ -428,6 +440,9 @@ export async function createServer(
         return {
           data: session ? options.createDataService(session.accessToken) : null,
           events,
+          ...(options.invitationEmail
+            ? { invitationEmail: options.invitationEmail }
+            : {}),
           user: session?.user ?? null,
         };
       },
@@ -473,6 +488,14 @@ function trustedOrigin(expectedOrigin: string) {
 
 function readQueryString(value: unknown): string | null {
   return typeof value === 'string' ? value : null;
+}
+
+function isSafeReturnPath(value: string): boolean {
+  return value.startsWith('/') && !value.startsWith('//');
+}
+
+function safeReturnPath(value: string | null): string {
+  return value && isSafeReturnPath(value) ? value : '/dashboard';
 }
 
 function authErrorMessage(error: unknown): string {

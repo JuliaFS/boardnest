@@ -18,16 +18,18 @@ import { inviteMemberSchema, type InviteMemberValues } from './member-schemas';
 interface InviteMemberFormProps {
   onCancel: () => void;
   onCompleted: (result: {
+    emailSent: boolean;
     invitation: InvitationSummary;
-    token: string;
+    token: string | null;
   }) => void;
   workspaceId: string;
 }
 
 interface InviteMemberResult {
   inviteMember: {
+    emailSent: boolean;
     invitation: InvitationSummary;
-    token: string;
+    token: string | null;
   };
 }
 

@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Link, useNavigate } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 
 import { getAuthErrorMessage } from './auth-errors';
 import { registerSchema, type RegisterValues } from './auth-schemas';
@@ -11,6 +11,7 @@ import { TurnstileWidget } from './TurnstileWidget';
 
 export function RegisterPage() {
   const { signUp } = useAuth();
+  const location = useLocation();
   const navigate = useNavigate();
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [confirmationSent, setConfirmationSent] = useState(false);
@@ -39,12 +40,13 @@ export function RegisterPage() {
         displayName: values.displayName,
         email: values.email,
         password: values.password,
+        returnTo: getReturnPath(location.state),
       });
 
       if (needsEmailConfirmation) {
         setConfirmationSent(true);
       } else {
-        await navigate('/dashboard', { replace: true });
+        await navigate(getReturnPath(location.state), { replace: true });
       }
     } catch (error) {
       setSubmissionError(getAuthErrorMessage(error));
@@ -60,7 +62,11 @@ export function RegisterPage() {
         description="We sent you a confirmation link. Open it to activate your account, then sign in."
         title="Check your email"
       >
-        <Link className="primary-button button-link" to="/login">
+        <Link
+          className="primary-button button-link"
+          state={{ from: getReturnPath(location.state as unknown) }}
+          to="/login"
+        >
           Back to sign in
         </Link>
       </AuthShell>
@@ -124,8 +130,29 @@ export function RegisterPage() {
         </button>
       </form>
       <p className="auth-switch">
-        Already have an account? <Link to="/login">Sign in</Link>
+        Already have an account?{' '}
+        <Link
+          state={{ from: getReturnPath(location.state as unknown) }}
+          to="/login"
+        >
+          Sign in
+        </Link>
       </p>
     </AuthShell>
   );
+}
+
+function getReturnPath(state: unknown): string {
+  if (
+    typeof state === 'object' &&
+    state !== null &&
+    'from' in state &&
+    typeof state.from === 'string' &&
+    state.from.startsWith('/') &&
+    !state.from.startsWith('//')
+  ) {
+    return state.from;
+  }
+
+  return '/dashboard';
 }

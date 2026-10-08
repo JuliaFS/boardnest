@@ -104,9 +104,9 @@ analytics, user-generated HTML, or embedded content.
 - `.env` and `.vercel` are ignored; only placeholder `.env.example` is tracked.
 - `VITE_*` values are public by design and are embedded into the frontend
   bundle.
-- Supabase service-role keys, database credentials, Redis credentials, Railway
-  tokens, and Vercel tokens are server/provider secrets and must never use a
-  `VITE_*` name.
+- Supabase service-role keys, Resend API keys, database credentials, Redis
+  credentials, Railway tokens, and Vercel tokens are server/provider secrets
+  and must never use a `VITE_*` name.
 - Runtime secrets live in Railway; public frontend configuration lives in
   Vercel; deployment credentials live in the protected GitHub `production`
   environment.

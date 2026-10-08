@@ -27,6 +27,7 @@ import type {
   UpdateTaskReminderData,
   Workspace,
   WorkspaceMember,
+  WorkspaceMembership,
   WorkspaceSubscription,
 } from './domain.js';
 
@@ -144,6 +145,13 @@ const workspaceMemberRowSchema = z.object({
   user_id: z.uuid(),
   workspace_id: z.uuid(),
 });
+const workspaceMembershipSchema = z.object({
+  joined_at: z.string(),
+  role: z.string(),
+  updated_at: z.string(),
+  user_id: z.uuid(),
+  workspace_id: z.uuid(),
+});
 const notificationPreferencesSchema = z.object({
   created_at: z.string(),
   email_enabled: z.boolean(),
@@ -203,6 +211,7 @@ export interface InviteResult {
 }
 
 export interface BoardnestDataService {
+  acceptInvitation: (token: string) => Promise<WorkspaceMembership>;
   activityFeed: (
     workspaceId: string,
     projectId: string | null,
@@ -317,6 +326,13 @@ export function createBoardnestDataService(
 
 class SupabaseBoardnestDataService implements BoardnestDataService {
   constructor(private readonly client: SupabaseClient) {}
+
+  async acceptInvitation(token: string): Promise<WorkspaceMembership> {
+    const response = await this.client
+      .rpc('accept_workspace_invitation', { p_token: token })
+      .single();
+    return required(workspaceMembershipSchema, response);
+  }
 
   async workspaces(pagination: Pagination): Promise<Connection<Workspace>> {
     const response = await this.client
@@ -967,6 +983,7 @@ function throwForError(
     code === 'P0001' &&
     (error.message.startsWith('Guest limit reached:') ||
       error.message.startsWith('Plan limit reached:') ||
+      error.message.startsWith('Invitation ') ||
       /^The [a-z0-9_]+ plan does not include email reminders$/.test(
         error.message,
       ))
