@@ -31,7 +31,13 @@ const environmentSchema = z
     SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
     SUPABASE_SERVICE_ROLE_KEY: z.preprocess(
       (value) => (value === '' ? undefined : value),
-      z.string().min(1).optional(),
+      z
+        .string()
+        .refine(isSupabaseServerKey, {
+          message:
+            'Use a Supabase sb_secret_ key or legacy service_role JWT, not the example placeholder.',
+        })
+        .optional(),
     ),
     SUPABASE_URL: z.url(),
     TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
@@ -67,6 +73,22 @@ export function loadEnvironmentFile(): void {
     path: new URL('../../../../.env', import.meta.url),
     quiet: true,
   });
+}
+
+function isSupabaseServerKey(value: string): boolean {
+  if (value.startsWith('sb_secret_')) return value.length > 20;
+
+  const payload = value.split('.')[1];
+  if (!payload) return false;
+
+  try {
+    const claims = JSON.parse(
+      Buffer.from(payload, 'base64url').toString('utf8'),
+    ) as { role?: unknown };
+    return claims.role === 'service_role';
+  } catch {
+    return false;
+  }
 }
 
 export function parseEnvironment(

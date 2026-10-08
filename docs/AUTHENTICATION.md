@@ -29,7 +29,7 @@ no-store` so a proxy must not cache `Set-Cookie` headers.
 
 Under **Authentication → URL Configuration** set:
 
-- Site URL: `http://localhost:5173`
+- Site URL: `http://localhost:5174`
 - Redirect URLs: add `http://localhost:4000/auth/callback`
 
 The callback URL points to the API, not the React application. The API exchanges
@@ -42,9 +42,11 @@ sign-ins for the guest demo. Supabase anonymous users receive an authenticated
 session with an is_anonymous JWT claim; Boardnest uses that claim for database
 enforcement and never treats the public anon role as a guest account.
 
-The guest button renders Cloudflare Turnstile and sends its single-use token to
-`POST /auth/guest`. The API forwards it to `signInAnonymously`, so Supabase
-performs the server-side CAPTCHA validation before creating the anonymous user.
+The login and registration forms render Cloudflare Turnstile and send its
+single-use token with every password sign-in, signup, or guest request. The API
+forwards it to the corresponding Supabase Auth operation, so Supabase performs
+server-side CAPTCHA validation before authenticating or creating a user. The
+widget resets after each attempt because a token cannot be reused.
 Redis additionally limits guest creation to 3 attempts per IP per hour, 10 per
 IP per UTC day, and 100 successful reservations globally per UTC day. Anonymous
 users are persistent Auth records, so schedule periodic cleanup for abandoned
@@ -75,7 +77,7 @@ API_URL=http://localhost:4000
 COOKIE_SAME_SITE=lax
 SUPABASE_URL=https://your-project-ref.supabase.co
 SUPABASE_PUBLISHABLE_KEY=sb_publishable_your-public-key
-CORS_ORIGIN=http://localhost:5173
+CORS_ORIGIN=http://localhost:5174
 NODE_ENV=development
 ```
 
@@ -113,7 +115,7 @@ tasks.
 
 ## Manual verification
 
-1. Run `pnpm dev` and open `http://localhost:5173/register`.
+1. Run `pnpm dev` and open `http://localhost:5174/register`.
 2. Register and, when enabled, follow the email confirmation link.
 3. Confirm the dashboard reports an API-verified cookie session.
 4. In DevTools → Application → Local storage, confirm no `sb-...-auth-token` exists.

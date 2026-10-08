@@ -31,7 +31,11 @@ describe('TurnstileWidget', () => {
     };
 
     const view = render(
-      <TurnstileWidget onTokenChange={onTokenChange} resetKey={0} />,
+      <TurnstileWidget
+        action="authentication"
+        onTokenChange={onTokenChange}
+        resetKey={0}
+      />,
     );
 
     await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce());

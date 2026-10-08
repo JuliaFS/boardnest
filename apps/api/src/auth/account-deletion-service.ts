@@ -54,7 +54,7 @@ export function createSupabaseAccountDeletionService(options: {
         p_user_id: userId,
       });
       if (preparation.error) {
-        throw new AccountDeletionError(preparation.error.message, 409);
+        throw mapAccountDeletionError(preparation.error.message, 409);
       }
 
       const deletion = await client.auth.admin.deleteUser(userId, false);
@@ -70,11 +70,24 @@ export function createSupabaseAccountDeletionService(options: {
       const response = await client.rpc('account_deletion_impact', {
         p_user_id: userId,
       });
-      if (response.error)
-        throw new AccountDeletionError(response.error.message);
+      if (response.error) throw mapAccountDeletionError(response.error.message);
       return impactSchema.parse(response.data);
     },
   };
+}
+
+function mapAccountDeletionError(
+  message: string,
+  fallbackStatus = 500,
+): AccountDeletionError {
+  if (message.toLowerCase().includes('invalid api key')) {
+    return new AccountDeletionError(
+      'Account deletion is temporarily unavailable because the server credential is invalid.',
+      503,
+    );
+  }
+
+  return new AccountDeletionError(message, fallbackStatus);
 }
 
 export class AccountDeletionError extends Error {

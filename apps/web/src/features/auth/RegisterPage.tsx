@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router';
 
@@ -7,12 +7,19 @@ import { getAuthErrorMessage } from './auth-errors';
 import { registerSchema, type RegisterValues } from './auth-schemas';
 import { useAuth } from './AuthProvider';
 import { AuthShell, FormField } from './LoginPage';
+import { TurnstileWidget } from './TurnstileWidget';
 
 export function RegisterPage() {
   const { signUp } = useAuth();
   const navigate = useNavigate();
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [confirmationSent, setConfirmationSent] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
+  const handleCaptchaToken = useCallback(
+    (token: string | null) => setCaptchaToken(token),
+    [],
+  );
   const {
     formState: { errors, isSubmitting },
     handleSubmit,
@@ -20,10 +27,15 @@ export function RegisterPage() {
   } = useForm<RegisterValues>({ resolver: zodResolver(registerSchema) });
 
   const onSubmit = handleSubmit(async (values) => {
+    if (!captchaToken) {
+      setSubmissionError('Complete the security check.');
+      return;
+    }
     setSubmissionError(null);
 
     try {
       const needsEmailConfirmation = await signUp({
+        captchaToken,
         displayName: values.displayName,
         email: values.email,
         password: values.password,
@@ -36,6 +48,9 @@ export function RegisterPage() {
       }
     } catch (error) {
       setSubmissionError(getAuthErrorMessage(error));
+    } finally {
+      setCaptchaToken(null);
+      setTurnstileResetKey((current) => current + 1);
     }
   });
 
@@ -90,6 +105,11 @@ export function RegisterPage() {
           type="password"
           {...register('confirmPassword')}
         />
+        <TurnstileWidget
+          action="registration"
+          onTokenChange={handleCaptchaToken}
+          resetKey={turnstileResetKey}
+        />
         {submissionError ? (
           <p className="form-message error-message" role="alert">
             {submissionError}
@@ -97,7 +117,7 @@ export function RegisterPage() {
         ) : null}
         <button
           className="primary-button"
-          disabled={isSubmitting}
+          disabled={isSubmitting || !captchaToken}
           type="submit"
         >
           {isSubmitting ? 'Creating account…' : 'Create account'}

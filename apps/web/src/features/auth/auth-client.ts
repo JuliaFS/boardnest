@@ -61,9 +61,10 @@ export function getSession(): Promise<AuthUser | null> {
 export async function login(
   email: string,
   password: string,
+  captchaToken: string,
 ): Promise<AuthUser> {
   const body = await request<AuthResponse>('/auth/login', {
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ captchaToken, email, password }),
     method: 'POST',
   });
   return body.user;
@@ -78,6 +79,7 @@ export async function continueAsGuest(captchaToken: string): Promise<AuthUser> {
 }
 
 export async function register(input: {
+  captchaToken: string;
   displayName: string;
   email: string;
   password: string;
