@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createResendInvitationEmailService } from './invitation-email.js';
+import {
+  createResendInvitationEmailService,
+  createSmtpInvitationEmailService,
+} from './invitation-email.js';
 
 describe('Resend invitation email service', () => {
   it('sends an escaped invitation with a token link', async () => {
@@ -61,5 +64,68 @@ describe('Resend invitation email service', () => {
         workspaceName: 'Product',
       }),
     ).rejects.toThrow('HTTP 422');
+  });
+});
+
+describe('SMTP invitation email service', () => {
+  it('sends an escaped invitation through the injected transport', async () => {
+    const sendMail = vi.fn().mockResolvedValue({ messageId: 'test-id' });
+    const service = createSmtpInvitationEmailService({
+      from: 'Boardnest <boardnest@gmail.com>',
+      host: 'smtp.gmail.com',
+      password: 'app-password',
+      port: 465,
+      secure: true,
+      transport: { sendMail },
+      user: 'boardnest@gmail.com',
+      webUrl: 'https://boardnest.example/',
+    });
+
+    await service.sendWorkspaceInvitation({
+      email: 'member@example.com',
+      inviterName: 'Owner <Admin>',
+      token: 'token/value',
+      workspaceName: 'Product & Design',
+    });
+
+    expect(sendMail).toHaveBeenCalledOnce();
+    const message = sendMail.mock.calls[0]?.[0] as
+      | {
+          from: string;
+          html: string;
+          text: string;
+          to: string;
+        }
+      | undefined;
+    expect(message).toBeDefined();
+    expect(message?.from).toBe('Boardnest <boardnest@gmail.com>');
+    expect(message?.html).toContain('Product &amp; Design');
+    expect(message?.text).toContain(
+      'https://boardnest.example/invite/token%2Fvalue',
+    );
+    expect(message?.to).toBe('member@example.com');
+  });
+
+  it('propagates delivery failures to the invitation fallback flow', async () => {
+    const transportError = new Error('SMTP unavailable');
+    const service = createSmtpInvitationEmailService({
+      from: 'boardnest@gmail.com',
+      host: 'smtp.gmail.com',
+      password: 'app-password',
+      port: 465,
+      secure: true,
+      transport: { sendMail: vi.fn().mockRejectedValue(transportError) },
+      user: 'boardnest@gmail.com',
+      webUrl: 'https://boardnest.example',
+    });
+
+    await expect(
+      service.sendWorkspaceInvitation({
+        email: 'member@example.com',
+        inviterName: 'Owner',
+        token: 'token',
+        workspaceName: 'Product',
+      }),
+    ).rejects.toBe(transportError);
   });
 });

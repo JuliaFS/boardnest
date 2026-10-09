@@ -113,10 +113,16 @@ selected by the `rediss://` scheme.
 | `API_URL`                        | Exact public API origin, without a trailing slash |
 | `COOKIE_SAME_SITE`               | `lax` for same-site subdomains; otherwise `none`  |
 | `CORS_ORIGIN`                    | Exact Vercel/custom web origin                    |
-| `INVITATION_EMAIL_FROM`          | Sender on a verified Resend domain                |
+| `EMAIL_PROVIDER`                 | `resend` for production or `smtp` for SMTP        |
+| `INVITATION_EMAIL_FROM`          | Provider-authorized sender address                |
 | `NODE_ENV`                       | `production`                                      |
 | `REDIS_URL`                      | Private Upstash `rediss://...` connection string  |
 | `RESEND_API_KEY`                 | Server-only Resend sending key                    |
+| `SMTP_HOST`                      | SMTP host; `smtp.gmail.com` for Gmail             |
+| `SMTP_PASSWORD`                  | SMTP secret; Google App Password for Gmail        |
+| `SMTP_PORT`                      | `465` for Gmail secure SMTP                       |
+| `SMTP_SECURE`                    | `true` for Gmail on port 465                      |
+| `SMTP_USER`                      | Authenticated SMTP/Gmail address                  |
 | `REMINDER_SCHEDULER_ENABLED`     | `true`                                            |
 | `REMINDER_SCHEDULER_INTERVAL_MS` | `30000`                                           |
 | `REMINDER_SCHEDULER_BATCH_SIZE`  | `100`                                             |
@@ -128,8 +134,10 @@ The API serves HTTP, GraphQL, and WebSockets from the same process. Railway
 must not be configured as a short-lived serverless function.
 `SUPABASE_SERVICE_ROLE_KEY` belongs only in Railway. Never add it to Vercel,
 prefix it with `VITE_`, print it in logs, or store it in GitHub for this runtime
-path. `RESEND_API_KEY` and `INVITATION_EMAIL_FROM` are optional but must be set
-together to enable invitation delivery. Apply migrations through
+path. Invitation email settings are optional. Select `resend` with its API key
+and verified sender, or select `smtp` with all SMTP values. Gmail SMTP is useful
+for initial testing but a transactional provider is recommended for production.
+Keep every provider credential in Railway only. Apply migrations through
 `350_invitation_acceptance.sql` before exposing invitation acceptance.
 
 ## 5. Configure Vercel

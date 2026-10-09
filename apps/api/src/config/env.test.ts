@@ -69,12 +69,10 @@ describe('API environment', () => {
     ).toThrow('not the example placeholder');
   });
 
-  it('requires invitation email settings as a pair', () => {
+  it('validates Resend invitation email settings', () => {
     expect(() =>
       parseEnvironment({ ...required, RESEND_API_KEY: 're_test' }),
-    ).toThrow(
-      'RESEND_API_KEY and INVITATION_EMAIL_FROM must be configured together',
-    );
+    ).toThrow('INVITATION_EMAIL_FROM is required when EMAIL_PROVIDER=resend');
 
     expect(
       parseEnvironment({
@@ -85,6 +83,46 @@ describe('API environment', () => {
     ).toMatchObject({
       INVITATION_EMAIL_FROM: 'Boardnest <invites@example.com>',
       RESEND_API_KEY: 're_test',
+    });
+
+    expect(() =>
+      parseEnvironment({
+        ...required,
+        EMAIL_PROVIDER: 'resend',
+        INVITATION_EMAIL_FROM: 'Boardnest <invites@example.com>',
+      }),
+    ).toThrow('RESEND_API_KEY is required when EMAIL_PROVIDER=resend');
+  });
+
+  it('validates SMTP invitation email settings', () => {
+    expect(() =>
+      parseEnvironment({ ...required, SMTP_HOST: 'smtp.gmail.com' }),
+    ).toThrow(
+      'EMAIL_PROVIDER is required when invitation email settings are configured',
+    );
+
+    expect(() =>
+      parseEnvironment({ ...required, EMAIL_PROVIDER: 'smtp' }),
+    ).toThrow('SMTP_HOST is required when EMAIL_PROVIDER=smtp');
+
+    expect(
+      parseEnvironment({
+        ...required,
+        EMAIL_PROVIDER: 'smtp',
+        INVITATION_EMAIL_FROM: 'Boardnest <boardnest@gmail.com>',
+        SMTP_HOST: 'smtp.gmail.com',
+        SMTP_PASSWORD: 'google-app-password',
+        SMTP_PORT: '465',
+        SMTP_SECURE: 'true',
+        SMTP_USER: 'boardnest@gmail.com',
+      }),
+    ).toMatchObject({
+      EMAIL_PROVIDER: 'smtp',
+      SMTP_HOST: 'smtp.gmail.com',
+      SMTP_PASSWORD: 'google-app-password',
+      SMTP_PORT: 465,
+      SMTP_SECURE: true,
+      SMTP_USER: 'boardnest@gmail.com',
     });
   });
 });

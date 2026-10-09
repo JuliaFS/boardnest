@@ -6,6 +6,10 @@ const environmentSchema = z
     API_URL: z.url(),
     COOKIE_SAME_SITE: z.enum(['lax', 'none']).default('lax'),
     CORS_ORIGIN: z.url(),
+    EMAIL_PROVIDER: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.enum(['resend', 'smtp']).optional(),
+    ),
     GUEST_RATE_LIMIT_SECRET: z.string().min(32),
     INVITATION_EMAIL_FROM: z.preprocess(
       (value) => (value === '' ? undefined : value),
@@ -20,6 +24,20 @@ const environmentSchema = z
       (value) => (value === '' ? undefined : value),
       z.string().trim().startsWith('re_').min(6).optional(),
     ),
+    SMTP_HOST: optionalNonEmptyString(),
+    SMTP_PASSWORD: optionalNonEmptyString(),
+    SMTP_PORT: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.coerce.number().int().min(1).max(65_535).optional(),
+    ),
+    SMTP_SECURE: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z
+        .enum(['true', 'false'])
+        .transform((value) => value === 'true')
+        .optional(),
+    ),
+    SMTP_USER: optionalNonEmptyString(),
     REMINDER_SCHEDULER_BATCH_SIZE: z.coerce
       .number()
       .int()
@@ -51,16 +69,60 @@ const environmentSchema = z
     TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
   })
   .superRefine((environment, context) => {
+    const emailProvider =
+      environment.EMAIL_PROVIDER ??
+      (environment.RESEND_API_KEY ? 'resend' : undefined);
+    const hasSmtpConfiguration = [
+      environment.SMTP_HOST,
+      environment.SMTP_PASSWORD,
+      environment.SMTP_PORT,
+      environment.SMTP_SECURE,
+      environment.SMTP_USER,
+    ].some((value) => value !== undefined);
     if (
-      Boolean(environment.RESEND_API_KEY) !==
-      Boolean(environment.INVITATION_EMAIL_FROM)
+      !emailProvider &&
+      (environment.INVITATION_EMAIL_FROM || hasSmtpConfiguration)
     ) {
       context.addIssue({
         code: 'custom',
         message:
-          'RESEND_API_KEY and INVITATION_EMAIL_FROM must be configured together.',
+          'EMAIL_PROVIDER is required when invitation email settings are configured.',
+        path: ['EMAIL_PROVIDER'],
+      });
+    }
+    if (emailProvider === 'resend' && !environment.RESEND_API_KEY) {
+      context.addIssue({
+        code: 'custom',
+        message: 'RESEND_API_KEY is required when EMAIL_PROVIDER=resend.',
         path: ['RESEND_API_KEY'],
       });
+    }
+    if (emailProvider === 'resend' && !environment.INVITATION_EMAIL_FROM) {
+      context.addIssue({
+        code: 'custom',
+        message:
+          'INVITATION_EMAIL_FROM is required when EMAIL_PROVIDER=resend.',
+        path: ['INVITATION_EMAIL_FROM'],
+      });
+    }
+    if (emailProvider === 'smtp') {
+      const requiredSmtpValues = [
+        ['INVITATION_EMAIL_FROM', environment.INVITATION_EMAIL_FROM],
+        ['SMTP_HOST', environment.SMTP_HOST],
+        ['SMTP_PASSWORD', environment.SMTP_PASSWORD],
+        ['SMTP_PORT', environment.SMTP_PORT],
+        ['SMTP_SECURE', environment.SMTP_SECURE],
+        ['SMTP_USER', environment.SMTP_USER],
+      ] as const;
+      for (const [name, value] of requiredSmtpValues) {
+        if (value === undefined) {
+          context.addIssue({
+            code: 'custom',
+            message: `${name} is required when EMAIL_PROVIDER=smtp.`,
+            path: [name],
+          });
+        }
+      }
     }
     if (
       environment.COOKIE_SAME_SITE === 'none' &&
@@ -84,6 +146,13 @@ const environmentSchema = z
       });
     }
   });
+
+function optionalNonEmptyString() {
+  return z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.string().trim().min(1).optional(),
+  );
+}
 
 export type ApiEnvironment = z.infer<typeof environmentSchema>;
 

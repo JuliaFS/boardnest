@@ -47,7 +47,7 @@ in a portfolio presentation.
 - Redis Pub/Sub distribution across API instances;
 - PostgreSQL constraints, triggers, grants, and Row Level Security policies;
 - notification and activity-feed API reads, task assignment, comments, and
-  invitation creation;
+  invitations delivered through configurable Resend or SMTP providers;
 - responsive protected routes with loading, error, empty, and missing-resource
   states;
 - Vitest, React Testing Library, Playwright, coverage gates, Docker images,
