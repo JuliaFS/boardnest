@@ -84,8 +84,11 @@ These values are read only by the API process:
 - `REDIS_URL`
 - `PORT`
 - `CORS_ORIGIN`
+- `EMAIL_PROVIDER` (optional: `resend` or `smtp`)
 - `RESEND_API_KEY` (optional, secret)
-- `INVITATION_EMAIL_FROM` (required with `RESEND_API_KEY`)
+- `INVITATION_EMAIL_FROM` (required when email delivery is enabled)
+- `SMTP_HOST`, `SMTP_PORT`, and `SMTP_SECURE` (required for SMTP)
+- `SMTP_USER` and `SMTP_PASSWORD` (required for SMTP; server-only secrets)
 - `REMINDER_SCHEDULER_ENABLED`
 - `REMINDER_SCHEDULER_INTERVAL_MS`
 - `REMINDER_SCHEDULER_BATCH_SIZE`
@@ -100,8 +103,12 @@ returns 503. Never prefix secrets with `VITE_`, log them, commit them, or send
 them to a browser.
 
 Invitation records and manual fallback tokens work without an email provider.
-To deliver invitation links, configure both Resend variables and use a sender
-on a verified domain. Keep the API key only in the API runtime environment.
+To deliver through Resend, set `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, and a
+verified `INVITATION_EMAIL_FROM`. Existing deployments that provide the two
+Resend values without `EMAIL_PROVIDER` remain supported. To test with Gmail,
+set `EMAIL_PROVIDER=smtp`, use `smtp.gmail.com`, port `465`, secure mode, the
+Gmail address as `SMTP_USER`, and a Google App Password as `SMTP_PASSWORD`.
+Never use the normal Gmail password or expose SMTP credentials to the browser.
 
 ## Workspace conventions
 

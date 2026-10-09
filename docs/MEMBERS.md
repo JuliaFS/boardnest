@@ -55,8 +55,10 @@ invitations expire after seven days and are unique per normalized email and
 workspace. Repeating an active invitation returns a conflict instead of
 creating multiple usable tokens.
 
-When `RESEND_API_KEY` and `INVITATION_EMAIL_FROM` are configured, the API sends
-an acceptance link through the [Resend email API](https://resend.com/vercel).
+When an email provider is configured, the API sends an acceptance link through
+either the Resend API or authenticated SMTP. SMTP supports Gmail for local and
+early-stage testing; Gmail requires a Google App Password rather than the normal
+account password. Provider credentials are API-only environment variables.
 The raw token is then omitted from the GraphQL response. If delivery is not
 configured or fails, the creation dialog exposes a one-time acceptance link as
 a local development fallback; the pending invitation remains valid.

@@ -4,7 +4,10 @@ import { createSupabaseAccountDeletionService } from './auth/account-deletion-se
 import { createRedisGuestAdmission } from './auth/guest-admission.js';
 import { loadEnvironmentFile, parseEnvironment } from './config/env.js';
 import { createBoardnestDataService } from './graphql/data-service.js';
-import { createResendInvitationEmailService } from './invitations/invitation-email.js';
+import {
+  createResendInvitationEmailService,
+  createSmtpInvitationEmailService,
+} from './invitations/invitation-email.js';
 import { createRedisEventBus } from './realtime/redis-event-bus.js';
 import {
   createSupabaseReminderScheduler,
@@ -14,14 +17,35 @@ import {
 loadEnvironmentFile();
 
 const environment = parseEnvironment();
+const emailProvider =
+  environment.EMAIL_PROVIDER ??
+  (environment.RESEND_API_KEY ? 'resend' : undefined);
 const invitationEmail =
-  environment.RESEND_API_KEY && environment.INVITATION_EMAIL_FROM
+  emailProvider === 'resend' &&
+  environment.RESEND_API_KEY &&
+  environment.INVITATION_EMAIL_FROM
     ? createResendInvitationEmailService({
         apiKey: environment.RESEND_API_KEY,
         from: environment.INVITATION_EMAIL_FROM,
         webUrl: environment.CORS_ORIGIN,
       })
-    : undefined;
+    : emailProvider === 'smtp' &&
+        environment.INVITATION_EMAIL_FROM &&
+        environment.SMTP_HOST &&
+        environment.SMTP_PASSWORD &&
+        environment.SMTP_PORT !== undefined &&
+        environment.SMTP_SECURE !== undefined &&
+        environment.SMTP_USER
+      ? createSmtpInvitationEmailService({
+          from: environment.INVITATION_EMAIL_FROM,
+          host: environment.SMTP_HOST,
+          password: environment.SMTP_PASSWORD,
+          port: environment.SMTP_PORT,
+          secure: environment.SMTP_SECURE,
+          user: environment.SMTP_USER,
+          webUrl: environment.CORS_ORIGIN,
+        })
+      : undefined;
 const authService = createSupabaseAuthService({
   callbackUrl: `${environment.API_URL}/auth/callback`,
   publishableKey: environment.SUPABASE_PUBLISHABLE_KEY,
