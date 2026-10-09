@@ -116,6 +116,26 @@ end;
 $$;
 
 reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000001', true);
+
+delete from public.project_members
+where project_id = '20000000-0000-4000-8000-000000000002'
+  and user_id = '00000000-0000-4000-8000-000000000002';
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000002', true);
+
+do $$
+begin
+  if (select count(*) from public.projects) <> 1 then
+    raise exception 'Removed project member retained private project access';
+  end if;
+end;
+$$;
+
+reset role;
 
 do $$
 begin

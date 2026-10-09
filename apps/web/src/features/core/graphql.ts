@@ -14,6 +14,7 @@ export interface WorkspaceSummary {
 }
 
 export type WorkspaceRole = 'ADMIN' | 'MEMBER' | 'OWNER' | 'VIEWER';
+export type ProjectRole = 'MEMBER' | 'PROJECT_LEAD' | 'VIEWER';
 
 export interface WorkspaceMemberSummary {
   workspaceId: string;
@@ -51,6 +52,18 @@ export interface ProjectSummary {
   status: 'ACTIVE' | 'COMPLETED' | 'ON_HOLD' | 'PLANNED';
   startDate: string | null;
   dueDate: string | null;
+  updatedAt: string;
+}
+
+export interface ProjectMemberSummary {
+  projectId: string;
+  workspaceId: string;
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  role: ProjectRole;
+  workspaceRole: WorkspaceRole;
+  joinedAt: string;
   updatedAt: string;
 }
 
@@ -103,6 +116,10 @@ export interface ProjectsData {
 
 export interface ProjectData {
   project: ProjectSummary | null;
+}
+
+export interface ProjectMembersData {
+  projectMembers: { nodes: ProjectMemberSummary[]; pageInfo: PageInfo };
 }
 
 export interface WorkspaceData {
@@ -325,6 +342,72 @@ export const PROJECT_QUERY = gql`
       startDate
       dueDate
       updatedAt
+    }
+  }
+`;
+
+export const PROJECT_MEMBERS_QUERY = gql`
+  query ProjectMembers($projectId: ID!, $limit: Int = 100, $offset: Int = 0) {
+    projectMembers(projectId: $projectId, limit: $limit, offset: $offset) {
+      nodes {
+        projectId
+        workspaceId
+        userId
+        displayName
+        avatarUrl
+        role
+        workspaceRole
+        joinedAt
+        updatedAt
+      }
+      pageInfo {
+        hasNextPage
+        limit
+        offset
+      }
+    }
+  }
+`;
+
+export const ADD_PROJECT_MEMBER_MUTATION = gql`
+  mutation AddProjectMember(
+    $projectId: ID!
+    $userId: ID!
+    $role: ProjectRole!
+  ) {
+    addProjectMember(projectId: $projectId, userId: $userId, role: $role) {
+      projectId
+      userId
+      role
+      workspaceRole
+    }
+  }
+`;
+
+export const UPDATE_PROJECT_MEMBER_ROLE_MUTATION = gql`
+  mutation UpdateProjectMemberRole(
+    $projectId: ID!
+    $userId: ID!
+    $role: ProjectRole!
+  ) {
+    updateProjectMemberRole(
+      projectId: $projectId
+      userId: $userId
+      role: $role
+    ) {
+      projectId
+      userId
+      role
+      workspaceRole
+      updatedAt
+    }
+  }
+`;
+
+export const REMOVE_PROJECT_MEMBER_MUTATION = gql`
+  mutation RemoveProjectMember($projectId: ID!, $userId: ID!) {
+    removeProjectMember(projectId: $projectId, userId: $userId) {
+      id
     }
   }
 `;

@@ -72,12 +72,22 @@ account, and wrong-email attempts do not create membership.
 Raw invitation tokens must never be logged, stored in analytics, written to the
 database, or added to a `VITE_*` environment variable.
 
-## Project membership follow-up
+## Project membership
 
-All workspace members discover projects with `WORKSPACE` visibility. A future
-project Members section will manage explicit `project_members` rows for
-`PRIVATE` projects with `project_lead`, `member`, and `viewer` roles. Direct
-project invitations by email should still resolve workspace membership first.
+The project details page includes a Project members section. Workspace owners,
+admins, and project leads can add an existing workspace member, change their
+project role, or remove their explicit project membership. Available roles are
+`project_lead`, `member`, and `viewer`.
+
+All workspace members discover projects with `WORKSPACE` visibility. Explicit
+roles customize their project permissions, and an explicit project `viewer`
+narrows task editing rights. `PRIVATE` projects require an explicit membership
+except for workspace owners and admins. A workspace `viewer` always remains
+read-only, regardless of the selected project role.
+
+Project membership does not invite an email address into a workspace. If a
+person is not yet listed in the workspace roster, complete the workspace
+invitation and acceptance flow first, then add them from the project page.
 
 ## Verification
 
@@ -98,3 +108,10 @@ Use at least two registered accounts and one workspace:
 10. Confirm an admin cannot edit or remove an owner.
 11. Confirm the final owner cannot be removed directly in Supabase or GraphQL.
 12. Confirm a guest can create no more than the documented invitation quota.
+13. Open a project as an owner, admin, or project lead and add an existing
+    workspace member with each supported project role.
+14. Change the project role and confirm the roster updates.
+15. Remove the explicit membership and confirm a private project is no longer
+    available to that user, while a workspace-visible project remains visible.
+16. Confirm a workspace viewer remains read-only after receiving a project
+    member or project lead role.

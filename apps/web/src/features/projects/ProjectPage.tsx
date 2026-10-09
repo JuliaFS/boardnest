@@ -13,6 +13,7 @@ import { PageHeader } from '../core/PageHeader';
 import { EmptyState, PageSkeleton, QueryError } from '../core/QueryState';
 import { secondaryButtonClassName } from '../core/form-styles';
 import { ProjectForm } from './ProjectForm';
+import { ProjectMembersSection } from './ProjectMembersSection';
 
 export function ProjectPage() {
   const { projectId = '' } = useParams();
@@ -67,6 +68,11 @@ export function ProjectPage() {
         <ProjectFact label="Visibility" value={project.visibility} />
         <ProjectFact label="Due date" value={project.dueDate ?? 'Not set'} />
       </dl>
+      <ProjectMembersSection
+        projectId={project.id}
+        visibility={project.visibility}
+        workspaceId={project.workspaceId}
+      />
       <section className="mt-10 rounded-2xl border border-rose-950 bg-rose-950/10 p-5">
         <h2 className="font-semibold text-rose-200">Danger zone</h2>
         <p className="mt-1 text-sm text-slate-400">

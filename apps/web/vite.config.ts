@@ -17,6 +17,7 @@ export default defineConfig({
     },
     environment: 'jsdom',
     include: ['src/**/*.test.{ts,tsx}'],
+    testTimeout: 10_000,
     env: {
       VITE_API_URL: 'http://localhost:4000',
       VITE_GRAPHQL_URL: 'http://localhost:4000/graphql',

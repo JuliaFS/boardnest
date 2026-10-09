@@ -35,6 +35,7 @@ in a portfolio presentation.
   database-enforced demo quotas;
 - access and refresh tokens stored only in secure `HttpOnly` cookies;
 - multi-tenant workspaces with owner, admin, member, and viewer roles;
+- explicit project rosters with project lead, member, and viewer roles;
 - workspace-visible and private projects with independent lifecycle status;
 - project and task creation, editing, deletion, dates, and priority;
 - configurable Kanban statuses and pointer/keyboard drag-and-drop;
@@ -57,10 +58,10 @@ in a portfolio presentation.
 The portfolio release centers on authentication and the complete workspace →
 project → Kanban task workflow. Workspace member management includes expiring
 email invitations, authenticated acceptance, roles, and removal. The GraphQL
-API also exposes assignments, comments, activity feeds, and notification
-updates. Project-specific member management remains a product extension; the
-database and API enforce the documented authorization rules independently of
-the UI.
+API and project details UI manage project-specific roles for existing workspace
+members. The API also exposes assignments, comments, activity feeds, and
+notification updates. PostgreSQL continues to enforce the documented
+authorization rules independently of the UI.
 
 ## Architecture
 

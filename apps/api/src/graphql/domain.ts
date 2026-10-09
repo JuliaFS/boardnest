@@ -34,6 +34,18 @@ export interface Project {
   workspace_id: string;
 }
 
+export interface ProjectMember {
+  avatar_url: string | null;
+  display_name: string;
+  joined_at: string;
+  project_id: string;
+  role: string;
+  updated_at: string;
+  user_id: string;
+  workspace_id: string;
+  workspace_role: string;
+}
+
 export interface Task {
   archived_at: string | null;
   created_at: string;

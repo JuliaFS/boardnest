@@ -74,6 +74,8 @@ creator anonymization while preserving shared projects.
 The invitation acceptance smoke test verifies atomic membership creation,
 email ownership matching, lifecycle finalization, and idempotent reuse by the
 same authenticated recipient.
+The project membership component and GraphQL resolver tests verify roster
+loading, role validation, and adding an existing workspace member to a project.
 
 ## Covered critical behavior
 
@@ -85,6 +87,7 @@ same authenticated recipient.
 - task assignment resolver inputs and authenticated actor identity;
 - unauthenticated access denial and SQL RLS smoke checks;
 - GraphQL WebSocket delivery and Redis Pub/Sub validation/distribution.
+- project roster queries, role validation, and member management controls;
 - notification plan assignment and database-enforced guest reminder limits.
 - GraphQL reminder creation, lifecycle actions, recipients, preferences, and
   workspace capability queries.
