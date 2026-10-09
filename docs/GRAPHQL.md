@@ -114,6 +114,12 @@ as a development fallback. `acceptInvitation` validates the token and
 authenticated email through an atomic database function before creating
 workspace membership. See [Members and invitations](MEMBERS.md).
 
+`projectMembers` returns the explicit project roster with both project and
+workspace roles. `addProjectMember`, `updateProjectMemberRole`, and
+`removeProjectMember` operate only on existing workspace members. Workspace
+owners/admins and project leads may manage the roster; foreign keys and RLS
+enforce the final authorization and prevent cross-workspace membership.
+
 ### Reminder scheduling
 
 `createTaskReminder` accepts one-time, weekly, monthly, quarterly, and yearly

@@ -15,6 +15,7 @@ import type {
   NotificationPreferences,
   Pagination,
   Project,
+  ProjectMember,
   SubscriptionPlan,
   Task,
   TaskAssignee,
@@ -53,6 +54,21 @@ const projectSchema = z.object({
   updated_at: z.string(),
   visibility: z.string(),
   workspace_id: z.uuid(),
+});
+const projectMemberRowSchema = z.object({
+  joined_at: z.string(),
+  project_id: z.uuid(),
+  role: z.string(),
+  updated_at: z.string(),
+  user_id: z.uuid(),
+  workspace_id: z.uuid(),
+  workspace_member: z.object({
+    profile: z.object({
+      avatar_url: z.string().nullable(),
+      display_name: z.string(),
+    }),
+    role: z.string(),
+  }),
 });
 const taskSchema = z.object({
   archived_at: z.string().nullable(),
@@ -204,6 +220,8 @@ const reminderRecipientSchema = z.object({
   reminder_id: z.uuid(),
   user_id: z.uuid(),
 });
+const projectMemberSelect =
+  'project_id,workspace_id,user_id,role,joined_at,updated_at,workspace_member:workspace_members!project_members_workspace_user_fk(role,profile:profiles!workspace_members_user_id_fkey(display_name,avatar_url))';
 
 export interface InviteResult {
   invitation: Invitation;
@@ -244,6 +262,12 @@ export interface BoardnestDataService {
     role: string,
     userId: string,
   ) => Promise<InviteResult>;
+  addProjectMember: (
+    projectId: string,
+    userId: string,
+    role: string,
+  ) => Promise<ProjectMember>;
+  removeProjectMember: (projectId: string, userId: string) => Promise<string>;
   removeWorkspaceMember: (
     workspaceId: string,
     userId: string,
@@ -259,6 +283,10 @@ export interface BoardnestDataService {
     pagination: Pagination,
   ) => Promise<Connection<Notification>>;
   project: (id: string) => Promise<Project | null>;
+  projectMembers: (
+    projectId: string,
+    pagination: Pagination,
+  ) => Promise<Connection<ProjectMember>>;
   projects: (
     workspaceId: string,
     pagination: Pagination,
@@ -274,6 +302,11 @@ export interface BoardnestDataService {
     pagination: Pagination,
   ) => Promise<Connection<Task>>;
   updateProject: (id: string, input: UpdateProjectData) => Promise<Project>;
+  updateProjectMemberRole: (
+    projectId: string,
+    userId: string,
+    role: string,
+  ) => Promise<ProjectMember>;
   updateNotificationPreferences: (
     userId: string,
     input: UpdateNotificationPreferencesData,
@@ -468,6 +501,82 @@ class SupabaseBoardnestDataService implements BoardnestDataService {
       .eq('id', id)
       .maybeSingle();
     return optional(projectSchema, response);
+  }
+
+  async projectMembers(
+    projectId: string,
+    pagination: Pagination,
+  ): Promise<Connection<ProjectMember>> {
+    const response = await this.client
+      .from('project_members')
+      .select(projectMemberSelect)
+      .eq('project_id', projectId)
+      .order('joined_at', { ascending: true })
+      .range(pagination.offset, pagination.offset + pagination.limit);
+    throwForError(response.error);
+    const rows = z.array(projectMemberRowSchema).parse(response.data);
+    return {
+      nodes: rows.slice(0, pagination.limit).map(projectMember),
+      pageInfo: {
+        hasNextPage: rows.length > pagination.limit,
+        limit: pagination.limit,
+        offset: pagination.offset,
+      },
+    };
+  }
+
+  async addProjectMember(
+    projectId: string,
+    userId: string,
+    role: string,
+  ): Promise<ProjectMember> {
+    const project = await this.project(projectId);
+    if (!project) {
+      throw new GraphQLError('The requested resource was not found.', {
+        extensions: { code: 'NOT_FOUND' },
+      });
+    }
+    const response = await this.client
+      .from('project_members')
+      .insert({
+        project_id: projectId,
+        role,
+        user_id: userId,
+        workspace_id: project.workspace_id,
+      })
+      .select(projectMemberSelect)
+      .single();
+    return projectMember(required(projectMemberRowSchema, response));
+  }
+
+  async updateProjectMemberRole(
+    projectId: string,
+    userId: string,
+    role: string,
+  ): Promise<ProjectMember> {
+    const response = await this.client
+      .from('project_members')
+      .update({ role })
+      .eq('project_id', projectId)
+      .eq('user_id', userId)
+      .select(projectMemberSelect)
+      .single();
+    return projectMember(required(projectMemberRowSchema, response));
+  }
+
+  async removeProjectMember(
+    projectId: string,
+    userId: string,
+  ): Promise<string> {
+    const response = await this.client
+      .from('project_members')
+      .delete()
+      .eq('project_id', projectId)
+      .eq('user_id', userId)
+      .select('user_id')
+      .single();
+    throwForError(response.error);
+    return z.object({ user_id: z.uuid() }).parse(response.data).user_id;
   }
 
   async createProject(
@@ -918,6 +1027,22 @@ function workspaceMember(
     updated_at: row.updated_at,
     user_id: row.user_id,
     workspace_id: row.workspace_id,
+  };
+}
+
+function projectMember(
+  row: z.infer<typeof projectMemberRowSchema>,
+): ProjectMember {
+  return {
+    avatar_url: row.workspace_member.profile.avatar_url,
+    display_name: row.workspace_member.profile.display_name,
+    joined_at: row.joined_at,
+    project_id: row.project_id,
+    role: row.role,
+    updated_at: row.updated_at,
+    user_id: row.user_id,
+    workspace_id: row.workspace_id,
+    workspace_role: row.workspace_member.role,
   };
 }
 

@@ -19,6 +19,7 @@ The application provides:
 - live task create/update/delete synchronization through subscriptions;
 - notification reads;
 - workspace member rosters, role management, and pending invitations;
+- project rosters with add, role-change, and removal controls;
 - reusable loading, retryable error, empty, and not-found states.
 
 ## Data flow
@@ -98,9 +99,9 @@ workflow.
 All application routes are protected. Anonymous visitors are redirected to
 `/login`; authenticated users are redirected away from login and registration.
 
-Private-project membership remains a separate follow-up stage. See
-[Members and invitations](MEMBERS.md) for the workspace invitation flow and
-access model.
+Project membership is managed from the project details page. See
+[Members and invitations](MEMBERS.md) for the workspace invitation flow,
+project roles, and access model.
 
 ## Environment
 

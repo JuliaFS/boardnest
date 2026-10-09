@@ -267,6 +267,62 @@ describe('GraphQL project and task workflow resolvers', () => {
     expect(revokeInvitation).toHaveBeenCalledWith(reminderId);
   });
 
+  it('lists and manages project members with validated roles', async () => {
+    const projectMembers = vi.fn().mockResolvedValue({ nodes: [] });
+    const addProjectMember = vi.fn().mockResolvedValue({});
+    const updateProjectMemberRole = vi.fn().mockResolvedValue({});
+    const removeProjectMember = vi.fn().mockResolvedValue(assigneeId);
+    const value = context(
+      createDataService({
+        addProjectMember,
+        projectMembers,
+        removeProjectMember,
+        updateProjectMemberRole,
+      }),
+    );
+
+    await runQuery('projectMembers', { projectId }, value);
+    await runMutation(
+      'addProjectMember',
+      { projectId, role: 'member', userId: assigneeId },
+      value,
+    );
+    await runMutation(
+      'updateProjectMemberRole',
+      { projectId, role: 'project_lead', userId: assigneeId },
+      value,
+    );
+    await expect(
+      runMutation(
+        'updateProjectMemberRole',
+        { projectId, role: 'owner', userId: assigneeId },
+        value,
+      ),
+    ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
+    await runMutation(
+      'removeProjectMember',
+      { projectId, userId: assigneeId },
+      value,
+    );
+
+    expect(projectMembers).toHaveBeenCalledWith(projectId, {
+      limit: 25,
+      offset: 0,
+    });
+    expect(addProjectMember).toHaveBeenCalledWith(
+      projectId,
+      assigneeId,
+      'member',
+    );
+    expect(updateProjectMemberRole).toHaveBeenCalledOnce();
+    expect(updateProjectMemberRole).toHaveBeenCalledWith(
+      projectId,
+      assigneeId,
+      'project_lead',
+    );
+    expect(removeProjectMember).toHaveBeenCalledWith(projectId, assigneeId);
+  });
+
   it('creates a private project with normalized input and the authenticated creator', async () => {
     const createProject = vi.fn().mockResolvedValue(project);
 
