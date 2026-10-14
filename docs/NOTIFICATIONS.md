@@ -3,14 +3,15 @@
 ## Current scope
 
 The notification event model provides one canonical vocabulary for workspace,
-project, task, comment, reminder, and future custom-notification events. It also
+project, task, comment, reminder, and custom-notification events. It also
 centralizes channel selection, plan entitlements, user preferences,
 idempotency, and email-outbox creation.
 
 Canonical events queue email work in `notification_deliveries`. The API-hosted
 delivery worker claims due rows and sends them through Nodemailer SMTP.
-Invitation email remains a separate synchronous flow. Custom schedules and the
-notification settings UI are later stages.
+Invitation email remains a separate synchronous flow. Custom schedules now
+have an authorized GraphQL CRUD API; executing their due occurrences and the
+notification settings UI remain later stages.
 
 ## Event catalog
 
@@ -46,6 +47,11 @@ plan. It does not require a new Boolean column in user preferences.
 The existing workspace-wide monthly email quota remains authoritative. A user
 preference can disable an entitled channel but cannot enable a channel that the
 workspace plan blocks.
+
+Custom schedule plan limits are also stored in `subscription_plans`. Guest,
+Free, and Pro allow 3, 10, and 100 active schedules per user/workspace with
+minimum recurring intervals of one day, one hour, and five minutes. One-time
+schedules are not subject to a recurrence interval minimum.
 
 ## Preference resolution
 
@@ -108,6 +114,14 @@ Authenticated clients can use:
 
 The existing `notificationPreferences` query and mutation continue to manage
 global channel switches and the legacy task/reminder switches.
+
+Custom schedule clients use `scheduledNotifications`,
+`scheduledNotification`, `createScheduledNotification`,
+`updateScheduledNotification`, `pauseScheduledNotification`,
+`resumeScheduledNotification`, and `deleteScheduledNotification`. A schedule
+belongs to its creator, requires workspace context, and may additionally point
+to an accessible project and task. The API accepts one-time schedules or a
+custom value/unit interval with an IANA timezone.
 
 ## Delivery boundary
 

@@ -8,6 +8,7 @@ import type {
   ActivityLog,
   Connection,
   CreateProjectData,
+  CreateScheduledNotificationData,
   CreateTaskData,
   CreateTaskReminderData,
   Invitation,
@@ -19,6 +20,7 @@ import type {
   Pagination,
   Project,
   ProjectMember,
+  ScheduledNotification,
   SubscriptionPlan,
   Task,
   TaskAssignee,
@@ -28,6 +30,7 @@ import type {
   UpdateNotificationPreferencesData,
   UpdateNotificationEventPreferenceData,
   UpdateProjectData,
+  UpdateScheduledNotificationData,
   UpdateTaskData,
   UpdateTaskReminderData,
   Workspace,
@@ -219,8 +222,31 @@ const subscriptionPlanSchema = z.object({
   max_active_reminder_tasks: z.number().int().nonnegative(),
   max_recipients_per_reminder: z.number().int().nonnegative(),
   max_reminders_per_task: z.number().int().nonnegative(),
+  max_scheduled_notifications: z.number().int().nonnegative(),
+  min_schedule_interval_minutes: z.number().int().positive(),
   monthly_email_limit: z.number().int().nonnegative(),
   notification_retention_days: z.number().int().positive(),
+});
+const scheduledNotificationSchema = z.object({
+  body: z.string().nullable(),
+  created_at: z.string(),
+  created_by: z.uuid(),
+  email_enabled: z.boolean(),
+  ends_at: z.string().nullable(),
+  id: z.uuid(),
+  in_app_enabled: z.boolean(),
+  interval_unit: z.string().nullable(),
+  interval_value: z.number().int().positive().nullable(),
+  last_run_at: z.string().nullable(),
+  next_run_at: z.string(),
+  project_id: z.uuid().nullable(),
+  schedule_kind: z.string(),
+  status: z.string(),
+  task_id: z.uuid().nullable(),
+  timezone: z.string(),
+  title: z.string(),
+  updated_at: z.string(),
+  workspace_id: z.uuid(),
 });
 const workspaceSubscriptionRowSchema = z.object({
   cancel_at_period_end: z.boolean(),
@@ -279,6 +305,10 @@ export interface BoardnestDataService {
     userId: string,
   ) => Promise<TaskAssignee>;
   createProject: (input: CreateProjectData, userId: string) => Promise<Project>;
+  createScheduledNotification: (
+    input: CreateScheduledNotificationData,
+    userId: string,
+  ) => Promise<ScheduledNotification>;
   createTask: (input: CreateTaskData, userId: string) => Promise<Task>;
   createTaskReminder: (input: CreateTaskReminderData) => Promise<TaskReminder>;
   createWorkspace: (
@@ -287,6 +317,7 @@ export interface BoardnestDataService {
     userId: string,
   ) => Promise<Workspace>;
   deleteProject: (id: string) => Promise<string>;
+  deleteScheduledNotification: (id: string) => Promise<string>;
   deleteNotificationEventPreference: (
     userId: string,
     eventType: string,
@@ -335,6 +366,12 @@ export interface BoardnestDataService {
     workspaceId: string,
     pagination: Pagination,
   ) => Promise<Connection<Project>>;
+  scheduledNotification: (id: string) => Promise<ScheduledNotification | null>;
+  scheduledNotifications: (
+    workspaceId: string,
+    projectId: string | null,
+    taskId: string | null,
+  ) => Promise<ScheduledNotification[]>;
   task: (id: string) => Promise<Task | null>;
   taskReminder: (id: string) => Promise<TaskReminder | null>;
   taskReminders: (taskId: string) => Promise<TaskReminder[]>;
@@ -346,6 +383,10 @@ export interface BoardnestDataService {
     pagination: Pagination,
   ) => Promise<Connection<Task>>;
   updateProject: (id: string, input: UpdateProjectData) => Promise<Project>;
+  updateScheduledNotification: (
+    id: string,
+    input: UpdateScheduledNotificationData,
+  ) => Promise<ScheduledNotification>;
   updateProjectMemberRole: (
     projectId: string,
     userId: string,
@@ -821,6 +862,69 @@ class SupabaseBoardnestDataService implements BoardnestDataService {
     return deletedId(response);
   }
 
+  async scheduledNotifications(
+    workspaceId: string,
+    projectId: string | null,
+    taskId: string | null,
+  ): Promise<ScheduledNotification[]> {
+    let query = this.client
+      .from('scheduled_notifications')
+      .select('*')
+      .eq('workspace_id', workspaceId);
+    if (projectId) query = query.eq('project_id', projectId);
+    if (taskId) query = query.eq('task_id', taskId);
+    const response = await query
+      .order('next_run_at', { ascending: true })
+      .order('id', { ascending: true });
+    return list(scheduledNotificationSchema, response);
+  }
+
+  async scheduledNotification(
+    id: string,
+  ): Promise<ScheduledNotification | null> {
+    const response = await this.client
+      .from('scheduled_notifications')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    return optional(scheduledNotificationSchema, response);
+  }
+
+  async createScheduledNotification(
+    input: CreateScheduledNotificationData,
+    userId: string,
+  ): Promise<ScheduledNotification> {
+    const response = await this.client
+      .from('scheduled_notifications')
+      .insert({ ...input, created_by: userId })
+      .select('*')
+      .single();
+    return required(scheduledNotificationSchema, response);
+  }
+
+  async updateScheduledNotification(
+    id: string,
+    input: UpdateScheduledNotificationData,
+  ): Promise<ScheduledNotification> {
+    const response = await this.client
+      .from('scheduled_notifications')
+      .update(input)
+      .eq('id', id)
+      .select('*')
+      .single();
+    return required(scheduledNotificationSchema, response);
+  }
+
+  async deleteScheduledNotification(id: string): Promise<string> {
+    const response = await this.client
+      .from('scheduled_notifications')
+      .delete()
+      .eq('id', id)
+      .select('id')
+      .single();
+    return deletedId(response);
+  }
+
   async notificationPreferences(
     userId: string,
   ): Promise<NotificationPreferences> {
@@ -1226,6 +1330,14 @@ function throwForError(
     (error.message.startsWith('Guest limit reached:') ||
       error.message.startsWith('Plan limit reached:') ||
       error.message.startsWith('Invitation ') ||
+      error.message.startsWith(
+        'Custom notifications are unavailable for the current plan',
+      ) ||
+      error.message.startsWith('In-app custom notifications are disabled') ||
+      error.message.startsWith('Email custom notifications are disabled') ||
+      /^The [a-z0-9_]+ plan requires a custom notification interval of at least [0-9]+ minute\(s\)$/.test(
+        error.message,
+      ) ||
       /^The [a-z0-9_]+ plan does not include email reminders$/.test(
         error.message,
       ))

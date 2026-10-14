@@ -48,6 +48,8 @@ in a portfolio presentation.
 - PostgreSQL constraints, triggers, grants, and Row Level Security policies;
 - notification and activity-feed API reads, task assignment, comments, and
   invitations delivered through configurable Resend or SMTP providers;
+- task reminder delivery and user-owned custom notification schedule CRUD with
+  workspace, project, or task context and plan-aware recurrence limits;
 - responsive protected routes with loading, error, empty, and missing-resource
   states;
 - Vitest, React Testing Library, Playwright, coverage gates, Docker images,

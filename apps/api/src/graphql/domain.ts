@@ -156,8 +156,32 @@ export interface SubscriptionPlan {
   max_active_reminder_tasks: number;
   max_recipients_per_reminder: number;
   max_reminders_per_task: number;
+  max_scheduled_notifications: number;
+  min_schedule_interval_minutes: number;
   monthly_email_limit: number;
   notification_retention_days: number;
+}
+
+export interface ScheduledNotification {
+  body: string | null;
+  created_at: string;
+  created_by: string;
+  email_enabled: boolean;
+  ends_at: string | null;
+  id: string;
+  in_app_enabled: boolean;
+  interval_unit: string | null;
+  interval_value: number | null;
+  last_run_at: string | null;
+  next_run_at: string;
+  project_id: string | null;
+  schedule_kind: string;
+  status: string;
+  task_id: string | null;
+  timezone: string;
+  title: string;
+  updated_at: string;
+  workspace_id: string;
 }
 
 export interface WorkspaceSubscription {
@@ -291,6 +315,38 @@ export interface CreateTaskReminderData {
   stop_when_completed: boolean;
   task_id: string;
   timezone: string;
+}
+
+export interface CreateScheduledNotificationData {
+  body?: string | null;
+  email_enabled: boolean;
+  ends_at?: string | null;
+  in_app_enabled: boolean;
+  interval_unit?: string | null;
+  interval_value?: number | null;
+  next_run_at: string;
+  project_id?: string | null;
+  schedule_kind: string;
+  task_id?: string | null;
+  timezone: string;
+  title: string;
+  workspace_id: string;
+}
+
+export interface UpdateScheduledNotificationData {
+  body?: string | null;
+  email_enabled?: boolean;
+  ends_at?: string | null;
+  in_app_enabled?: boolean;
+  interval_unit?: string | null;
+  interval_value?: number | null;
+  next_run_at?: string;
+  project_id?: string | null;
+  schedule_kind?: string;
+  status?: string;
+  task_id?: string | null;
+  timezone?: string;
+  title?: string;
 }
 
 export interface UpdateTaskReminderData {

@@ -187,7 +187,7 @@ For a workspace-visible project, a workspace member can work on tasks without an
 
 **Purpose:** Data-driven Guest, Free, and Pro notification capabilities.
 
-**Important columns:** Active reminder-task limit, reminders per task, recipients per reminder, monthly email quota, email entitlement, and history retention days.
+**Important columns:** Active reminder-task limit, reminders per task, recipients per reminder, active custom-schedule limit, minimum custom interval, monthly email quota, email entitlement, and history retention days.
 
 **Security:** Authenticated users may read public plan capabilities. Only trusted server operations may change them.
 
@@ -237,6 +237,20 @@ The service-role-only scheduler claims due rows with `FOR UPDATE SKIP LOCKED`.
 It preserves local recurring times across daylight-saving changes, completes
 one-time schedules, skips stale missed occurrences, and stops configured
 reminders for archived or completed tasks.
+
+### `scheduled_notifications`
+
+**Purpose:** Store personal one-time and custom-interval notification schedules independently of task reminder recipients.
+
+**Important columns:** Owner, workspace with optional project/task context, title and body, schedule kind, interval value/unit, IANA timezone, next/end/last occurrence timestamps, channels, and lifecycle status.
+
+**Relationships:** Workspace context is required. Project and task composite foreign keys prevent cross-workspace or cross-project context. Deleting the selected context or owner removes the schedule.
+
+**Indexes:** Due active queue, owner/workspace history, and optional project/task context.
+
+**Security:** Only the owner can read or mutate a schedule, and the owner must retain access to its workspace and optional private context. A protected trigger validates context, timezone, effective channel preferences, plan quota, and minimum interval on every insert, update, and resume.
+
+Guest, Free, and Pro allow respectively 3, 10, and 100 active custom schedules per user/workspace. Their minimum recurring intervals are one day, one hour, and five minutes. The table is an API model only in this stage; a later scheduler will produce `custom.notification` occurrences.
 
 ### Reminder-generated `notifications`
 

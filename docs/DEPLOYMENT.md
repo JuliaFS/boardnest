@@ -142,9 +142,10 @@ and verified sender, or select `smtp` with all SMTP values. Gmail SMTP is useful
 for initial testing but a transactional provider is recommended for production.
 Keep every provider credential in Railway only. The notification worker
 requires SMTP; Resend remains supported for invitation-only delivery. Apply
-migrations through `370_notification_delivery_worker.sql` before enabling the
-worker. Start with one Railway API replica while validating Gmail delivery;
-database leases support multiple replicas when scaling later.
+migrations through `380_custom_notification_schedules.sql` before deploying
+this release. Enable the worker only after migration 370 is present. Start with
+one Railway API replica while validating Gmail delivery; database leases
+support multiple replicas when scaling later.
 
 ## 5. Configure Vercel
 

@@ -9,6 +9,7 @@ import type {
   NotificationPlanEvent,
   NotificationPreferences,
   Project,
+  ScheduledNotification,
   Task,
   TaskAssignee,
   TaskReminder,
@@ -29,6 +30,7 @@ const statusId = '6954de6d-ed8e-4409-8be8-9e0ce72ba8c4';
 const nextStatusId = '67b31b8b-abbb-4134-b2d8-32984172c3ed';
 const assigneeId = 'b6067e89-1702-49b6-92f7-d2f2ccbc4685';
 const reminderId = '98fa7790-e43b-4e9e-a600-8f8a56fc9864';
+const scheduledNotificationId = '13efb57b-af68-4da8-8d43-e127e276f596';
 const timestamp = new Date(0).toISOString();
 const nextRunAt = '2030-01-15T08:00:00.000Z';
 
@@ -78,6 +80,28 @@ const reminder: TaskReminder = {
   stop_when_completed: true,
   task_id: taskId,
   timezone: 'Europe/Sofia',
+  updated_at: timestamp,
+  workspace_id: workspaceId,
+};
+
+const scheduledNotification: ScheduledNotification = {
+  body: 'Review the weekly release report.',
+  created_at: timestamp,
+  created_by: user.id,
+  email_enabled: true,
+  ends_at: null,
+  id: scheduledNotificationId,
+  in_app_enabled: true,
+  interval_unit: 'week',
+  interval_value: 2,
+  last_run_at: null,
+  next_run_at: nextRunAt,
+  project_id: projectId,
+  schedule_kind: 'interval',
+  status: 'active',
+  task_id: taskId,
+  timezone: 'Europe/Sofia',
+  title: 'Review release report',
   updated_at: timestamp,
   workspace_id: workspaceId,
 };
@@ -758,5 +782,160 @@ describe('GraphQL reminder workflow resolvers', () => {
       ),
     ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
     expect(createTaskReminder).not.toHaveBeenCalled();
+  });
+});
+
+describe('GraphQL custom notification schedule resolvers', () => {
+  it('creates a normalized custom interval schedule for the current user', async () => {
+    const createScheduledNotification = vi
+      .fn()
+      .mockResolvedValue(scheduledNotification);
+
+    await expect(
+      runMutation(
+        'createScheduledNotification',
+        {
+          input: {
+            body: 'Review the weekly release report.',
+            emailEnabled: true,
+            intervalUnit: 'week',
+            intervalValue: 2,
+            nextRunAt,
+            projectId,
+            scheduleKind: 'interval',
+            taskId,
+            timezone: ' Europe/Sofia ',
+            title: ' Review release report ',
+            workspaceId,
+          },
+        },
+        context(createDataService({ createScheduledNotification })),
+      ),
+    ).resolves.toEqual(scheduledNotification);
+
+    expect(createScheduledNotification).toHaveBeenCalledWith(
+      {
+        body: 'Review the weekly release report.',
+        email_enabled: true,
+        in_app_enabled: true,
+        interval_unit: 'week',
+        interval_value: 2,
+        next_run_at: nextRunAt,
+        project_id: projectId,
+        schedule_kind: 'interval',
+        task_id: taskId,
+        timezone: 'Europe/Sofia',
+        title: 'Review release report',
+        workspace_id: workspaceId,
+      },
+      user.id,
+    );
+  });
+
+  it('reads, updates, pauses, resumes, and deletes custom schedules', async () => {
+    const scheduledNotifications = vi
+      .fn()
+      .mockResolvedValue([scheduledNotification]);
+    const scheduledNotificationById = vi
+      .fn()
+      .mockResolvedValue(scheduledNotification);
+    const updateScheduledNotification = vi
+      .fn()
+      .mockResolvedValue(scheduledNotification);
+    const deleteScheduledNotification = vi
+      .fn()
+      .mockResolvedValue(scheduledNotificationId);
+    const value = context(
+      createDataService({
+        deleteScheduledNotification,
+        scheduledNotification: scheduledNotificationById,
+        scheduledNotifications,
+        updateScheduledNotification,
+      }),
+    );
+
+    await runQuery(
+      'scheduledNotifications',
+      { projectId, taskId, workspaceId },
+      value,
+    );
+    await runQuery(
+      'scheduledNotification',
+      { id: scheduledNotificationId },
+      value,
+    );
+    await runMutation(
+      'updateScheduledNotification',
+      { id: scheduledNotificationId, input: { title: 'Updated title' } },
+      value,
+    );
+    await runMutation(
+      'pauseScheduledNotification',
+      { id: scheduledNotificationId },
+      value,
+    );
+    await runMutation(
+      'resumeScheduledNotification',
+      { id: scheduledNotificationId },
+      value,
+    );
+    await expect(
+      runMutation(
+        'deleteScheduledNotification',
+        { id: scheduledNotificationId },
+        value,
+      ),
+    ).resolves.toEqual({ id: scheduledNotificationId });
+
+    expect(scheduledNotifications).toHaveBeenCalledWith(
+      workspaceId,
+      projectId,
+      taskId,
+    );
+    expect(scheduledNotificationById).toHaveBeenCalledWith(
+      scheduledNotificationId,
+    );
+    expect(updateScheduledNotification).toHaveBeenNthCalledWith(
+      1,
+      scheduledNotificationId,
+      { title: 'Updated title' },
+    );
+    expect(updateScheduledNotification).toHaveBeenNthCalledWith(
+      2,
+      scheduledNotificationId,
+      { status: 'paused' },
+    );
+    expect(updateScheduledNotification).toHaveBeenNthCalledWith(
+      3,
+      scheduledNotificationId,
+      { status: 'active' },
+    );
+    expect(deleteScheduledNotification).toHaveBeenCalledWith(
+      scheduledNotificationId,
+    );
+  });
+
+  it('rejects invalid custom schedule shapes before persistence', async () => {
+    const createScheduledNotification = vi.fn();
+    const value = context(createDataService({ createScheduledNotification }));
+
+    await expect(
+      runMutation(
+        'createScheduledNotification',
+        {
+          input: {
+            emailEnabled: false,
+            inAppEnabled: false,
+            nextRunAt,
+            scheduleKind: 'interval',
+            taskId,
+            title: 'Invalid schedule',
+            workspaceId,
+          },
+        },
+        value,
+      ),
+    ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
+    expect(createScheduledNotification).not.toHaveBeenCalled();
   });
 });
