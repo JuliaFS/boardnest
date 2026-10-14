@@ -45,7 +45,7 @@ successful query with no returned rows means the migration is not installed.
 The migration affects future inserts and does not remove guest resources that
 were created before it was applied.
 
-Continue through `350_invitation_acceptance.sql` in filename order. The scheduler
+Continue through `360_notification_event_model.sql` in filename order. The scheduler
 migration adds columns, an index, and narrowly granted functions; the account
 deletion migration makes creator attribution nullable and adds narrowly granted
 preview/preparation functions. The member cleanup migration installs a trigger
@@ -55,10 +55,13 @@ hosted project; they are intended only for an isolated disposable database.
 The invitation acceptance migration grants only its email-matched atomic
 function to authenticated users and does not accept or modify existing pending
 invitations when installed.
+The notification event migration adds three non-destructive catalog and
+preference tables, extends `notifications` with actor and idempotency context,
+and installs a service-role-only producer plus an email-outbox trigger.
 
 ## 3. Verify the result
 
-In Table Editor, confirm that these 20 public tables exist:
+In Table Editor, confirm that these 23 public tables exist:
 
 - `profiles`
 - `workspaces`
@@ -77,6 +80,9 @@ In Table Editor, confirm that these 20 public tables exist:
 - `subscription_plans`
 - `workspace_subscriptions`
 - `notification_preferences`
+- `notification_event_types`
+- `plan_notification_events`
+- `notification_event_preferences`
 - `task_reminders`
 - `task_reminder_recipients`
 - `notification_deliveries`

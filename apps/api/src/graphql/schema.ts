@@ -14,6 +14,7 @@ import type {
   CreateTaskData,
   CreateTaskReminderData,
   Pagination,
+  UpdateNotificationEventPreferenceData,
   UpdateNotificationPreferencesData,
   UpdateProjectData,
   UpdateTaskData,
@@ -157,6 +158,16 @@ const updateNotificationPreferencesSchema = z
     taskCreatedEnabled: z.boolean().optional(),
   })
   .refine((input) => Object.keys(input).length > 0, 'No changes supplied.');
+const notificationEventTypeSchema = z
+  .string()
+  .trim()
+  .regex(/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/)
+  .max(120);
+const updateNotificationEventPreferenceSchema = z.object({
+  emailEnabled: z.boolean(),
+  eventType: notificationEventTypeSchema,
+  inAppEnabled: z.boolean(),
+});
 
 export const typeDefs = `#graphql
   scalar JSON
@@ -254,17 +265,49 @@ export const typeDefs = `#graphql
   type Notification {
     id: ID!
     userId: ID!
+    actorId: ID
     workspaceId: ID!
     projectId: ID
     taskId: ID
     reminderId: ID
     scheduledFor: String
+    eventKey: String
     type: String!
     title: String!
     body: String
     payload: JSON!
     readAt: String
     createdAt: String!
+  }
+
+  type NotificationEventType {
+    code: String!
+    displayName: String!
+    description: String!
+    category: String!
+    defaultInAppEnabled: Boolean!
+    defaultEmailEnabled: Boolean!
+    isActive: Boolean!
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  type NotificationEventPreference {
+    userId: ID!
+    eventType: String!
+    inAppEnabled: Boolean!
+    emailEnabled: Boolean!
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  type NotificationPlanEvent {
+    planCode: String!
+    eventType: String!
+    inAppEnabled: Boolean!
+    emailEnabled: Boolean!
+    createdAt: String!
+    updatedAt: String!
   }
 
   type NotificationPreferences {
@@ -458,6 +501,11 @@ export const typeDefs = `#graphql
     taskAssignedEnabled: Boolean
     reminderEnabled: Boolean
   }
+  input UpdateNotificationEventPreferenceInput {
+    eventType: String!
+    inAppEnabled: Boolean!
+    emailEnabled: Boolean!
+  }
 
   type Query {
     currentUser: User
@@ -473,6 +521,9 @@ export const typeDefs = `#graphql
     taskStatuses(projectId: ID!): [TaskStatus!]!
     notifications(unreadOnly: Boolean = false, limit: Int = 25, offset: Int = 0): NotificationConnection!
     notificationPreferences: NotificationPreferences!
+    notificationEventTypes: [NotificationEventType!]!
+    notificationEventPreferences: [NotificationEventPreference!]!
+    notificationPlanEvents(workspaceId: ID!): [NotificationPlanEvent!]!
     workspaceSubscription(workspaceId: ID!): WorkspaceSubscription
     taskReminders(taskId: ID!): [TaskReminder!]!
     taskReminder(id: ID!): TaskReminder
@@ -506,6 +557,8 @@ export const typeDefs = `#graphql
     replaceTaskReminderRecipients(id: ID!, recipientIds: [ID!]!): TaskReminder!
     deleteTaskReminder(id: ID!): DeletePayload!
     updateNotificationPreferences(input: UpdateNotificationPreferencesInput!): NotificationPreferences!
+    updateNotificationEventPreference(input: UpdateNotificationEventPreferenceInput!): NotificationEventPreference!
+    deleteNotificationEventPreference(eventType: String!): DeletePayload!
   }
 
   type Subscription {
@@ -609,13 +662,39 @@ export const resolvers = {
   ]),
   Notification: snakeCaseFields([
     'userId',
+    'actorId',
     'workspaceId',
     'projectId',
     'taskId',
     'reminderId',
     'scheduledFor',
+    'eventKey',
     'readAt',
     'createdAt',
+  ]),
+  NotificationEventType: snakeCaseFields([
+    'displayName',
+    'defaultInAppEnabled',
+    'defaultEmailEnabled',
+    'isActive',
+    'createdAt',
+    'updatedAt',
+  ]),
+  NotificationEventPreference: snakeCaseFields([
+    'userId',
+    'eventType',
+    'inAppEnabled',
+    'emailEnabled',
+    'createdAt',
+    'updatedAt',
+  ]),
+  NotificationPlanEvent: snakeCaseFields([
+    'planCode',
+    'eventType',
+    'inAppEnabled',
+    'emailEnabled',
+    'createdAt',
+    'updatedAt',
   ]),
   NotificationPreferences: snakeCaseFields([
     'userId',
@@ -798,6 +877,29 @@ export const resolvers = {
       const authenticated = requireAuth(context);
       return authenticated.data.notificationPreferences(authenticated.user.id);
     },
+    notificationEventTypes: async (
+      _parent: unknown,
+      _args: unknown,
+      context: GraphQLContext,
+    ) => requireAuth(context).data.notificationEventTypes(),
+    notificationEventPreferences: async (
+      _parent: unknown,
+      _args: unknown,
+      context: GraphQLContext,
+    ) => {
+      const authenticated = requireAuth(context);
+      return authenticated.data.notificationEventPreferences(
+        authenticated.user.id,
+      );
+    },
+    notificationPlanEvents: async (
+      _parent: unknown,
+      args: { workspaceId: string },
+      context: GraphQLContext,
+    ) =>
+      requireAuth(context).data.notificationPlanEvents(
+        parse(uuidSchema, args.workspaceId),
+      ),
     workspaceSubscription: async (
       _parent: unknown,
       args: { workspaceId: string },
@@ -1126,6 +1228,33 @@ export const resolvers = {
         ),
       );
     },
+    updateNotificationEventPreference: async (
+      _parent: unknown,
+      args: { input: unknown },
+      context: GraphQLContext,
+    ) => {
+      const authenticated = requireAuth(context);
+      return authenticated.data.updateNotificationEventPreference(
+        authenticated.user.id,
+        toUpdateNotificationEventPreferenceData(
+          parse(updateNotificationEventPreferenceSchema, args.input),
+        ),
+      );
+    },
+    deleteNotificationEventPreference: async (
+      _parent: unknown,
+      args: { eventType: string },
+      context: GraphQLContext,
+    ) => {
+      const authenticated = requireAuth(context);
+      const eventType = parse(notificationEventTypeSchema, args.eventType);
+      return {
+        id: await authenticated.data.deleteNotificationEventPreference(
+          authenticated.user.id,
+          eventType,
+        ),
+      };
+    },
   },
   Subscription: {
     taskCreated: taskSubscription('created'),
@@ -1369,6 +1498,16 @@ function toUpdateNotificationPreferencesData(
     ...(input.taskCreatedEnabled !== undefined
       ? { task_created_enabled: input.taskCreatedEnabled }
       : {}),
+  };
+}
+
+function toUpdateNotificationEventPreferenceData(
+  input: z.infer<typeof updateNotificationEventPreferenceSchema>,
+): UpdateNotificationEventPreferenceData {
+  return {
+    email_enabled: input.emailEnabled,
+    event_type: input.eventType,
+    in_app_enabled: input.inAppEnabled,
   };
 }
 

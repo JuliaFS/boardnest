@@ -161,11 +161,27 @@ For a workspace-visible project, a workspace member can work on tasks without an
 
 **Purpose:** Private user notifications.
 
-**Important columns:** recipient, context references, type, content, JSON payload, and `read_at`.
+**Important columns:** recipient, optional actor, context references, canonical type, stable event key, content, JSON payload, and `read_at`.
 
-**Indexes:** Recipient timeline and partial unread index.
+**Indexes:** Recipient timeline, partial unread index, and a partial unique recipient/event-key index for retry safety.
 
 **Security:** Recipients can read, mark read, and delete. Only the trusted API creates notifications.
+
+### `notification_event_types`
+
+**Purpose:** Canonical, data-driven catalog of supported notification events and channel defaults.
+
+**Important columns:** dotted event code, category, display metadata, in-app and email defaults, and active state.
+
+**Security:** Authenticated users can read active catalog entries. Only trusted server operations can manage the catalog.
+
+### `plan_notification_events`
+
+**Purpose:** Define the maximum in-app and email capabilities for every plan/event pair.
+
+**Relationships:** References `subscription_plans` and `notification_event_types`; both references cascade when server-managed catalog data changes.
+
+**Security:** Authenticated users can read capabilities. Only trusted server operations can change them.
 
 ### `subscription_plans`
 
@@ -195,6 +211,14 @@ For a workspace-visible project, a workspace member can work on tasks without an
 
 **Security:** Users may read and update only their own preferences. A preference cannot override a plan restriction.
 
+### `notification_event_preferences`
+
+**Purpose:** Store optional per-event channel overrides without adding a new column for every event type.
+
+**Important columns:** user, event type, in-app choice, and email choice. A missing row inherits the catalog defaults.
+
+**Security:** Users can read, insert, update, and delete only their own rows. Effective channels are still capped by global preferences and workspace-plan entitlements.
+
 ### `task_reminders`
 
 **Purpose:** Persist one-time, weekly, monthly, quarterly, or yearly task schedules.
@@ -222,13 +246,18 @@ including when several API instances poll concurrently.
 
 ### `notification_deliveries`
 
-**Purpose:** Durable email outbox for scheduled and immediate task notifications.
+**Purpose:** Durable email outbox for scheduled reminders and canonical notification events.
 
 **Important columns:** Recipient, schedule time, retry state, provider result, unique idempotency key, and JSON payload.
 
 **Indexes:** Pending retry queue, workspace history, recipient history, and unique idempotency.
 
 **Security:** Recipients have read-only access to their delivery history. Only trusted workers create or mutate deliveries. Inserts validate workspace membership, selected reminder recipients, plan email entitlement, and the monthly email quota.
+
+`public.create_notification_event` is the service-role-only producer boundary.
+It validates tenant context, resolves preferences and plan entitlements, creates
+an idempotent in-app row when enabled, and queues entitled email work. See
+[Notifications](NOTIFICATIONS.md).
 
 ### `invitations`
 

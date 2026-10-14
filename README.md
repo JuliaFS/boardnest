@@ -250,6 +250,7 @@ GitHub `production` environment, never by the application repository.
 - [GraphQL](docs/GRAPHQL.md)
 - [Frontend](docs/FRONTEND.md)
 - [Members and invitations](docs/MEMBERS.md)
+- [Notifications](docs/NOTIFICATIONS.md)
 - [WebSockets](docs/WEBSOCKETS.md)
 - [Redis](docs/REDIS.md)
 - [Security](docs/SECURITY.md)

@@ -49,24 +49,27 @@ check.
 
 ## Queries
 
-| Query                     | Purpose                                              |
-| ------------------------- | ---------------------------------------------------- |
-| `currentUser`             | Return the verified session user                     |
-| `workspaces`              | List accessible active workspaces                    |
-| `workspace`               | Read one accessible workspace                        |
-| `workspaceMembers`        | List the accessible workspace roster                 |
-| `workspaceInvitations`    | List pending invitations for a managed workspace     |
-| `projects`                | List accessible active projects by workspace         |
-| `project`                 | Read one accessible project                          |
-| `tasks`                   | List or search active project tasks                  |
-| `task`                    | Read one accessible task                             |
-| `taskStatuses`            | List ordered Kanban columns for a project            |
-| `notifications`           | List the current user's notifications                |
-| `notificationPreferences` | Read the current user's channel and event choices    |
-| `workspaceSubscription`   | Read effective reminder capabilities for a workspace |
-| `taskReminders`           | List authorized reminder schedules for a task        |
-| `taskReminder`            | Read one authorized reminder schedule                |
-| `activityFeed`            | List workspace or project activity                   |
+| Query                          | Purpose                                              |
+| ------------------------------ | ---------------------------------------------------- |
+| `currentUser`                  | Return the verified session user                     |
+| `workspaces`                   | List accessible active workspaces                    |
+| `workspace`                    | Read one accessible workspace                        |
+| `workspaceMembers`             | List the accessible workspace roster                 |
+| `workspaceInvitations`         | List pending invitations for a managed workspace     |
+| `projects`                     | List accessible active projects by workspace         |
+| `project`                      | Read one accessible project                          |
+| `tasks`                        | List or search active project tasks                  |
+| `task`                         | Read one accessible task                             |
+| `taskStatuses`                 | List ordered Kanban columns for a project            |
+| `notifications`                | List the current user's notifications                |
+| `notificationPreferences`      | Read the current user's channel and event choices    |
+| `notificationEventTypes`       | List active canonical notification event metadata    |
+| `notificationEventPreferences` | List the current user's event-specific overrides     |
+| `notificationPlanEvents`       | Read effective event capabilities for a workspace    |
+| `workspaceSubscription`        | Read effective reminder capabilities for a workspace |
+| `taskReminders`                | List authorized reminder schedules for a task        |
+| `taskReminder`                 | Read one authorized reminder schedule                |
+| `activityFeed`                 | List workspace or project activity                   |
 
 List queries return `nodes` and `pageInfo`. `limit` is restricted to 1–100 and
 `offset` cannot be negative. One extra row is fetched to derive `hasNextPage`.
@@ -78,8 +81,16 @@ option for large, frequently updated feeds.
 The schema supports workspace and project creation, project update/deletion,
 task creation/update/deletion/movement, task assignment, comments, invitations,
 marking notifications as read, reminder lifecycle management, recipient
-replacement, and notification preference updates. GraphQL enums map to the
+replacement, global notification preference updates, and event-specific
+notification preference upserts. GraphQL enums map to the
 lowercase values enforced by PostgreSQL.
+
+`updateNotificationEventPreference` accepts one canonical dotted event type and
+explicit in-app/email choices. PostgreSQL RLS binds the resulting override to
+the verified current user. The selected channels remain constrained by global
+preferences and effective workspace-plan capabilities.
+`deleteNotificationEventPreference` restores inherited catalog defaults. See
+[Notifications](NOTIFICATIONS.md).
 
 ```graphql
 mutation CreateProject($input: CreateProjectInput!) {
