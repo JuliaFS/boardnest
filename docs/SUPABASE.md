@@ -45,7 +45,7 @@ successful query with no returned rows means the migration is not installed.
 The migration affects future inserts and does not remove guest resources that
 were created before it was applied.
 
-Continue through `370_notification_delivery_worker.sql` in filename order. The scheduler
+Continue through `380_custom_notification_schedules.sql` in filename order. The scheduler
 migration adds columns, an index, and narrowly granted functions; the account
 deletion migration makes creator attribution nullable and adds narrowly granted
 preview/preparation functions. The member cleanup migration installs a trigger
@@ -60,10 +60,13 @@ preference tables, extends `notifications` with actor and idempotency context,
 and installs a service-role-only producer plus an email-outbox trigger.
 The delivery worker migration adds a non-destructive attempt-history table, a
 lease token column, and three service-role-only claim/result functions.
+The custom schedule migration adds one table, two plan capability columns,
+private validation helpers, RLS policies, and authenticated CRUD grants. It
+does not create notification occurrences or send messages when installed.
 
 ## 3. Verify the result
 
-In Table Editor, confirm that these 24 public tables exist:
+In Table Editor, confirm that these 25 public tables exist:
 
 - `profiles`
 - `workspaces`
@@ -89,6 +92,7 @@ In Table Editor, confirm that these 24 public tables exist:
 - `task_reminder_recipients`
 - `notification_deliveries`
 - `notification_delivery_attempts`
+- `scheduled_notifications`
 
 Open the RLS settings for every table and confirm RLS is enabled. The migrations enable it automatically; the Dashboard check is verification only.
 

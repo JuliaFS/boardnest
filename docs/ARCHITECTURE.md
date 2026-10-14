@@ -105,6 +105,12 @@ outbox idempotency key prevent normal duplicate processing while allowing
 recovery after process failure. SMTP cannot guarantee exactly-once behavior if
 the provider accepts a message but the success update cannot reach PostgreSQL.
 
+Custom notification schedules are stored separately from task reminders
+because they are personal and may target only a workspace or project. The API
+owns their CRUD contract while PostgreSQL validates hierarchy, RLS, timezone,
+channels, and plan limits. Executing due custom occurrences remains a separate
+scheduler stage, so this API stage does not silently introduce another timer.
+
 HTTPS terminates at the platform edge. Production WebSocket connections use WSS.
 
 ## Architecture decision records

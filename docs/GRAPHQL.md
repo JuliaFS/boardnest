@@ -183,6 +183,58 @@ authorization failures remain `FORBIDDEN`. This allows the UI to display clear
 quota and email-entitlement messages without exposing unexpected database
 details.
 
+### Custom notification schedules
+
+`createScheduledNotification` creates a personal notification schedule in a
+workspace, with optional project and task context. A task requires its project.
+`ONCE` schedules omit interval fields; `INTERVAL` schedules combine a positive
+value with `MINUTE`, `HOUR`, `DAY`, `WEEK`, `MONTH`, or `YEAR`. The IANA
+timezone preserves the user's local calendar intent.
+
+```graphql
+mutation CreateCustomSchedule($input: CreateScheduledNotificationInput!) {
+  createScheduledNotification(input: $input) {
+    id
+    title
+    scheduleKind
+    intervalValue
+    intervalUnit
+    nextRunAt
+    status
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "workspaceId": "6992c303-a240-4e15-8fcc-461d53756324",
+    "projectId": "f2410cb7-47f6-4af6-8ed9-f1d7a45158fc",
+    "taskId": "ae248328-e9e4-4416-a92d-47af95406e4d",
+    "title": "Review release report",
+    "body": "Open the task and review the latest report.",
+    "scheduleKind": "INTERVAL",
+    "intervalValue": 2,
+    "intervalUnit": "WEEK",
+    "timezone": "Europe/Sofia",
+    "nextRunAt": "2030-01-15T08:00:00.000Z",
+    "inAppEnabled": true,
+    "emailEnabled": true
+  }
+}
+```
+
+`scheduledNotifications` supports workspace listing with optional project and
+task filters. `scheduledNotification` reads one row. Update, pause, resume, and
+delete mutations remain owner-only. PostgreSQL rechecks context access, channel
+preferences, quota, and minimum interval on every activation. Guest, Free, and
+Pro plans allow 3/10/100 active schedules with minimum intervals of one day,
+one hour, and five minutes respectively.
+
+This stage persists and manages schedules only. A later scheduler stage will
+turn due rows into idempotent `custom.notification` events and email outbox
+deliveries.
+
 ## Subscriptions
 
 | Subscription  | Scope                     | Payload         |

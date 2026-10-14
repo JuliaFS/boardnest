@@ -11,12 +11,14 @@ import type { BoardnestDataService } from './data-service.js';
 import type { InvitationEmailService } from '../invitations/invitation-email.js';
 import type {
   CreateProjectData,
+  CreateScheduledNotificationData,
   CreateTaskData,
   CreateTaskReminderData,
   Pagination,
   UpdateNotificationEventPreferenceData,
   UpdateNotificationPreferencesData,
   UpdateProjectData,
+  UpdateScheduledNotificationData,
   UpdateTaskData,
   UpdateTaskReminderData,
 } from './domain.js';
@@ -149,6 +151,113 @@ const updateTaskReminderSchema = z
       Date.parse(input.endsAt) > Date.parse(input.nextRunAt),
     'The end date must be after the next run date.',
   );
+const scheduleIntervalUnitSchema = z.enum([
+  'minute',
+  'hour',
+  'day',
+  'week',
+  'month',
+  'year',
+]);
+const createScheduledNotificationSchema = z
+  .object({
+    body: z.string().max(2000).nullable().optional(),
+    emailEnabled: z.boolean().default(false),
+    endsAt: z.iso.datetime().nullable().optional(),
+    inAppEnabled: z.boolean().default(true),
+    intervalUnit: scheduleIntervalUnitSchema.nullable().optional(),
+    intervalValue: z.number().int().min(1).max(1000).nullable().optional(),
+    nextRunAt: z.iso.datetime(),
+    projectId: z.uuid().nullable().optional(),
+    scheduleKind: z.enum(['once', 'interval']),
+    taskId: z.uuid().nullable().optional(),
+    timezone: z.string().trim().min(1).max(100).default('UTC'),
+    title: z.string().trim().min(1).max(160),
+    workspaceId: z.uuid(),
+  })
+  .superRefine((input, context) => {
+    validateScheduledNotificationShape(input, context);
+  });
+const updateScheduledNotificationSchema = z
+  .object({
+    body: z.string().max(2000).nullable().optional(),
+    emailEnabled: z.boolean().optional(),
+    endsAt: z.iso.datetime().nullable().optional(),
+    inAppEnabled: z.boolean().optional(),
+    intervalUnit: scheduleIntervalUnitSchema.nullable().optional(),
+    intervalValue: z.number().int().min(1).max(1000).nullable().optional(),
+    nextRunAt: z.iso.datetime().optional(),
+    projectId: z.uuid().nullable().optional(),
+    scheduleKind: z.enum(['once', 'interval']).optional(),
+    taskId: z.uuid().nullable().optional(),
+    timezone: z.string().trim().min(1).max(100).optional(),
+    title: z.string().trim().min(1).max(160).optional(),
+  })
+  .refine((input) => Object.keys(input).length > 0, 'No changes supplied.')
+  .superRefine((input, context) => {
+    validateScheduledNotificationShape(input, context);
+  });
+
+function validateScheduledNotificationShape(
+  input: {
+    emailEnabled?: boolean | undefined;
+    endsAt?: string | null | undefined;
+    inAppEnabled?: boolean | undefined;
+    intervalUnit?:
+      z.infer<typeof scheduleIntervalUnitSchema> | null | undefined;
+    intervalValue?: number | null | undefined;
+    nextRunAt?: string | undefined;
+    projectId?: string | null | undefined;
+    scheduleKind?: 'once' | 'interval' | undefined;
+    taskId?: string | null | undefined;
+  },
+  context: z.RefinementCtx,
+): void {
+  if (input.inAppEnabled === false && input.emailEnabled === false) {
+    context.addIssue({
+      code: 'custom',
+      message: 'At least one notification channel must be enabled.',
+    });
+  }
+  if (input.taskId && !input.projectId) {
+    context.addIssue({
+      code: 'custom',
+      message: 'A task schedule must include its project.',
+      path: ['projectId'],
+    });
+  }
+  if (
+    input.scheduleKind === 'once' &&
+    (input.intervalValue != null || input.intervalUnit != null)
+  ) {
+    context.addIssue({
+      code: 'custom',
+      message: 'One-time schedules cannot define an interval.',
+      path: ['intervalValue'],
+    });
+  }
+  if (
+    input.scheduleKind === 'interval' &&
+    (input.intervalValue == null || input.intervalUnit == null)
+  ) {
+    context.addIssue({
+      code: 'custom',
+      message: 'Recurring schedules require an interval value and unit.',
+      path: ['intervalValue'],
+    });
+  }
+  if (
+    input.endsAt != null &&
+    input.nextRunAt !== undefined &&
+    Date.parse(input.endsAt) <= Date.parse(input.nextRunAt)
+  ) {
+    context.addIssue({
+      code: 'custom',
+      message: 'The end date must be after the next run date.',
+      path: ['endsAt'],
+    });
+  }
+}
 const updateNotificationPreferencesSchema = z
   .object({
     emailEnabled: z.boolean().optional(),
@@ -179,6 +288,9 @@ export const typeDefs = `#graphql
   enum ProjectRole { PROJECT_LEAD MEMBER VIEWER }
   enum ReminderScheduleKind { ONCE WEEKLY MONTHLY QUARTERLY YEARLY }
   enum ReminderStatus { ACTIVE PAUSED COMPLETED CANCELED }
+  enum ScheduledNotificationKind { ONCE INTERVAL }
+  enum ScheduleIntervalUnit { MINUTE HOUR DAY WEEK MONTH YEAR }
+  enum ScheduledNotificationStatus { ACTIVE PAUSED COMPLETED CANCELED }
 
   type User {
     id: ID!
@@ -328,9 +440,33 @@ export const typeDefs = `#graphql
     maxActiveReminderTasks: Int!
     maxRemindersPerTask: Int!
     maxRecipientsPerReminder: Int!
+    maxScheduledNotifications: Int!
+    minScheduleIntervalMinutes: Int!
     monthlyEmailLimit: Int!
     emailEnabled: Boolean!
     notificationRetentionDays: Int!
+  }
+
+  type ScheduledNotification {
+    id: ID!
+    workspaceId: ID!
+    projectId: ID
+    taskId: ID
+    createdBy: ID!
+    title: String!
+    body: String
+    scheduleKind: ScheduledNotificationKind!
+    intervalValue: Int
+    intervalUnit: ScheduleIntervalUnit
+    timezone: String!
+    nextRunAt: String!
+    endsAt: String
+    lastRunAt: String
+    inAppEnabled: Boolean!
+    emailEnabled: Boolean!
+    status: ScheduledNotificationStatus!
+    createdAt: String!
+    updatedAt: String!
   }
 
   type WorkspaceSubscription {
@@ -494,6 +630,35 @@ export const typeDefs = `#graphql
     emailEnabled: Boolean
     stopWhenCompleted: Boolean
   }
+  input CreateScheduledNotificationInput {
+    workspaceId: ID!
+    projectId: ID
+    taskId: ID
+    title: String!
+    body: String
+    scheduleKind: ScheduledNotificationKind!
+    intervalValue: Int
+    intervalUnit: ScheduleIntervalUnit
+    timezone: String = "UTC"
+    nextRunAt: String!
+    endsAt: String
+    inAppEnabled: Boolean = true
+    emailEnabled: Boolean = false
+  }
+  input UpdateScheduledNotificationInput {
+    projectId: ID
+    taskId: ID
+    title: String
+    body: String
+    scheduleKind: ScheduledNotificationKind
+    intervalValue: Int
+    intervalUnit: ScheduleIntervalUnit
+    timezone: String
+    nextRunAt: String
+    endsAt: String
+    inAppEnabled: Boolean
+    emailEnabled: Boolean
+  }
   input UpdateNotificationPreferencesInput {
     inAppEnabled: Boolean
     emailEnabled: Boolean
@@ -527,6 +692,8 @@ export const typeDefs = `#graphql
     workspaceSubscription(workspaceId: ID!): WorkspaceSubscription
     taskReminders(taskId: ID!): [TaskReminder!]!
     taskReminder(id: ID!): TaskReminder
+    scheduledNotifications(workspaceId: ID!, projectId: ID, taskId: ID): [ScheduledNotification!]!
+    scheduledNotification(id: ID!): ScheduledNotification
     activityFeed(workspaceId: ID!, projectId: ID, limit: Int = 25, offset: Int = 0): ActivityConnection!
   }
 
@@ -556,6 +723,11 @@ export const typeDefs = `#graphql
     resumeTaskReminder(id: ID!): TaskReminder!
     replaceTaskReminderRecipients(id: ID!, recipientIds: [ID!]!): TaskReminder!
     deleteTaskReminder(id: ID!): DeletePayload!
+    createScheduledNotification(input: CreateScheduledNotificationInput!): ScheduledNotification!
+    updateScheduledNotification(id: ID!, input: UpdateScheduledNotificationInput!): ScheduledNotification!
+    pauseScheduledNotification(id: ID!): ScheduledNotification!
+    resumeScheduledNotification(id: ID!): ScheduledNotification!
+    deleteScheduledNotification(id: ID!): DeletePayload!
     updateNotificationPreferences(input: UpdateNotificationPreferencesInput!): NotificationPreferences!
     updateNotificationEventPreference(input: UpdateNotificationEventPreferenceInput!): NotificationEventPreference!
     deleteNotificationEventPreference(eventType: String!): DeletePayload!
@@ -617,6 +789,24 @@ export const resolvers = {
     YEARLY: 'yearly',
   },
   ReminderStatus: {
+    ACTIVE: 'active',
+    CANCELED: 'canceled',
+    COMPLETED: 'completed',
+    PAUSED: 'paused',
+  },
+  ScheduledNotificationKind: {
+    INTERVAL: 'interval',
+    ONCE: 'once',
+  },
+  ScheduleIntervalUnit: {
+    DAY: 'day',
+    HOUR: 'hour',
+    MINUTE: 'minute',
+    MONTH: 'month',
+    WEEK: 'week',
+    YEAR: 'year',
+  },
+  ScheduledNotificationStatus: {
     ACTIVE: 'active',
     CANCELED: 'canceled',
     COMPLETED: 'completed',
@@ -711,6 +901,8 @@ export const resolvers = {
     'maxActiveReminderTasks',
     'maxRemindersPerTask',
     'maxRecipientsPerReminder',
+    'maxScheduledNotifications',
+    'minScheduleIntervalMinutes',
     'monthlyEmailLimit',
     'emailEnabled',
     'notificationRetentionDays',
@@ -736,6 +928,22 @@ export const resolvers = {
     'emailEnabled',
     'stopWhenCompleted',
     'recipientIds',
+    'createdAt',
+    'updatedAt',
+  ]),
+  ScheduledNotification: snakeCaseFields([
+    'workspaceId',
+    'projectId',
+    'taskId',
+    'createdBy',
+    'scheduleKind',
+    'intervalValue',
+    'intervalUnit',
+    'nextRunAt',
+    'endsAt',
+    'lastRunAt',
+    'inAppEnabled',
+    'emailEnabled',
     'createdAt',
     'updatedAt',
   ]),
@@ -916,6 +1124,25 @@ export const resolvers = {
       args: { id: string },
       context: GraphQLContext,
     ) => requireAuth(context).data.taskReminder(uuid(args.id)),
+    scheduledNotifications: async (
+      _parent: unknown,
+      args: {
+        projectId?: string | null;
+        taskId?: string | null;
+        workspaceId: string;
+      },
+      context: GraphQLContext,
+    ) =>
+      requireAuth(context).data.scheduledNotifications(
+        uuid(args.workspaceId),
+        args.projectId ? uuid(args.projectId) : null,
+        args.taskId ? uuid(args.taskId) : null,
+      ),
+    scheduledNotification: async (
+      _parent: unknown,
+      args: { id: string },
+      context: GraphQLContext,
+    ) => requireAuth(context).data.scheduledNotification(uuid(args.id)),
     activityFeed: async (
       _parent: unknown,
       args: PaginationArguments & {
@@ -1215,6 +1442,55 @@ export const resolvers = {
     ) => ({
       id: await requireAuth(context).data.deleteTaskReminder(uuid(args.id)),
     }),
+    createScheduledNotification: async (
+      _parent: unknown,
+      args: { input: unknown },
+      context: GraphQLContext,
+    ) => {
+      const authenticated = requireAuth(context);
+      return authenticated.data.createScheduledNotification(
+        toCreateScheduledNotificationData(
+          parse(createScheduledNotificationSchema, args.input),
+        ),
+        authenticated.user.id,
+      );
+    },
+    updateScheduledNotification: async (
+      _parent: unknown,
+      args: { id: string; input: unknown },
+      context: GraphQLContext,
+    ) =>
+      requireAuth(context).data.updateScheduledNotification(
+        uuid(args.id),
+        toUpdateScheduledNotificationData(
+          parse(updateScheduledNotificationSchema, args.input),
+        ),
+      ),
+    pauseScheduledNotification: async (
+      _parent: unknown,
+      args: { id: string },
+      context: GraphQLContext,
+    ) =>
+      requireAuth(context).data.updateScheduledNotification(uuid(args.id), {
+        status: 'paused',
+      }),
+    resumeScheduledNotification: async (
+      _parent: unknown,
+      args: { id: string },
+      context: GraphQLContext,
+    ) =>
+      requireAuth(context).data.updateScheduledNotification(uuid(args.id), {
+        status: 'active',
+      }),
+    deleteScheduledNotification: async (
+      _parent: unknown,
+      args: { id: string },
+      context: GraphQLContext,
+    ) => ({
+      id: await requireAuth(context).data.deleteScheduledNotification(
+        uuid(args.id),
+      ),
+    }),
     updateNotificationPreferences: async (
       _parent: unknown,
       args: { input: unknown },
@@ -1476,6 +1752,55 @@ function toUpdateTaskReminderData(
       ? { stop_when_completed: input.stopWhenCompleted }
       : {}),
     ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
+  };
+}
+
+function toCreateScheduledNotificationData(
+  input: z.infer<typeof createScheduledNotificationSchema>,
+): CreateScheduledNotificationData {
+  return {
+    ...(input.body !== undefined ? { body: input.body } : {}),
+    email_enabled: input.emailEnabled,
+    ...(input.endsAt !== undefined ? { ends_at: input.endsAt } : {}),
+    in_app_enabled: input.inAppEnabled,
+    interval_unit: input.intervalUnit ?? null,
+    interval_value: input.intervalValue ?? null,
+    next_run_at: input.nextRunAt,
+    ...(input.projectId !== undefined ? { project_id: input.projectId } : {}),
+    schedule_kind: input.scheduleKind,
+    ...(input.taskId !== undefined ? { task_id: input.taskId } : {}),
+    timezone: input.timezone,
+    title: input.title,
+    workspace_id: input.workspaceId,
+  };
+}
+
+function toUpdateScheduledNotificationData(
+  input: z.infer<typeof updateScheduledNotificationSchema>,
+): UpdateScheduledNotificationData {
+  return {
+    ...(input.body !== undefined ? { body: input.body } : {}),
+    ...(input.emailEnabled !== undefined
+      ? { email_enabled: input.emailEnabled }
+      : {}),
+    ...(input.endsAt !== undefined ? { ends_at: input.endsAt } : {}),
+    ...(input.inAppEnabled !== undefined
+      ? { in_app_enabled: input.inAppEnabled }
+      : {}),
+    ...(input.intervalUnit !== undefined
+      ? { interval_unit: input.intervalUnit }
+      : {}),
+    ...(input.intervalValue !== undefined
+      ? { interval_value: input.intervalValue }
+      : {}),
+    ...(input.nextRunAt !== undefined ? { next_run_at: input.nextRunAt } : {}),
+    ...(input.projectId !== undefined ? { project_id: input.projectId } : {}),
+    ...(input.scheduleKind !== undefined
+      ? { schedule_kind: input.scheduleKind }
+      : {}),
+    ...(input.taskId !== undefined ? { task_id: input.taskId } : {}),
+    ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
+    ...(input.title !== undefined ? { title: input.title } : {}),
   };
 }
 

@@ -84,6 +84,10 @@ The delivery worker smoke test verifies claim leases, retry backoff, stale-token
 protection, successful completion, and immutable attempt history. Unit tests
 cover SMTP rendering, error classification, missing email handling, overlapping
 runs, and transport shutdown.
+The custom schedule smoke test verifies hierarchical context, owner-only RLS,
+the Free plan's minimum interval and ten-active-schedule quota, and quota
+release after pausing. GraphQL resolver tests cover normalized creation,
+contextual reads, lifecycle mutations, deletion, and invalid shape rejection.
 
 ## Covered critical behavior
 
@@ -103,6 +107,8 @@ runs, and transport shutdown.
   and idempotent in-app/email fan-out.
 - email outbox claim leases, SMTP delivery, retry classification and backoff,
   terminal failures, and per-attempt history.
+- custom notification schedule CRUD, context authorization, channel gates, and
+  plan-specific count and interval limits.
 - concurrency-safe reminder scheduling and local-time recurrence.
 - account-deletion ownership transfer, explicit personal-workspace deletion,
   creator anonymization, and cookie cleanup.

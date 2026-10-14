@@ -77,6 +77,9 @@ exactly, including scheme and port.
 - Email delivery claim, completion, and failure functions are service-role-only.
   Completion requires the active lease token, worker logs omit recipients and
   payloads, and SMTP credentials remain server-only Railway variables.
+- Custom notification schedules remain creator-owned under RLS. A database
+  trigger validates workspace and private-project access, timezone names,
+  channel preferences, and plan quota or recurrence limits on every write.
 
 The detailed permission matrix is in [Database](DATABASE.md).
 
