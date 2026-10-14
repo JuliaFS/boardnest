@@ -90,8 +90,10 @@ export interface TaskComment {
 }
 
 export interface Notification {
+  actor_id: string | null;
   body: string | null;
   created_at: string;
+  event_key: string | null;
   id: string;
   payload: Record<string, unknown>;
   project_id: string | null;
@@ -103,6 +105,36 @@ export interface Notification {
   type: string;
   user_id: string;
   workspace_id: string;
+}
+
+export interface NotificationEventType {
+  category: string;
+  code: string;
+  created_at: string;
+  default_email_enabled: boolean;
+  default_in_app_enabled: boolean;
+  description: string;
+  display_name: string;
+  is_active: boolean;
+  updated_at: string;
+}
+
+export interface NotificationEventPreference {
+  created_at: string;
+  email_enabled: boolean;
+  event_type: string;
+  in_app_enabled: boolean;
+  updated_at: string;
+  user_id: string;
+}
+
+export interface NotificationPlanEvent {
+  created_at: string;
+  email_enabled: boolean;
+  event_type: string;
+  in_app_enabled: boolean;
+  plan_code: string;
+  updated_at: string;
 }
 
 export interface NotificationPreferences {
@@ -277,4 +309,10 @@ export interface UpdateNotificationPreferencesData {
   reminder_enabled?: boolean;
   task_assigned_enabled?: boolean;
   task_created_enabled?: boolean;
+}
+
+export interface UpdateNotificationEventPreferenceData {
+  email_enabled: boolean;
+  event_type: string;
+  in_app_enabled: boolean;
 }

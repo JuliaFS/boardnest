@@ -70,6 +70,10 @@ exactly, including scheme and port.
 - Account deletion derives the target exclusively from the verified session,
   validates the exact trusted origin, requires `DELETE`, and makes every
   sole-owned workspace transfer or deletion explicit.
+- Notification producers use a service-role-only function that validates the
+  recipient, optional actor, and project/task workspace context. Authenticated
+  users can manage only their own event preferences, and those choices cannot
+  exceed plan capabilities or monthly email quotas.
 
 The detailed permission matrix is in [Database](DATABASE.md).
 

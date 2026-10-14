@@ -4,6 +4,9 @@ import type { PublicAuthUser } from '../auth/auth-service.js';
 import type { RealtimeEventBus, TaskEvent } from '../realtime/event-bus.js';
 import type { BoardnestDataService } from './data-service.js';
 import type {
+  NotificationEventPreference,
+  NotificationEventType,
+  NotificationPlanEvent,
   NotificationPreferences,
   Project,
   Task,
@@ -88,6 +91,36 @@ const preferences: NotificationPreferences = {
   task_created_enabled: true,
   updated_at: timestamp,
   user_id: user.id,
+};
+
+const notificationEventType: NotificationEventType = {
+  category: 'task',
+  code: 'task.assigned',
+  created_at: timestamp,
+  default_email_enabled: true,
+  default_in_app_enabled: true,
+  description: 'A task was assigned to the recipient.',
+  display_name: 'Task assigned',
+  is_active: true,
+  updated_at: timestamp,
+};
+
+const notificationEventPreference: NotificationEventPreference = {
+  created_at: timestamp,
+  email_enabled: true,
+  event_type: notificationEventType.code,
+  in_app_enabled: false,
+  updated_at: timestamp,
+  user_id: user.id,
+};
+
+const notificationPlanEvent: NotificationPlanEvent = {
+  created_at: timestamp,
+  email_enabled: true,
+  event_type: notificationEventType.code,
+  in_app_enabled: true,
+  plan_code: 'free',
+  updated_at: timestamp,
 };
 
 type MutationResolver = (
@@ -606,6 +639,102 @@ describe('GraphQL reminder workflow resolvers', () => {
     expect(updateNotificationPreferences).toHaveBeenCalledWith(user.id, {
       reminder_enabled: false,
     });
+  });
+
+  it('reads notification event metadata and the current user overrides', async () => {
+    const notificationEventTypes = vi
+      .fn()
+      .mockResolvedValue([notificationEventType]);
+    const notificationEventPreferences = vi
+      .fn()
+      .mockResolvedValue([notificationEventPreference]);
+    const notificationPlanEvents = vi
+      .fn()
+      .mockResolvedValue([notificationPlanEvent]);
+    const value = context(
+      createDataService({
+        notificationEventPreferences,
+        notificationEventTypes,
+        notificationPlanEvents,
+      }),
+    );
+
+    await expect(
+      runQuery('notificationEventTypes', {}, value),
+    ).resolves.toEqual([notificationEventType]);
+    await expect(
+      runQuery('notificationEventPreferences', {}, value),
+    ).resolves.toEqual([notificationEventPreference]);
+    await expect(
+      runQuery('notificationPlanEvents', { workspaceId }, value),
+    ).resolves.toEqual([notificationPlanEvent]);
+
+    expect(notificationEventTypes).toHaveBeenCalledOnce();
+    expect(notificationEventPreferences).toHaveBeenCalledWith(user.id);
+    expect(notificationPlanEvents).toHaveBeenCalledWith(workspaceId);
+  });
+
+  it('upserts one notification event preference for the current user', async () => {
+    const updateNotificationEventPreference = vi
+      .fn()
+      .mockResolvedValue(notificationEventPreference);
+
+    await expect(
+      runMutation(
+        'updateNotificationEventPreference',
+        {
+          input: {
+            emailEnabled: true,
+            eventType: 'task.assigned',
+            inAppEnabled: false,
+          },
+        },
+        context(createDataService({ updateNotificationEventPreference })),
+      ),
+    ).resolves.toEqual(notificationEventPreference);
+
+    expect(updateNotificationEventPreference).toHaveBeenCalledWith(user.id, {
+      email_enabled: true,
+      event_type: 'task.assigned',
+      in_app_enabled: false,
+    });
+  });
+
+  it('rejects malformed notification event preference keys', async () => {
+    const updateNotificationEventPreference = vi.fn();
+
+    await expect(
+      runMutation(
+        'updateNotificationEventPreference',
+        {
+          input: {
+            emailEnabled: true,
+            eventType: 'Task Assigned',
+            inAppEnabled: true,
+          },
+        },
+        context(createDataService({ updateNotificationEventPreference })),
+      ),
+    ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
+    expect(updateNotificationEventPreference).not.toHaveBeenCalled();
+  });
+
+  it('deletes an event override so catalog defaults apply again', async () => {
+    const deleteNotificationEventPreference = vi
+      .fn()
+      .mockResolvedValue('task.assigned');
+
+    await expect(
+      runMutation(
+        'deleteNotificationEventPreference',
+        { eventType: 'task.assigned' },
+        context(createDataService({ deleteNotificationEventPreference })),
+      ),
+    ).resolves.toEqual({ id: 'task.assigned' });
+    expect(deleteNotificationEventPreference).toHaveBeenCalledWith(
+      user.id,
+      'task.assigned',
+    );
   });
 
   it('rejects duplicate recipients and disabled channels before persistence', async () => {

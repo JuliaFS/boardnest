@@ -8,9 +8,11 @@ Boardnest uses a SQL-first PostgreSQL schema hosted by Supabase. Every table is 
 auth.users 1 ─── 1 profiles
                     │
                     ├── 1 notification_preferences
+                    ├──< notification_event_preferences >── notification_event_types
                     ├──< workspace_members >── workspaces
                     │                              │
                     │                              ├── 1 workspace_subscriptions >── subscription_plans
+                    │                              │                                  └──< plan_notification_events >── notification_event_types
                     │                              ├──< invitations
                     │                              ├──< notifications
                     │                              ├──< notification_deliveries
@@ -71,6 +73,7 @@ Run every file exactly once and in filename order:
 | `330_account_deletion.sql`           | Ownership handoff and safe account anonymization            |
 | `340_workspace_member_cleanup.sql`   | Workspace-scoped cleanup after membership removal           |
 | `350_invitation_acceptance.sql`      | Atomic email-matched invitation acceptance                  |
+| `360_notification_event_model.sql`   | Event catalog, plan gates, preferences, and email fan-out   |
 
 Do not run `database/tests/*.sql` as migrations. The smoke test inserts deterministic temporary records and rolls the transaction back.
 
@@ -103,10 +106,16 @@ active-task, per-task, recipient, or monthly-email limits.
 quarterly, yearly, and daylight-saving calculations. A custom date is
 represented by `schedule_kind = 'once'` and its chosen `next_run_at`.
 
+`notification_event_types` defines the canonical event vocabulary and channel
+defaults. `plan_notification_events` caps channels for every plan/event pair,
+while `notification_event_preferences` stores optional user overrides. The
+service-role-only `create_notification_event` function validates tenant
+context, resolves those layers, and creates retry-safe in-app and outbox rows.
+
 `notification_deliveries` is a durable server-managed email outbox. Its unique
-idempotency key prevents one reminder occurrence from being queued twice. The
-scheduler queues eligible email occurrences here; provider delivery is a
-separate worker stage.
+idempotency key prevents one notification occurrence from being queued twice.
+The scheduler and canonical event producer queue eligible email occurrences
+here; provider delivery is a separate worker stage.
 
 `process_due_task_reminders` is a service-role-only scheduler transaction. It
 claims bounded batches with `FOR UPDATE SKIP LOCKED`, creates idempotent in-app

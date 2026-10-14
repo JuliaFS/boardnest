@@ -92,6 +92,12 @@ inside one transaction, so horizontally scaled API instances remain safe. The
 Node timer only invokes the bounded service-role RPC; provider email delivery
 remains a separate outbox consumer.
 
+Canonical application events use the same durable boundary. A service-role-only
+database function validates tenant context, resolves global and per-event user
+preferences against effective plan capabilities, creates an idempotent in-app
+notification, and queues entitled email work. Event production never performs
+SMTP I/O inside the database transaction. See [Notifications](NOTIFICATIONS.md).
+
 HTTPS terminates at the platform edge. Production WebSocket connections use WSS.
 
 ## Architecture decision records

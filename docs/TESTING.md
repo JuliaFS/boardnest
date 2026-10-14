@@ -76,6 +76,10 @@ email ownership matching, lifecycle finalization, and idempotent reuse by the
 same authenticated recipient.
 The project membership component and GraphQL resolver tests verify roster
 loading, role validation, and adding an existing workspace member to a project.
+The notification event model smoke test verifies idempotent in-app and outbox
+creation, per-event email opt-out, email-only delivery, and the Guest plan email
+restriction. GraphQL tests cover catalog, effective plan capability, preference
+queries, preference upsert mapping, and malformed event-type rejection.
 
 ## Covered critical behavior
 
@@ -91,6 +95,8 @@ loading, role validation, and adding an existing workspace member to a project.
 - notification plan assignment and database-enforced guest reminder limits.
 - GraphQL reminder creation, lifecycle actions, recipients, preferences, and
   workspace capability queries.
+- canonical notification event metadata, plan gates, per-event preferences,
+  and idempotent in-app/email fan-out.
 - concurrency-safe reminder scheduling and local-time recurrence.
 - account-deletion ownership transfer, explicit personal-workspace deletion,
   creator anonymization, and cookie cleanup.

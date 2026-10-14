@@ -12,6 +12,9 @@ import type {
   CreateTaskReminderData,
   Invitation,
   Notification,
+  NotificationEventPreference,
+  NotificationEventType,
+  NotificationPlanEvent,
   NotificationPreferences,
   Pagination,
   Project,
@@ -23,6 +26,7 @@ import type {
   TaskReminder,
   TaskStatus,
   UpdateNotificationPreferencesData,
+  UpdateNotificationEventPreferenceData,
   UpdateProjectData,
   UpdateTaskData,
   UpdateTaskReminderData,
@@ -110,8 +114,10 @@ const taskCommentSchema = z.object({
   updated_at: z.string(),
 });
 const notificationSchema = z.object({
+  actor_id: z.uuid().nullable(),
   body: z.string().nullable(),
   created_at: z.string(),
+  event_key: z.string().nullable(),
   id: z.uuid(),
   payload: z.record(z.string(), z.unknown()),
   project_id: z.uuid().nullable(),
@@ -123,6 +129,33 @@ const notificationSchema = z.object({
   type: z.string(),
   user_id: z.uuid(),
   workspace_id: z.uuid(),
+});
+const notificationEventTypeSchema = z.object({
+  category: z.string(),
+  code: z.string(),
+  created_at: z.string(),
+  default_email_enabled: z.boolean(),
+  default_in_app_enabled: z.boolean(),
+  description: z.string(),
+  display_name: z.string(),
+  is_active: z.boolean(),
+  updated_at: z.string(),
+});
+const notificationEventPreferenceSchema = z.object({
+  created_at: z.string(),
+  email_enabled: z.boolean(),
+  event_type: z.string(),
+  in_app_enabled: z.boolean(),
+  updated_at: z.string(),
+  user_id: z.uuid(),
+});
+const notificationPlanEventSchema = z.object({
+  created_at: z.string(),
+  email_enabled: z.boolean(),
+  event_type: z.string(),
+  in_app_enabled: z.boolean(),
+  plan_code: z.string(),
+  updated_at: z.string(),
 });
 const activitySchema = z.object({
   actor_id: z.uuid().nullable(),
@@ -254,6 +287,10 @@ export interface BoardnestDataService {
     userId: string,
   ) => Promise<Workspace>;
   deleteProject: (id: string) => Promise<string>;
+  deleteNotificationEventPreference: (
+    userId: string,
+    eventType: string,
+  ) => Promise<string>;
   deleteTask: (id: string) => Promise<string>;
   deleteTaskReminder: (id: string) => Promise<string>;
   inviteMember: (
@@ -276,6 +313,13 @@ export interface BoardnestDataService {
   markNotificationAsRead: (id: string) => Promise<Notification>;
   moveTask: (id: string, statusId: string, position: number) => Promise<Task>;
   notification: (id: string) => Promise<Notification | null>;
+  notificationEventPreferences: (
+    userId: string,
+  ) => Promise<NotificationEventPreference[]>;
+  notificationEventTypes: () => Promise<NotificationEventType[]>;
+  notificationPlanEvents: (
+    workspaceId: string,
+  ) => Promise<NotificationPlanEvent[]>;
   notificationPreferences: (userId: string) => Promise<NotificationPreferences>;
   notifications: (
     userId: string,
@@ -311,6 +355,10 @@ export interface BoardnestDataService {
     userId: string,
     input: UpdateNotificationPreferencesData,
   ) => Promise<NotificationPreferences>;
+  updateNotificationEventPreference: (
+    userId: string,
+    input: UpdateNotificationEventPreferenceData,
+  ) => Promise<NotificationEventPreference>;
   updateTask: (id: string, input: UpdateTaskData) => Promise<Task>;
   updateTaskReminder: (
     id: string,
@@ -784,6 +832,55 @@ class SupabaseBoardnestDataService implements BoardnestDataService {
     return required(notificationPreferencesSchema, response);
   }
 
+  async notificationEventTypes(): Promise<NotificationEventType[]> {
+    const response = await this.client
+      .from('notification_event_types')
+      .select('*')
+      .eq('is_active', true)
+      .order('category')
+      .order('code');
+    return list(notificationEventTypeSchema, response);
+  }
+
+  async deleteNotificationEventPreference(
+    userId: string,
+    eventType: string,
+  ): Promise<string> {
+    const response = await this.client
+      .from('notification_event_preferences')
+      .delete()
+      .eq('user_id', userId)
+      .eq('event_type', eventType)
+      .select('*')
+      .single();
+    return required(notificationEventPreferenceSchema, response).event_type;
+  }
+
+  async notificationEventPreferences(
+    userId: string,
+  ): Promise<NotificationEventPreference[]> {
+    const response = await this.client
+      .from('notification_event_preferences')
+      .select('*')
+      .eq('user_id', userId)
+      .order('event_type');
+    return list(notificationEventPreferenceSchema, response);
+  }
+
+  async notificationPlanEvents(
+    workspaceId: string,
+  ): Promise<NotificationPlanEvent[]> {
+    const subscription = await this.workspaceSubscription(workspaceId);
+    if (subscription === null) return [];
+
+    const response = await this.client
+      .from('plan_notification_events')
+      .select('*')
+      .eq('plan_code', subscription.effective_plan_code)
+      .order('event_type');
+    return list(notificationPlanEventSchema, response);
+  }
+
   async updateNotificationPreferences(
     userId: string,
     input: UpdateNotificationPreferencesData,
@@ -795,6 +892,21 @@ class SupabaseBoardnestDataService implements BoardnestDataService {
       .select('*')
       .single();
     return required(notificationPreferencesSchema, response);
+  }
+
+  async updateNotificationEventPreference(
+    userId: string,
+    input: UpdateNotificationEventPreferenceData,
+  ): Promise<NotificationEventPreference> {
+    const response = await this.client
+      .from('notification_event_preferences')
+      .upsert(
+        { ...input, user_id: userId },
+        { onConflict: 'user_id,event_type' },
+      )
+      .select('*')
+      .single();
+    return required(notificationEventPreferenceSchema, response);
   }
 
   async workspaceSubscription(
@@ -1059,6 +1171,11 @@ function required<T>(schema: z.ZodType<T>, response: DataResponse): T {
 function optional<T>(schema: z.ZodType<T>, response: DataResponse): T | null {
   throwForError(response.error);
   return response.data === null ? null : schema.parse(response.data);
+}
+
+function list<T>(schema: z.ZodType<T>, response: DataResponse): T[] {
+  throwForError(response.error);
+  return z.array(schema).parse(response.data);
 }
 
 function connection<T>(
