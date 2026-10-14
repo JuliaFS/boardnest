@@ -7,9 +7,10 @@ project, task, comment, reminder, and future custom-notification events. It also
 centralizes channel selection, plan entitlements, user preferences,
 idempotency, and email-outbox creation.
 
-This stage queues email work in `notification_deliveries`; it does not send
-those rows to SMTP. Invitation email is a separate synchronous flow. The email
-outbox worker, custom schedules, and notification settings UI are later stages.
+Canonical events queue email work in `notification_deliveries`. The API-hosted
+delivery worker claims due rows and sends them through Nodemailer SMTP.
+Invitation email remains a separate synchronous flow. Custom schedules and the
+notification settings UI are later stages.
 
 ## Event catalog
 
@@ -110,7 +111,22 @@ global channel switches and the legacy task/reminder switches.
 
 ## Delivery boundary
 
-`notification_deliveries` is a durable email outbox. Creating an event only
-queues a pending row. A later worker must claim due rows, render an email, send
-it through the configured provider, record provider results, and retry
-transient failures without changing the producer transaction.
+`notification_deliveries` is a durable email outbox. The service-role worker:
+
+1. claims a bounded due batch with `FOR UPDATE SKIP LOCKED`;
+2. assigns each attempt a five-minute lease token;
+3. renders escaped text and HTML email;
+4. sends through the shared Nodemailer SMTP transport;
+5. records success or failure through token-protected RPCs;
+6. retries transient failures with bounded exponential backoff.
+
+Permanent SMTP errors and deliveries that exhaust `max_attempts` remain failed
+for operational inspection. `notification_delivery_attempts` preserves the
+result of every completed worker attempt without storing credentials or full
+SMTP responses. Logs contain only aggregate batch counts and errors, never
+recipient addresses or message payloads.
+
+The delivery model is at-least-once. A stable SMTP `Message-ID`, database
+idempotency key, and lease token prevent ordinary duplicates. SMTP itself
+cannot provide an absolute exactly-once guarantee if the provider accepts a
+message immediately before the database becomes unavailable.

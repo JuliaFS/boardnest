@@ -92,12 +92,16 @@ These values are read only by the API process:
 - `REMINDER_SCHEDULER_ENABLED`
 - `REMINDER_SCHEDULER_INTERVAL_MS`
 - `REMINDER_SCHEDULER_BATCH_SIZE`
+- `EMAIL_DELIVERY_WORKER_ENABLED`
+- `EMAIL_DELIVERY_WORKER_INTERVAL_MS`
+- `EMAIL_DELIVERY_WORKER_BATCH_SIZE`
 - `NODE_ENV`
 
 `SUPABASE_PUBLISHABLE_KEY` is deliberately public and is also used by the API
 client to support every Supabase signing-key mode. The service-role key and
 direct database URL shown in `.env.example` are secrets. The service-role key is
-required for account deletion and when `REMINDER_SCHEDULER_ENABLED=true`.
+required for account deletion, when `REMINDER_SCHEDULER_ENABLED=true`, and when
+`EMAIL_DELIVERY_WORKER_ENABLED=true`.
 Without it, ordinary local UI development still works but the deletion endpoint
 returns 503. Never prefix secrets with `VITE_`, log them, commit them, or send
 them to a browser.
@@ -106,8 +110,11 @@ Invitation records and manual fallback tokens work without an email provider.
 To deliver through Resend, set `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, and a
 verified `INVITATION_EMAIL_FROM`. Existing deployments that provide the two
 Resend values without `EMAIL_PROVIDER` remain supported. To test with Gmail,
-set `EMAIL_PROVIDER=smtp`, use `smtp.gmail.com`, port `465`, secure mode, the
-Gmail address as `SMTP_USER`, and a Google App Password as `SMTP_PASSWORD`.
+set `EMAIL_PROVIDER=smtp`, use `smtp.gmail.com`, port `587` with
+`SMTP_SECURE=false` (STARTTLS), the Gmail address as `SMTP_USER`, and a Google
+App Password as `SMTP_PASSWORD`. Port `465` with `SMTP_SECURE=true` is also
+supported. Set `EMAIL_DELIVERY_WORKER_ENABLED=true` only after migration 370 is
+applied; the worker uses the same SMTP transport and sender as invitations.
 Never use the normal Gmail password or expose SMTP credentials to the browser.
 
 ## Workspace conventions

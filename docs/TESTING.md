@@ -80,6 +80,10 @@ The notification event model smoke test verifies idempotent in-app and outbox
 creation, per-event email opt-out, email-only delivery, and the Guest plan email
 restriction. GraphQL tests cover catalog, effective plan capability, preference
 queries, preference upsert mapping, and malformed event-type rejection.
+The delivery worker smoke test verifies claim leases, retry backoff, stale-token
+protection, successful completion, and immutable attempt history. Unit tests
+cover SMTP rendering, error classification, missing email handling, overlapping
+runs, and transport shutdown.
 
 ## Covered critical behavior
 
@@ -97,6 +101,8 @@ queries, preference upsert mapping, and malformed event-type rejection.
   workspace capability queries.
 - canonical notification event metadata, plan gates, per-event preferences,
   and idempotent in-app/email fan-out.
+- email outbox claim leases, SMTP delivery, retry classification and backoff,
+  terminal failures, and per-attempt history.
 - concurrency-safe reminder scheduling and local-time recurrence.
 - account-deletion ownership transfer, explicit personal-workspace deletion,
   creator anonymization, and cookie cleanup.

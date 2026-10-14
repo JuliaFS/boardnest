@@ -248,11 +248,25 @@ including when several API instances poll concurrently.
 
 **Purpose:** Durable email outbox for scheduled reminders and canonical notification events.
 
-**Important columns:** Recipient, schedule time, retry state, provider result, unique idempotency key, and JSON payload.
+**Important columns:** Recipient, schedule time, retry state, lease token, provider result, unique idempotency key, and JSON payload.
 
 **Indexes:** Pending retry queue, workspace history, recipient history, and unique idempotency.
 
 **Security:** Recipients have read-only access to their delivery history. Only trusted workers create or mutate deliveries. Inserts validate workspace membership, selected reminder recipients, plan email entitlement, and the monthly email quota.
+
+The worker claims due rows with `FOR UPDATE SKIP LOCKED`. Completion and
+failure RPCs require the exact claim token, so an expired worker cannot mutate a
+newer attempt. Stale processing leases become claimable after five minutes.
+Transient failures use bounded exponential backoff; permanent failures consume
+the remaining attempt budget.
+
+### `notification_delivery_attempts`
+
+**Purpose:** Immutable operational history for completed SMTP attempts.
+
+**Important columns:** Delivery, attempt number, provider, outcome, provider message ID or sanitized error, and start/finish timestamps.
+
+**Security:** Recipients may read attempts belonging to their own delivery rows. Only service-role worker RPCs append history.
 
 `public.create_notification_event` is the service-role-only producer boundary.
 It validates tenant context, resolves preferences and plan entitlements, creates

@@ -89,14 +89,21 @@ service. Transport code does not duplicate database policy logic.
 The API process also hosts a lightweight reminder scheduler. PostgreSQL owns
 claiming, idempotency, preference checks, recurrence, and schedule advancement
 inside one transaction, so horizontally scaled API instances remain safe. The
-Node timer only invokes the bounded service-role RPC; provider email delivery
-remains a separate outbox consumer.
+Node timer only invokes the bounded service-role RPC. A second in-process worker
+claims the resulting email outbox rows through lease-token RPCs and sends them
+through the shared Nodemailer SMTP transport.
 
 Canonical application events use the same durable boundary. A service-role-only
 database function validates tenant context, resolves global and per-event user
 preferences against effective plan capabilities, creates an idempotent in-app
 notification, and queues entitled email work. Event production never performs
 SMTP I/O inside the database transaction. See [Notifications](NOTIFICATIONS.md).
+
+Email delivery is at-least-once. `FOR UPDATE SKIP LOCKED`, a five-minute stale
+lease, a per-attempt lock token, stable SMTP `Message-ID`, and the existing
+outbox idempotency key prevent normal duplicate processing while allowing
+recovery after process failure. SMTP cannot guarantee exactly-once behavior if
+the provider accepts a message but the success update cannot reach PostgreSQL.
 
 HTTPS terminates at the platform edge. Production WebSocket connections use WSS.
 

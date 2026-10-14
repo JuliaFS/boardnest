@@ -3,11 +3,16 @@ import { createSupabaseAuthService } from './auth/auth-service.js';
 import { createSupabaseAccountDeletionService } from './auth/account-deletion-service.js';
 import { createRedisGuestAdmission } from './auth/guest-admission.js';
 import { loadEnvironmentFile, parseEnvironment } from './config/env.js';
+import { createSmtpTransport } from './email/smtp-transport.js';
 import { createBoardnestDataService } from './graphql/data-service.js';
 import {
   createResendInvitationEmailService,
   createSmtpInvitationEmailService,
 } from './invitations/invitation-email.js';
+import {
+  createSupabaseNotificationDeliveryWorker,
+  type NotificationDeliveryWorker,
+} from './notifications/notification-delivery-worker.js';
 import { createRedisEventBus } from './realtime/redis-event-bus.js';
 import {
   createSupabaseReminderScheduler,
@@ -20,6 +25,24 @@ const environment = parseEnvironment();
 const emailProvider =
   environment.EMAIL_PROVIDER ??
   (environment.RESEND_API_KEY ? 'resend' : undefined);
+const smtpConfiguration =
+  emailProvider === 'smtp' &&
+  environment.SMTP_HOST &&
+  environment.SMTP_PASSWORD &&
+  environment.SMTP_PORT !== undefined &&
+  environment.SMTP_SECURE !== undefined &&
+  environment.SMTP_USER
+    ? {
+        host: environment.SMTP_HOST,
+        password: environment.SMTP_PASSWORD,
+        port: environment.SMTP_PORT,
+        secure: environment.SMTP_SECURE,
+        user: environment.SMTP_USER,
+      }
+    : undefined;
+const smtpTransport = smtpConfiguration
+  ? createSmtpTransport(smtpConfiguration)
+  : undefined;
 const invitationEmail =
   emailProvider === 'resend' &&
   environment.RESEND_API_KEY &&
@@ -31,18 +54,12 @@ const invitationEmail =
       })
     : emailProvider === 'smtp' &&
         environment.INVITATION_EMAIL_FROM &&
-        environment.SMTP_HOST &&
-        environment.SMTP_PASSWORD &&
-        environment.SMTP_PORT !== undefined &&
-        environment.SMTP_SECURE !== undefined &&
-        environment.SMTP_USER
+        smtpConfiguration &&
+        smtpTransport
       ? createSmtpInvitationEmailService({
+          ...smtpConfiguration,
           from: environment.INVITATION_EMAIL_FROM,
-          host: environment.SMTP_HOST,
-          password: environment.SMTP_PASSWORD,
-          port: environment.SMTP_PORT,
-          secure: environment.SMTP_SECURE,
-          user: environment.SMTP_USER,
+          transport: smtpTransport,
           webUrl: environment.CORS_ORIGIN,
         })
       : undefined;
@@ -60,6 +77,7 @@ const guestAdmission = await createRedisGuestAdmission(
   throw error;
 });
 let reminderScheduler: ReminderScheduler | undefined;
+let notificationDeliveryWorker: NotificationDeliveryWorker | undefined;
 const accountDeletionService = environment.SUPABASE_SERVICE_ROLE_KEY
   ? createSupabaseAccountDeletionService({
       serviceRoleKey: environment.SUPABASE_SERVICE_ROLE_KEY,
@@ -80,6 +98,22 @@ if (environment.REMINDER_SCHEDULER_ENABLED) {
     supabaseUrl: environment.SUPABASE_URL,
   });
 }
+if (environment.EMAIL_DELIVERY_WORKER_ENABLED) {
+  const serviceRoleKey = environment.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceRoleKey || !smtpTransport || !environment.INVITATION_EMAIL_FROM) {
+    throw new Error(
+      'Service-role, SMTP, and sender configuration is required when the email delivery worker is enabled.',
+    );
+  }
+  notificationDeliveryWorker = createSupabaseNotificationDeliveryWorker({
+    batchSize: environment.EMAIL_DELIVERY_WORKER_BATCH_SIZE,
+    from: environment.INVITATION_EMAIL_FROM,
+    intervalMs: environment.EMAIL_DELIVERY_WORKER_INTERVAL_MS,
+    serviceRoleKey,
+    supabaseUrl: environment.SUPABASE_URL,
+    transport: smtpTransport,
+  });
+}
 
 const server = await createServer({
   ...(accountDeletionService ? { accountDeletionService } : {}),
@@ -92,20 +126,29 @@ const server = await createServer({
       accessToken,
     ),
   events,
+  ...(smtpTransport ? { emailTransport: smtpTransport } : {}),
   guestAdmission,
   introspection: environment.NODE_ENV !== 'production',
   ...(invitationEmail ? { invitationEmail } : {}),
+  ...(notificationDeliveryWorker ? { notificationDeliveryWorker } : {}),
   ...(reminderScheduler ? { reminderScheduler } : {}),
   cookieSameSite: environment.COOKIE_SAME_SITE === 'none' ? 'None' : 'Lax',
   secureCookies: environment.NODE_ENV === 'production',
   trustProxyHops: environment.TRUST_PROXY_HOPS,
 }).catch(async (error: unknown) => {
-  await Promise.allSettled([events.close(), guestAdmission.close()]);
+  await Promise.allSettled([
+    events.close(),
+    guestAdmission.close(),
+    reminderScheduler?.close(),
+    notificationDeliveryWorker?.close(),
+    Promise.resolve(smtpTransport?.close?.()),
+  ]);
   throw error;
 });
 
 server.listen(environment.PORT, () => {
   reminderScheduler?.start();
+  notificationDeliveryWorker?.start();
   console.info(
     `Boardnest API listening on port ${environment.PORT} (HTTP + WebSocket /graphql)`,
   );
@@ -116,7 +159,7 @@ let shutdownPromise: Promise<void> | null = null;
 function shutdown(signal: NodeJS.Signals): void {
   if (shutdownPromise) return;
   console.info(
-    `${signal} received; closing API, WebSocket, scheduler, and Redis clients`,
+    `${signal} received; closing API, WebSocket, background workers, and Redis clients`,
   );
   shutdownPromise = server.shutdown().catch((error: unknown) => {
     console.error('API shutdown failed', error);

@@ -153,26 +153,29 @@ and `pnpm dev` when dependencies are already installed.
 
 Copy [.env.example](.env.example) to `.env`. Never commit the populated file.
 
-| Variable                         | Visibility           | Purpose                                       |
-| -------------------------------- | -------------------- | --------------------------------------------- |
-| `VITE_API_URL`                   | Public               | Browser authentication API origin             |
-| `VITE_GRAPHQL_URL`               | Public               | GraphQL HTTP endpoint                         |
-| `VITE_WS_URL`                    | Public               | GraphQL WebSocket endpoint                    |
-| `VITE_TURNSTILE_SITE_KEY`        | Public               | Cloudflare Turnstile widget site key          |
-| `API_URL`                        | Server               | Public API origin used for Auth callback URLs |
-| `COOKIE_SAME_SITE`               | Server               | `lax` or production-only `none` cookie mode   |
-| `SUPABASE_URL`                   | Server               | Supabase project URL                          |
-| `SUPABASE_PUBLISHABLE_KEY`       | Server               | Public key used by the API with user JWTs     |
-| `REDIS_URL`                      | Secret in production | Redis/Upstash protocol URL                    |
-| `GUEST_RATE_LIMIT_SECRET`        | Secret               | HMAC key for pseudonymous guest IP counters   |
-| `REMINDER_SCHEDULER_ENABLED`     | Server               | Enables background due-reminder processing    |
-| `REMINDER_SCHEDULER_INTERVAL_MS` | Server               | Scheduler polling interval                    |
-| `REMINDER_SCHEDULER_BATCH_SIZE`  | Server               | Maximum reminders claimed per poll            |
-| `SUPABASE_SERVICE_ROLE_KEY`      | Secret               | Scheduler and account-deletion credential     |
-| `TRUST_PROXY_HOPS`               | Server               | Trusted reverse-proxy hop count               |
-| `PORT`                           | Server               | API listening port                            |
-| `CORS_ORIGIN`                    | Server               | Exact trusted frontend origin                 |
-| `NODE_ENV`                       | Server               | `development`, `test`, or `production`        |
+| Variable                            | Visibility           | Purpose                                       |
+| ----------------------------------- | -------------------- | --------------------------------------------- |
+| `VITE_API_URL`                      | Public               | Browser authentication API origin             |
+| `VITE_GRAPHQL_URL`                  | Public               | GraphQL HTTP endpoint                         |
+| `VITE_WS_URL`                       | Public               | GraphQL WebSocket endpoint                    |
+| `VITE_TURNSTILE_SITE_KEY`           | Public               | Cloudflare Turnstile widget site key          |
+| `API_URL`                           | Server               | Public API origin used for Auth callback URLs |
+| `COOKIE_SAME_SITE`                  | Server               | `lax` or production-only `none` cookie mode   |
+| `SUPABASE_URL`                      | Server               | Supabase project URL                          |
+| `SUPABASE_PUBLISHABLE_KEY`          | Server               | Public key used by the API with user JWTs     |
+| `REDIS_URL`                         | Secret in production | Redis/Upstash protocol URL                    |
+| `GUEST_RATE_LIMIT_SECRET`           | Secret               | HMAC key for pseudonymous guest IP counters   |
+| `REMINDER_SCHEDULER_ENABLED`        | Server               | Enables background due-reminder processing    |
+| `REMINDER_SCHEDULER_INTERVAL_MS`    | Server               | Scheduler polling interval                    |
+| `REMINDER_SCHEDULER_BATCH_SIZE`     | Server               | Maximum reminders claimed per poll            |
+| `EMAIL_DELIVERY_WORKER_ENABLED`     | Server               | Enables SMTP outbox delivery                  |
+| `EMAIL_DELIVERY_WORKER_INTERVAL_MS` | Server               | Email outbox polling interval                 |
+| `EMAIL_DELIVERY_WORKER_BATCH_SIZE`  | Server               | Maximum email deliveries claimed per poll     |
+| `SUPABASE_SERVICE_ROLE_KEY`         | Secret               | Background worker and account deletion key    |
+| `TRUST_PROXY_HOPS`                  | Server               | Trusted reverse-proxy hop count               |
+| `PORT`                              | Server               | API listening port                            |
+| `CORS_ORIGIN`                       | Server               | Exact trusted frontend origin                 |
+| `NODE_ENV`                          | Server               | `development`, `test`, or `production`        |
 
 Values prefixed with `VITE_` are embedded into public JavaScript. Database
 passwords, service-role keys, Redis credentials, and deployment tokens must
