@@ -20,6 +20,7 @@ import {
   type AccountDeletionService,
 } from './auth/account-deletion-service.js';
 import type { GuestAdmission } from './auth/guest-admission.js';
+import type { MailTransport } from './email/smtp-transport.js';
 import {
   clearSessionCookies,
   type CookieSameSite,
@@ -32,6 +33,7 @@ import type { BoardnestDataService } from './graphql/data-service.js';
 import { type GraphQLContext, resolvers, typeDefs } from './graphql/schema.js';
 import { createMaxDepthRule } from './graphql/security.js';
 import type { InvitationEmailService } from './invitations/invitation-email.js';
+import type { NotificationDeliveryWorker } from './notifications/notification-delivery-worker.js';
 import {
   createInMemoryEventBus,
   type RealtimeEventBus,
@@ -70,9 +72,11 @@ export interface ServerOptions {
   createDataService: (accessToken: string) => BoardnestDataService;
   cookieSameSite?: CookieSameSite;
   events?: RealtimeEventBus;
+  emailTransport?: Pick<MailTransport, 'close'>;
   guestAdmission: GuestAdmission;
   introspection?: boolean;
   invitationEmail?: InvitationEmailService;
+  notificationDeliveryWorker?: NotificationDeliveryWorker;
   reminderScheduler?: ReminderScheduler;
   secureCookies: boolean;
   trustProxyHops?: number;
@@ -144,7 +148,10 @@ export async function createServer(
               await websocketCleanup.dispose();
               await Promise.all([
                 events.close(),
+                Promise.resolve(options.emailTransport?.close?.()),
                 options.guestAdmission.close(),
+                options.notificationDeliveryWorker?.close() ??
+                  Promise.resolve(),
                 options.reminderScheduler?.close() ?? Promise.resolve(),
               ]);
             },

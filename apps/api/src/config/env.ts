@@ -11,6 +11,22 @@ const environmentSchema = z
       z.enum(['resend', 'smtp']).optional(),
     ),
     GUEST_RATE_LIMIT_SECRET: z.string().min(32),
+    EMAIL_DELIVERY_WORKER_BATCH_SIZE: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .default(25),
+    EMAIL_DELIVERY_WORKER_ENABLED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+    EMAIL_DELIVERY_WORKER_INTERVAL_MS: z.coerce
+      .number()
+      .int()
+      .min(5_000)
+      .max(300_000)
+      .default(15_000),
     INVITATION_EMAIL_FROM: z.preprocess(
       (value) => (value === '' ? undefined : value),
       z.string().trim().min(3).max(320).optional(),
@@ -143,6 +159,25 @@ const environmentSchema = z
         message:
           'SUPABASE_SERVICE_ROLE_KEY is required when the reminder scheduler is enabled.',
         path: ['SUPABASE_SERVICE_ROLE_KEY'],
+      });
+    }
+    if (
+      environment.EMAIL_DELIVERY_WORKER_ENABLED &&
+      !environment.SUPABASE_SERVICE_ROLE_KEY
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message:
+          'SUPABASE_SERVICE_ROLE_KEY is required when the email delivery worker is enabled.',
+        path: ['SUPABASE_SERVICE_ROLE_KEY'],
+      });
+    }
+    if (environment.EMAIL_DELIVERY_WORKER_ENABLED && emailProvider !== 'smtp') {
+      context.addIssue({
+        code: 'custom',
+        message:
+          'EMAIL_PROVIDER=smtp is required when the email delivery worker is enabled.',
+        path: ['EMAIL_PROVIDER'],
       });
     }
   });

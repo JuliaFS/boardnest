@@ -74,6 +74,9 @@ exactly, including scheme and port.
   recipient, optional actor, and project/task workspace context. Authenticated
   users can manage only their own event preferences, and those choices cannot
   exceed plan capabilities or monthly email quotas.
+- Email delivery claim, completion, and failure functions are service-role-only.
+  Completion requires the active lease token, worker logs omit recipients and
+  payloads, and SMTP credentials remain server-only Railway variables.
 
 The detailed permission matrix is in [Database](DATABASE.md).
 

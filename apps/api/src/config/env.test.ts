@@ -16,6 +16,9 @@ describe('API environment', () => {
     expect(parseEnvironment(required)).toEqual({
       ...required,
       COOKIE_SAME_SITE: 'lax',
+      EMAIL_DELIVERY_WORKER_BATCH_SIZE: 25,
+      EMAIL_DELIVERY_WORKER_ENABLED: false,
+      EMAIL_DELIVERY_WORKER_INTERVAL_MS: 15_000,
       NODE_ENV: 'development',
       PORT: 4000,
       REMINDER_SCHEDULER_BATCH_SIZE: 100,
@@ -57,6 +60,50 @@ describe('API environment', () => {
       REMINDER_SCHEDULER_ENABLED: true,
       REMINDER_SCHEDULER_INTERVAL_MS: 5_000,
       SUPABASE_SERVICE_ROLE_KEY: 'sb_secret_boardnest_server_only_test_value',
+    });
+  });
+
+  it('requires SMTP and a service role key when the email worker is enabled', () => {
+    expect(() =>
+      parseEnvironment({
+        ...required,
+        EMAIL_DELIVERY_WORKER_ENABLED: 'true',
+      }),
+    ).toThrow(
+      'SUPABASE_SERVICE_ROLE_KEY is required when the email delivery worker is enabled',
+    );
+
+    expect(() =>
+      parseEnvironment({
+        ...required,
+        EMAIL_DELIVERY_WORKER_ENABLED: 'true',
+        INVITATION_EMAIL_FROM: 'Boardnest <notifications@example.com>',
+        RESEND_API_KEY: 're_test',
+        SUPABASE_SERVICE_ROLE_KEY: 'sb_secret_boardnest_server_only_test_value',
+      }),
+    ).toThrow(
+      'EMAIL_PROVIDER=smtp is required when the email delivery worker is enabled',
+    );
+
+    expect(
+      parseEnvironment({
+        ...required,
+        EMAIL_DELIVERY_WORKER_BATCH_SIZE: '10',
+        EMAIL_DELIVERY_WORKER_ENABLED: 'true',
+        EMAIL_DELIVERY_WORKER_INTERVAL_MS: '5000',
+        EMAIL_PROVIDER: 'smtp',
+        INVITATION_EMAIL_FROM: 'Boardnest <boardnest@gmail.com>',
+        SMTP_HOST: 'smtp.gmail.com',
+        SMTP_PASSWORD: 'google-app-password',
+        SMTP_PORT: '587',
+        SMTP_SECURE: 'false',
+        SMTP_USER: 'boardnest@gmail.com',
+        SUPABASE_SERVICE_ROLE_KEY: 'sb_secret_boardnest_server_only_test_value',
+      }),
+    ).toMatchObject({
+      EMAIL_DELIVERY_WORKER_BATCH_SIZE: 10,
+      EMAIL_DELIVERY_WORKER_ENABLED: true,
+      EMAIL_DELIVERY_WORKER_INTERVAL_MS: 5_000,
     });
   });
 

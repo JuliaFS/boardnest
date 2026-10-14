@@ -1,4 +1,8 @@
-import nodemailer from 'nodemailer';
+import {
+  createSmtpTransport,
+  type EmailMessage,
+  type MailTransport,
+} from '../email/smtp-transport.js';
 
 export interface WorkspaceInvitationEmail {
   email: string;
@@ -18,18 +22,6 @@ interface ResendInvitationEmailOptions {
   fetchImplementation?: typeof fetch;
   from: string;
   webUrl: string;
-}
-
-interface InvitationMessage {
-  from: string;
-  html: string;
-  subject: string;
-  text: string;
-  to: string;
-}
-
-interface MailTransport {
-  sendMail: (message: InvitationMessage) => Promise<unknown>;
 }
 
 interface SmtpInvitationEmailOptions {
@@ -84,14 +76,12 @@ export function createSmtpInvitationEmailService({
   port,
   secure,
   user,
-  transport = nodemailer.createTransport({
-    auth: { pass: password, user },
-    connectionTimeout: 10_000,
-    greetingTimeout: 10_000,
+  transport = createSmtpTransport({
     host,
+    password,
     port,
     secure,
-    socketTimeout: 10_000,
+    user,
   }),
   webUrl,
 }: SmtpInvitationEmailOptions): InvitationEmailService {
@@ -108,7 +98,7 @@ function createInvitationMessage(
   invitation: WorkspaceInvitationEmail,
   from: string,
   webUrl: string,
-): InvitationMessage {
+): EmailMessage {
   const acceptUrl = `${webUrl.replace(/\/$/, '')}/invite/${encodeURIComponent(invitation.token)}`;
   const workspaceName = escapeHtml(invitation.workspaceName);
   const inviterName = escapeHtml(invitation.inviterName);
