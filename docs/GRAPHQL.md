@@ -235,6 +235,13 @@ This stage persists and manages schedules only. A later scheduler stage will
 turn due rows into idempotent `custom.notification` events and email outbox
 deliveries.
 
+`notificationDeliveries(workspaceId:, limit:, offset:)` exposes the current
+recipient's email outbox history. The API never accepts a recipient ID for this
+query: it derives the user from the verified session, and PostgreSQL RLS applies
+the same recipient boundary. The response includes delivery lifecycle, attempt
+counts, retry timing, and sanitized failure details, but not email addresses,
+payloads, SMTP responses, or credentials.
+
 ## Subscriptions
 
 | Subscription  | Scope                     | Payload         |

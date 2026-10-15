@@ -137,6 +137,25 @@ export interface NotificationPlanEvent {
   updated_at: string;
 }
 
+export interface NotificationDelivery {
+  attempt_count: number;
+  channel: string;
+  created_at: string;
+  delivered_at: string | null;
+  error_code: string | null;
+  error_message: string | null;
+  id: string;
+  max_attempts: number;
+  next_attempt_at: string;
+  notification_id: string | null;
+  reminder_id: string | null;
+  scheduled_for: string;
+  status: string;
+  updated_at: string;
+  user_id: string;
+  workspace_id: string;
+}
+
 export interface NotificationPreferences {
   created_at: string;
   email_enabled: boolean;

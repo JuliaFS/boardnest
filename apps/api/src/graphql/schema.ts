@@ -291,6 +291,7 @@ export const typeDefs = `#graphql
   enum ScheduledNotificationKind { ONCE INTERVAL }
   enum ScheduleIntervalUnit { MINUTE HOUR DAY WEEK MONTH YEAR }
   enum ScheduledNotificationStatus { ACTIVE PAUSED COMPLETED CANCELED }
+  enum NotificationDeliveryStatus { PENDING PROCESSING DELIVERED FAILED CANCELED }
 
   type User {
     id: ID!
@@ -418,6 +419,25 @@ export const typeDefs = `#graphql
     eventType: String!
     inAppEnabled: Boolean!
     emailEnabled: Boolean!
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  type NotificationDelivery {
+    id: ID!
+    workspaceId: ID!
+    userId: ID!
+    reminderId: ID
+    notificationId: ID
+    channel: String!
+    status: NotificationDeliveryStatus!
+    scheduledFor: String!
+    nextAttemptAt: String!
+    attemptCount: Int!
+    maxAttempts: Int!
+    deliveredAt: String
+    errorCode: String
+    errorMessage: String
     createdAt: String!
     updatedAt: String!
   }
@@ -562,6 +582,7 @@ export const typeDefs = `#graphql
   type ProjectConnection { nodes: [Project!]!, pageInfo: PageInfo! }
   type TaskConnection { nodes: [Task!]!, pageInfo: PageInfo! }
   type NotificationConnection { nodes: [Notification!]!, pageInfo: PageInfo! }
+  type NotificationDeliveryConnection { nodes: [NotificationDelivery!]!, pageInfo: PageInfo! }
   type ActivityConnection { nodes: [ActivityLog!]!, pageInfo: PageInfo! }
   type WorkspaceMemberConnection { nodes: [WorkspaceMember!]!, pageInfo: PageInfo! }
   type ProjectMemberConnection { nodes: [ProjectMember!]!, pageInfo: PageInfo! }
@@ -689,6 +710,7 @@ export const typeDefs = `#graphql
     notificationEventTypes: [NotificationEventType!]!
     notificationEventPreferences: [NotificationEventPreference!]!
     notificationPlanEvents(workspaceId: ID!): [NotificationPlanEvent!]!
+    notificationDeliveries(workspaceId: ID, limit: Int = 25, offset: Int = 0): NotificationDeliveryConnection!
     workspaceSubscription(workspaceId: ID!): WorkspaceSubscription
     taskReminders(taskId: ID!): [TaskReminder!]!
     taskReminder(id: ID!): TaskReminder
@@ -812,6 +834,13 @@ export const resolvers = {
     COMPLETED: 'completed',
     PAUSED: 'paused',
   },
+  NotificationDeliveryStatus: {
+    CANCELED: 'canceled',
+    DELIVERED: 'delivered',
+    FAILED: 'failed',
+    PENDING: 'pending',
+    PROCESSING: 'processing',
+  },
   Workspace: snakeCaseFields([
     'createdBy',
     'archivedAt',
@@ -883,6 +912,21 @@ export const resolvers = {
     'eventType',
     'inAppEnabled',
     'emailEnabled',
+    'createdAt',
+    'updatedAt',
+  ]),
+  NotificationDelivery: snakeCaseFields([
+    'workspaceId',
+    'userId',
+    'reminderId',
+    'notificationId',
+    'scheduledFor',
+    'nextAttemptAt',
+    'attemptCount',
+    'maxAttempts',
+    'deliveredAt',
+    'errorCode',
+    'errorMessage',
     'createdAt',
     'updatedAt',
   ]),
@@ -1108,6 +1152,18 @@ export const resolvers = {
       requireAuth(context).data.notificationPlanEvents(
         parse(uuidSchema, args.workspaceId),
       ),
+    notificationDeliveries: async (
+      _parent: unknown,
+      args: PaginationArguments & { workspaceId?: string | null },
+      context: GraphQLContext,
+    ) => {
+      const authenticated = requireAuth(context);
+      return authenticated.data.notificationDeliveries(
+        authenticated.user.id,
+        args.workspaceId ? uuid(args.workspaceId) : null,
+        pagination(args),
+      );
+    },
     workspaceSubscription: async (
       _parent: unknown,
       args: { workspaceId: string },

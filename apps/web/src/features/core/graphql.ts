@@ -130,6 +130,103 @@ export interface NotificationsData {
   notifications: { nodes: NotificationSummary[]; pageInfo: PageInfo };
 }
 
+export interface ScheduledNotificationSummary {
+  id: string;
+  workspaceId: string;
+  projectId: string | null;
+  taskId: string | null;
+  createdBy: string;
+  title: string;
+  body: string | null;
+  scheduleKind: 'INTERVAL' | 'ONCE';
+  intervalValue: number | null;
+  intervalUnit: 'DAY' | 'HOUR' | 'MINUTE' | 'MONTH' | 'WEEK' | 'YEAR' | null;
+  timezone: string;
+  nextRunAt: string;
+  endsAt: string | null;
+  lastRunAt: string | null;
+  inAppEnabled: boolean;
+  emailEnabled: boolean;
+  status: 'ACTIVE' | 'CANCELED' | 'COMPLETED' | 'PAUSED';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NotificationEventTypeSummary {
+  code: string;
+  displayName: string;
+  description: string;
+  category: string;
+  defaultInAppEnabled: boolean;
+  defaultEmailEnabled: boolean;
+}
+
+export interface NotificationEventPreferenceSummary {
+  eventType: string;
+  inAppEnabled: boolean;
+  emailEnabled: boolean;
+}
+
+export interface NotificationPlanEventSummary {
+  planCode: string;
+  eventType: string;
+  inAppEnabled: boolean;
+  emailEnabled: boolean;
+}
+
+export interface NotificationPreferencesSummary {
+  inAppEnabled: boolean;
+  emailEnabled: boolean;
+}
+
+export interface NotificationDeliverySummary {
+  id: string;
+  workspaceId: string;
+  reminderId: string | null;
+  notificationId: string | null;
+  channel: string;
+  status: 'CANCELED' | 'DELIVERED' | 'FAILED' | 'PENDING' | 'PROCESSING';
+  scheduledFor: string;
+  nextAttemptAt: string;
+  attemptCount: number;
+  maxAttempts: number;
+  deliveredAt: string | null;
+  errorCode: string | null;
+  errorMessage: string | null;
+  createdAt: string;
+}
+
+export interface WorkspaceSubscriptionSummary {
+  effectivePlanCode: string;
+  plan: {
+    code: string;
+    displayName: string;
+    maxScheduledNotifications: number;
+    minScheduleIntervalMinutes: number;
+    monthlyEmailLimit: number;
+    emailEnabled: boolean;
+  };
+}
+
+export interface ScheduledNotificationsData {
+  scheduledNotifications: ScheduledNotificationSummary[];
+}
+
+export interface NotificationSettingsData {
+  notificationEventTypes: NotificationEventTypeSummary[];
+  notificationEventPreferences: NotificationEventPreferenceSummary[];
+  notificationPlanEvents: NotificationPlanEventSummary[];
+  notificationPreferences: NotificationPreferencesSummary;
+  workspaceSubscription: WorkspaceSubscriptionSummary | null;
+}
+
+export interface NotificationDeliveriesData {
+  notificationDeliveries: {
+    nodes: NotificationDeliverySummary[];
+    pageInfo: PageInfo;
+  };
+}
+
 export interface TaskData {
   task: TaskSummary | null;
 }
@@ -618,6 +715,195 @@ export const NOTIFICATIONS_QUERY = gql`
         limit
         offset
       }
+    }
+  }
+`;
+
+export const SCHEDULED_NOTIFICATIONS_QUERY = gql`
+  query ScheduledNotifications($workspaceId: ID!) {
+    scheduledNotifications(workspaceId: $workspaceId) {
+      id
+      workspaceId
+      projectId
+      taskId
+      createdBy
+      title
+      body
+      scheduleKind
+      intervalValue
+      intervalUnit
+      timezone
+      nextRunAt
+      endsAt
+      lastRunAt
+      inAppEnabled
+      emailEnabled
+      status
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const NOTIFICATION_SETTINGS_QUERY = gql`
+  query NotificationSettings($workspaceId: ID!) {
+    notificationPreferences {
+      inAppEnabled
+      emailEnabled
+    }
+    notificationEventTypes {
+      code
+      displayName
+      description
+      category
+      defaultInAppEnabled
+      defaultEmailEnabled
+    }
+    notificationEventPreferences {
+      eventType
+      inAppEnabled
+      emailEnabled
+    }
+    notificationPlanEvents(workspaceId: $workspaceId) {
+      planCode
+      eventType
+      inAppEnabled
+      emailEnabled
+    }
+    workspaceSubscription(workspaceId: $workspaceId) {
+      effectivePlanCode
+      plan {
+        code
+        displayName
+        maxScheduledNotifications
+        minScheduleIntervalMinutes
+        monthlyEmailLimit
+        emailEnabled
+      }
+    }
+  }
+`;
+
+export const NOTIFICATION_DELIVERIES_QUERY = gql`
+  query NotificationDeliveries($workspaceId: ID!, $limit: Int = 25) {
+    notificationDeliveries(workspaceId: $workspaceId, limit: $limit) {
+      nodes {
+        id
+        workspaceId
+        reminderId
+        notificationId
+        channel
+        status
+        scheduledFor
+        nextAttemptAt
+        attemptCount
+        maxAttempts
+        deliveredAt
+        errorCode
+        errorMessage
+        createdAt
+      }
+      pageInfo {
+        hasNextPage
+        limit
+        offset
+      }
+    }
+  }
+`;
+
+const SCHEDULED_NOTIFICATION_FIELDS = gql`
+  fragment ScheduledNotificationFields on ScheduledNotification {
+    id
+    workspaceId
+    projectId
+    taskId
+    createdBy
+    title
+    body
+    scheduleKind
+    intervalValue
+    intervalUnit
+    timezone
+    nextRunAt
+    endsAt
+    lastRunAt
+    inAppEnabled
+    emailEnabled
+    status
+    createdAt
+    updatedAt
+  }
+`;
+
+export const CREATE_SCHEDULED_NOTIFICATION_MUTATION = gql`
+  mutation CreateScheduledNotification(
+    $input: CreateScheduledNotificationInput!
+  ) {
+    createScheduledNotification(input: $input) {
+      ...ScheduledNotificationFields
+    }
+  }
+  ${SCHEDULED_NOTIFICATION_FIELDS}
+`;
+
+export const UPDATE_SCHEDULED_NOTIFICATION_MUTATION = gql`
+  mutation UpdateScheduledNotification(
+    $id: ID!
+    $input: UpdateScheduledNotificationInput!
+  ) {
+    updateScheduledNotification(id: $id, input: $input) {
+      ...ScheduledNotificationFields
+    }
+  }
+  ${SCHEDULED_NOTIFICATION_FIELDS}
+`;
+
+export const PAUSE_SCHEDULED_NOTIFICATION_MUTATION = gql`
+  mutation PauseScheduledNotification($id: ID!) {
+    pauseScheduledNotification(id: $id) {
+      ...ScheduledNotificationFields
+    }
+  }
+  ${SCHEDULED_NOTIFICATION_FIELDS}
+`;
+
+export const RESUME_SCHEDULED_NOTIFICATION_MUTATION = gql`
+  mutation ResumeScheduledNotification($id: ID!) {
+    resumeScheduledNotification(id: $id) {
+      ...ScheduledNotificationFields
+    }
+  }
+  ${SCHEDULED_NOTIFICATION_FIELDS}
+`;
+
+export const DELETE_SCHEDULED_NOTIFICATION_MUTATION = gql`
+  mutation DeleteScheduledNotification($id: ID!) {
+    deleteScheduledNotification(id: $id) {
+      id
+    }
+  }
+`;
+
+export const UPDATE_NOTIFICATION_EVENT_PREFERENCE_MUTATION = gql`
+  mutation UpdateNotificationEventPreference(
+    $input: UpdateNotificationEventPreferenceInput!
+  ) {
+    updateNotificationEventPreference(input: $input) {
+      eventType
+      inAppEnabled
+      emailEnabled
+    }
+  }
+`;
+
+export const UPDATE_NOTIFICATION_PREFERENCES_MUTATION = gql`
+  mutation UpdateNotificationPreferences(
+    $input: UpdateNotificationPreferencesInput!
+  ) {
+    updateNotificationPreferences(input: $input) {
+      inAppEnabled
+      emailEnabled
     }
   }
 `;

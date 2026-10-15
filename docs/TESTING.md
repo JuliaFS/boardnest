@@ -88,6 +88,10 @@ The custom schedule smoke test verifies hierarchical context, owner-only RLS,
 the Free plan's minimum interval and ten-active-schedule quota, and quota
 release after pausing. GraphQL resolver tests cover normalized creation,
 contextual reads, lifecycle mutations, deletion, and invalid shape rejection.
+Frontend tests cover schedule form validation, actionable plan-limit messages,
+the accessible creation modal, personal-recipient disclosure, and plan usage.
+The API resolver suite also verifies that delivery history always derives its
+recipient from the authenticated session.
 
 ## Covered critical behavior
 
