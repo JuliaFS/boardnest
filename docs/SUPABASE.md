@@ -45,7 +45,7 @@ successful query with no returned rows means the migration is not installed.
 The migration affects future inserts and does not remove guest resources that
 were created before it was applied.
 
-Continue through `390_system_notification_events.sql` in filename order. The scheduler
+Continue through `400_notification_hardening.sql` in filename order. The scheduler
 migration adds columns, an index, and narrowly granted functions; the account
 deletion migration makes creator attribution nullable and adds narrowly granted
 preview/preparation functions. The member cleanup migration installs a trigger
@@ -67,6 +67,11 @@ The system event migration adds private trigger producers only. It does not
 backfill historical activity or send mail when installed; eligible future
 membership, task, assignment, and comment writes create canonical notification
 and email-outbox rows according to the recipient's plan and preferences.
+The notification hardening migration adds a processing-lease index, queued
+delivery cancellation on email opt-out, claim-time preference and plan
+revalidation, and service-role-only aggregate health metrics. It does not send
+or delete email. Pending deliveries that are no longer eligible become
+`canceled`; in-flight SMTP messages cannot be recalled.
 
 Verify the system-event installation:
 

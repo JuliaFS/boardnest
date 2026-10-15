@@ -181,7 +181,18 @@ result of every completed worker attempt without storing credentials or full
 SMTP responses. Logs contain only aggregate batch counts and errors, never
 recipient addresses or message payloads.
 
+Preference changes also apply to queued work. Disabling global email, a legacy
+task/reminder switch, or an event-specific email channel cancels matching
+pending and retryable failed deliveries. Terminal failures remain immutable
+operational history. Every claim revalidates current preferences and plan
+entitlements, so a downgrade or missed trigger path cannot send an email that
+is no longer eligible. In-flight SMTP delivery cannot be recalled, while an
+ineligible stale lease is canceled rather than reclaimed.
+
 The delivery model is at-least-once. A stable SMTP `Message-ID`, database
 idempotency key, and lease token prevent ordinary duplicates. SMTP itself
 cannot provide an absolute exactly-once guarantee if the provider accepts a
 message immediately before the database becomes unavailable.
+
+Production metrics, alert thresholds, and recovery steps are documented in
+[Notification operations](NOTIFICATION_OPERATIONS.md).

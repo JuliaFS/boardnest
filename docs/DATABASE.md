@@ -274,6 +274,12 @@ newer attempt. Stale processing leases become claimable after five minutes.
 Transient failures use bounded exponential backoff; permanent failures consume
 the remaining attempt budget.
 
+Claims revalidate the recipient's current global and event preferences plus
+the effective plan entitlement. Preference opt-outs cancel queued work, and
+stale ineligible leases are canceled after the five-minute lease window.
+Service-role monitoring can read aggregate, non-recipient metrics through
+`notification_delivery_health`; application users cannot execute it.
+
 ### `notification_delivery_attempts`
 
 **Purpose:** Immutable operational history for completed SMTP attempts.
