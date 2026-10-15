@@ -79,6 +79,7 @@ Run every file exactly once and in filename order:
 | `370_notification_delivery_worker.sql`  | SMTP claim leases, retry state, and attempt history         |
 | `380_custom_notification_schedules.sql` | Contextual custom schedules, plan limits, RLS, and grants   |
 | `390_system_notification_events.sql`    | Atomic membership, task, assignment, and comment producers  |
+| `400_notification_hardening.sql`        | Preference-safe claims, monitoring, and outbox indexes      |
 
 Do not run `database/tests/*.sql` as migrations. The smoke test inserts deterministic temporary records and rolls the transaction back.
 
@@ -139,7 +140,10 @@ idempotency key prevents one notification occurrence from being queued twice.
 The scheduler and canonical event producer queue eligible email occurrences
 here. The API-hosted Nodemailer worker claims due rows with `SKIP LOCKED`, uses
 token-protected five-minute leases, retries transient failures with bounded
-backoff, and appends results to `notification_delivery_attempts`.
+backoff, and appends results to `notification_delivery_attempts`. Claims
+revalidate current preferences and plan entitlements. Preference opt-outs
+cancel queued rows, and the service-role-only `notification_delivery_health`
+function exposes aggregate operational metrics without recipient data.
 
 `process_due_task_reminders` is a service-role-only scheduler transaction. It
 claims bounded batches with `FOR UPDATE SKIP LOCKED`, creates idempotent in-app

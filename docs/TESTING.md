@@ -96,6 +96,12 @@ The system event smoke test verifies workspace and project membership, task
 creation, assignment, detail and status changes, comments, reminders, actor
 exclusion, reminder event-specific opt-out, and workspace-removal privacy
 cleanup.
+The notification hardening smoke test verifies queued-delivery cancellation on
+global and event-specific unsubscribe, duplicate producer idempotency, distinct
+leases across competing claims, quota boundaries, retry exhaustion, stale-token
+protection, and aggregate production metrics. Worker unit tests additionally
+verify deterministic retry `Message-ID` values and that one permanent SMTP
+failure does not abort the remaining claimed batch.
 
 ## Covered critical behavior
 
@@ -122,3 +128,5 @@ cleanup.
 - concurrency-safe reminder scheduling and local-time recurrence.
 - account-deletion ownership transfer, explicit personal-workspace deletion,
   creator anonymization, and cookie cleanup.
+- queued-email unsubscribe enforcement, duplicate-delivery protection, quota
+  boundaries, SMTP failure isolation, and service-role production metrics.

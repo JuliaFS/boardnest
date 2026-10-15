@@ -260,6 +260,7 @@ GitHub `production` environment, never by the application repository.
 - [Frontend](docs/FRONTEND.md)
 - [Members and invitations](docs/MEMBERS.md)
 - [Notifications](docs/NOTIFICATIONS.md)
+- [Notification operations](docs/NOTIFICATION_OPERATIONS.md)
 - [WebSockets](docs/WEBSOCKETS.md)
 - [Redis](docs/REDIS.md)
 - [Security](docs/SECURITY.md)
