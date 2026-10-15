@@ -287,6 +287,12 @@ It validates tenant context, resolves preferences and plan entitlements, creates
 an idempotent in-app row when enabled, and queues entitled email work. See
 [Notifications](NOTIFICATIONS.md).
 
+Private trigger producers invoke this boundary for workspace/project membership,
+task creation and meaningful updates, task status changes and assignment, and
+comment creation. `private.task_notification_recipients` limits broadcasts to
+current project/task participants who still have project access. Actor exclusion
+prevents self-notification loops, while task position-only writes are ignored.
+
 ### `invitations`
 
 **Purpose:** Invite an email address before or after account creation.

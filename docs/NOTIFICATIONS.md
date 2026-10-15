@@ -7,6 +7,12 @@ project, task, comment, reminder, and custom-notification events. It also
 centralizes channel selection, plan entitlements, user preferences,
 idempotency, and email-outbox creation.
 
+Workspace and project membership, task creation, assignment, detail and status
+changes, and comment creation now produce canonical events atomically through
+database triggers. Reminder occurrences continue through the dedicated atomic
+scheduler. Mentions and deadline events are reserved for a later stage because
+neither domain model has been introduced yet.
+
 Canonical events queue email work in `notification_deliveries`. The API-hosted
 delivery worker claims due rows and sends them through Nodemailer SMTP.
 Invitation email remains a separate synchronous flow. Custom schedules have an
@@ -99,6 +105,29 @@ skips rows carrying `reminder_id` so quota checks are not executed twice.
 
 Application clients cannot execute this producer function. They can only read
 their own notifications and manage their own preferences.
+
+## System producer coverage
+
+System producers apply these recipient rules:
+
+- a newly added workspace or project member receives the membership event;
+- workspace removal is reported to the remaining owners and admins because the
+  removed account immediately loses access and its workspace-private data is
+  deleted;
+- project removal is reported directly to the affected member while workspace
+  access still exists;
+- task assignment is delivered directly to the assignee;
+- task creation, meaningful detail changes, status changes, and comments are
+  broadcast to current project/task participants, excluding the actor;
+- task position-only updates inside one status do not create notification noise;
+- reminder recipients are controlled by the reminder's normalized recipient
+  list; pre-insert channel filters apply the canonical global, event-specific,
+  and plan gates without changing scheduler idempotency.
+
+Every producer builds a stable occurrence key. Retrying an insert or processing
+the same reminder occurrence therefore cannot duplicate its in-app or email
+delivery. Payloads contain identifiers and application routes, never comment
+bodies, email addresses, or credentials.
 
 ## GraphQL API
 

@@ -45,7 +45,7 @@ successful query with no returned rows means the migration is not installed.
 The migration affects future inserts and does not remove guest resources that
 were created before it was applied.
 
-Continue through `380_custom_notification_schedules.sql` in filename order. The scheduler
+Continue through `390_system_notification_events.sql` in filename order. The scheduler
 migration adds columns, an index, and narrowly granted functions; the account
 deletion migration makes creator attribution nullable and adds narrowly granted
 preview/preparation functions. The member cleanup migration installs a trigger
@@ -63,6 +63,33 @@ lease token column, and three service-role-only claim/result functions.
 The custom schedule migration adds one table, two plan capability columns,
 private validation helpers, RLS policies, and authenticated CRUD grants. It
 does not create notification occurrences or send messages when installed.
+The system event migration adds private trigger producers only. It does not
+backfill historical activity or send mail when installed; eligible future
+membership, task, assignment, and comment writes create canonical notification
+and email-outbox rows according to the recipient's plan and preferences.
+
+Verify the system-event installation:
+
+```sql
+select tgname
+from pg_trigger
+where not tgisinternal
+  and tgname in (
+    'workspace_members_notify_added',
+    'workspace_members_notify_removed',
+    'project_members_notify_added',
+    'project_members_notify_removed',
+    'tasks_notify_created',
+    'tasks_notify_updated',
+    'task_assignees_notify_added',
+    'task_comments_notify_created',
+    'notifications_00_filter_reminder_channel',
+    'notification_deliveries_00_filter_reminder_channel'
+  )
+order by tgname;
+```
+
+The query must return all ten trigger names.
 
 ## 3. Verify the result
 

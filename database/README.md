@@ -78,6 +78,7 @@ Run every file exactly once and in filename order:
 | `360_notification_event_model.sql`      | Event catalog, plan gates, preferences, and email fan-out   |
 | `370_notification_delivery_worker.sql`  | SMTP claim leases, retry state, and attempt history         |
 | `380_custom_notification_schedules.sql` | Contextual custom schedules, plan limits, RLS, and grants   |
+| `390_system_notification_events.sql`    | Atomic membership, task, assignment, and comment producers  |
 
 Do not run `database/tests/*.sql` as migrations. The smoke test inserts deterministic temporary records and rolls the transaction back.
 
@@ -126,6 +127,12 @@ defaults. `plan_notification_events` caps channels for every plan/event pair,
 while `notification_event_preferences` stores optional user overrides. The
 service-role-only `create_notification_event` function validates tenant
 context, resolves those layers, and creates retry-safe in-app and outbox rows.
+Database triggers call that boundary in the same transaction as workspace and
+project membership changes, task creation/detail/status changes, assignment,
+and comment creation. Task broadcasts target current project/task participants
+and omit the actor. Reminder occurrences retain their existing atomic scheduler
+path and idempotency boundary, with pre-insert filters applying canonical event
+preferences to both channels.
 
 `notification_deliveries` is a durable server-managed email outbox. Its unique
 idempotency key prevents one notification occurrence from being queued twice.
