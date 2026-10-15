@@ -6,6 +6,7 @@ import type { BoardnestDataService } from './data-service.js';
 import type {
   NotificationEventPreference,
   NotificationEventType,
+  NotificationDelivery,
   NotificationPlanEvent,
   NotificationPreferences,
   Project,
@@ -145,6 +146,25 @@ const notificationPlanEvent: NotificationPlanEvent = {
   in_app_enabled: true,
   plan_code: 'free',
   updated_at: timestamp,
+};
+
+const notificationDelivery: NotificationDelivery = {
+  attempt_count: 1,
+  channel: 'email',
+  created_at: timestamp,
+  delivered_at: timestamp,
+  error_code: null,
+  error_message: null,
+  id: 'aef722f5-7dc7-4801-85bb-0559dfc9c27e',
+  max_attempts: 5,
+  next_attempt_at: timestamp,
+  notification_id: null,
+  reminder_id: reminderId,
+  scheduled_for: timestamp,
+  status: 'delivered',
+  updated_at: timestamp,
+  user_id: user.id,
+  workspace_id: workspaceId,
 };
 
 type MutationResolver = (
@@ -696,6 +716,28 @@ describe('GraphQL reminder workflow resolvers', () => {
     expect(notificationEventTypes).toHaveBeenCalledOnce();
     expect(notificationEventPreferences).toHaveBeenCalledWith(user.id);
     expect(notificationPlanEvents).toHaveBeenCalledWith(workspaceId);
+  });
+
+  it('lists only the current user delivery history for a workspace', async () => {
+    const notificationDeliveries = vi.fn().mockResolvedValue({
+      nodes: [notificationDelivery],
+      pageInfo: { hasNextPage: false, limit: 25, offset: 0 },
+    });
+
+    await expect(
+      runQuery(
+        'notificationDeliveries',
+        { limit: 25, offset: 0, workspaceId },
+        context(createDataService({ notificationDeliveries })),
+      ),
+    ).resolves.toEqual({
+      nodes: [notificationDelivery],
+      pageInfo: { hasNextPage: false, limit: 25, offset: 0 },
+    });
+    expect(notificationDeliveries).toHaveBeenCalledWith(user.id, workspaceId, {
+      limit: 25,
+      offset: 0,
+    });
   });
 
   it('upserts one notification event preference for the current user', async () => {

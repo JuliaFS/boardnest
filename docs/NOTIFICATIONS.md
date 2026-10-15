@@ -9,9 +9,9 @@ idempotency, and email-outbox creation.
 
 Canonical events queue email work in `notification_deliveries`. The API-hosted
 delivery worker claims due rows and sends them through Nodemailer SMTP.
-Invitation email remains a separate synchronous flow. Custom schedules now
-have an authorized GraphQL CRUD API; executing their due occurrences and the
-notification settings UI remain later stages.
+Invitation email remains a separate synchronous flow. Custom schedules have an
+authorized GraphQL CRUD API and a frontend for personal schedule management.
+Executing their due occurrences remains a later scheduler stage.
 
 ## Event catalog
 
@@ -122,6 +122,18 @@ Custom schedule clients use `scheduledNotifications`,
 belongs to its creator, requires workspace context, and may additionally point
 to an accessible project and task. The API accepts one-time schedules or a
 custom value/unit interval with an IANA timezone.
+
+The notification center presents inbox, schedule, preference, and email
+delivery views. It combines catalog defaults, explicit user overrides, and
+workspace-plan entitlements so unavailable channels are visible but disabled.
+Custom schedules currently notify only their creator. The recipient control
+states this explicitly; team recipients require a future normalized recipient
+model and authorization rules rather than a frontend-only selector.
+
+`notificationDeliveries` lists only rows addressed to the authenticated user.
+It provides pending, processing, delivered, failed, and canceled status with
+attempt counts and sanitized failure information for support and retry
+visibility.
 
 ## Delivery boundary
 

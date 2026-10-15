@@ -50,6 +50,8 @@ in a portfolio presentation.
   invitations delivered through configurable Resend or SMTP providers;
 - task reminder delivery and user-owned custom notification schedule CRUD with
   workspace, project, or task context and plan-aware recurrence limits;
+- a notification center for custom schedule creation and lifecycle management,
+  event-specific channel preferences, and recipient-visible email status;
 - responsive protected routes with loading, error, empty, and missing-resource
   states;
 - Vitest, React Testing Library, Playwright, coverage gates, Docker images,

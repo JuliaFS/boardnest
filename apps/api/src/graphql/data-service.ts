@@ -15,6 +15,7 @@ import type {
   Notification,
   NotificationEventPreference,
   NotificationEventType,
+  NotificationDelivery,
   NotificationPlanEvent,
   NotificationPreferences,
   Pagination,
@@ -214,6 +215,24 @@ const notificationPreferencesSchema = z.object({
   updated_at: z.string(),
   user_id: z.uuid(),
 });
+const notificationDeliverySchema = z.object({
+  attempt_count: z.number().int().nonnegative(),
+  channel: z.string(),
+  created_at: z.string(),
+  delivered_at: z.string().nullable(),
+  error_code: z.string().nullable(),
+  error_message: z.string().nullable(),
+  id: z.uuid(),
+  max_attempts: z.number().int().positive(),
+  next_attempt_at: z.string(),
+  notification_id: z.uuid().nullable(),
+  reminder_id: z.uuid().nullable(),
+  scheduled_for: z.string(),
+  status: z.string(),
+  updated_at: z.string(),
+  user_id: z.uuid(),
+  workspace_id: z.uuid(),
+});
 const subscriptionPlanSchema = z.object({
   code: z.string(),
   description: z.string(),
@@ -348,6 +367,11 @@ export interface BoardnestDataService {
     userId: string,
   ) => Promise<NotificationEventPreference[]>;
   notificationEventTypes: () => Promise<NotificationEventType[]>;
+  notificationDeliveries: (
+    userId: string,
+    workspaceId: string | null,
+    pagination: Pagination,
+  ) => Promise<Connection<NotificationDelivery>>;
   notificationPlanEvents: (
     workspaceId: string,
   ) => Promise<NotificationPlanEvent[]>;
@@ -944,6 +968,22 @@ class SupabaseBoardnestDataService implements BoardnestDataService {
       .order('category')
       .order('code');
     return list(notificationEventTypeSchema, response);
+  }
+
+  async notificationDeliveries(
+    userId: string,
+    workspaceId: string | null,
+    pagination: Pagination,
+  ): Promise<Connection<NotificationDelivery>> {
+    let query = this.client
+      .from('notification_deliveries')
+      .select('*')
+      .eq('user_id', userId);
+    if (workspaceId) query = query.eq('workspace_id', workspaceId);
+    const response = await query
+      .order('created_at', { ascending: false })
+      .range(pagination.offset, pagination.offset + pagination.limit);
+    return connection(notificationDeliverySchema, response, pagination);
   }
 
   async deleteNotificationEventPreference(

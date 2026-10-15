@@ -110,6 +110,9 @@ because they are personal and may target only a workspace or project. The API
 owns their CRUD contract while PostgreSQL validates hierarchy, RLS, timezone,
 channels, and plan limits. Executing due custom occurrences remains a separate
 scheduler stage, so this API stage does not silently introduce another timer.
+The notification frontend reads email delivery status through the authenticated
+GraphQL data service. Recipient identity is derived from the session rather
+than browser input, and the database independently enforces it with RLS.
 
 HTTPS terminates at the platform edge. Production WebSocket connections use WSS.
 

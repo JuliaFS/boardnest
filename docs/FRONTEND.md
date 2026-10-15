@@ -17,7 +17,8 @@ The application provides:
 - search and priority filtering;
 - pointer and keyboard drag-and-drop with optimistic movement and rollback;
 - live task create/update/delete synchronization through subscriptions;
-- notification reads;
+- notification inbox, personal custom schedule create/edit/pause/resume/delete,
+  event-specific delivery preferences, and email delivery history;
 - workspace member rosters, role management, and pending invitations;
 - project rosters with add, role-change, and removal controls;
 - reusable loading, retryable error, empty, and not-found states.
