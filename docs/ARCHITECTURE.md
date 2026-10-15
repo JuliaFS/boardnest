@@ -99,6 +99,14 @@ preferences against effective plan capabilities, creates an idempotent in-app
 notification, and queues entitled email work. Event production never performs
 SMTP I/O inside the database transaction. See [Notifications](NOTIFICATIONS.md).
 
+Membership, task, assignment, and comment tables use narrow PostgreSQL trigger
+producers so source data and its canonical notification commit or roll back
+together regardless of which authorized API path performs the write. Broadcast
+events target current participants and exclude the actor. Direct membership and
+assignment events target the affected account, while workspace removals target
+remaining administrators because removal also purges the former member's
+workspace-private notification history.
+
 Email delivery is at-least-once. `FOR UPDATE SKIP LOCKED`, a five-minute stale
 lease, a per-attempt lock token, stable SMTP `Message-ID`, and the existing
 outbox idempotency key prevent normal duplicate processing while allowing

@@ -92,6 +92,10 @@ Frontend tests cover schedule form validation, actionable plan-limit messages,
 the accessible creation modal, personal-recipient disclosure, and plan usage.
 The API resolver suite also verifies that delivery history always derives its
 recipient from the authenticated session.
+The system event smoke test verifies workspace and project membership, task
+creation, assignment, detail and status changes, comments, reminders, actor
+exclusion, reminder event-specific opt-out, and workspace-removal privacy
+cleanup.
 
 ## Covered critical behavior
 
@@ -109,6 +113,8 @@ recipient from the authenticated session.
   workspace capability queries.
 - canonical notification event metadata, plan gates, per-event preferences,
   and idempotent in-app/email fan-out.
+- atomic system-event production for memberships, tasks, assignments, comments,
+  and reminder occurrences, including actor and recipient rules.
 - email outbox claim leases, SMTP delivery, retry classification and backoff,
   terminal failures, and per-attempt history.
 - custom notification schedule CRUD, context authorization, channel gates, and
