@@ -45,13 +45,14 @@ successful query with no returned rows means the migration is not installed.
 The migration affects future inserts and does not remove guest resources that
 were created before it was applied.
 
-Continue through `400_notification_hardening.sql` in filename order. The scheduler
-migration adds columns, an index, and narrowly granted functions; the account
-deletion migration makes creator attribution nullable and adds narrowly granted
-preview/preparation functions. The member cleanup migration installs a trigger
-but does not remove existing memberships. Applying these migrations does not
-delete an account or member. Do not run files under `database/tests` against the
-hosted project; they are intended only for an isolated disposable database.
+Continue through `410_custom_notification_scheduler.sql` in filename order. The
+reminder scheduler migration adds columns, an index, and narrowly granted
+functions; the account deletion migration makes creator attribution nullable
+and adds narrowly granted preview/preparation functions. The member cleanup
+migration installs a trigger but does not remove existing memberships. Applying
+these migrations does not delete an account or member. Do not run files under
+`database/tests` against the hosted project; they are intended only for an
+isolated disposable database.
 The invitation acceptance migration grants only its email-matched atomic
 function to authenticated users and does not accept or modify existing pending
 invitations when installed.
@@ -60,9 +61,12 @@ preference tables, extends `notifications` with actor and idempotency context,
 and installs a service-role-only producer plus an email-outbox trigger.
 The delivery worker migration adds a non-destructive attempt-history table, a
 lease token column, and three service-role-only claim/result functions.
-The custom schedule migration adds one table, two plan capability columns,
+The custom schedule API migration adds one table, two plan capability columns,
 private validation helpers, RLS policies, and authenticated CRUD grants. It
-does not create notification occurrences or send messages when installed.
+does not create notification occurrences or send messages when installed. The
+custom scheduler migration adds a local recurrence anchor and service-role-only
+due processor. Installing it is non-destructive and does not execute future
+rows until the API scheduler is enabled.
 The system event migration adds private trigger producers only. It does not
 backfill historical activity or send mail when installed; eligible future
 membership, task, assignment, and comment writes create canonical notification
@@ -141,13 +145,13 @@ The Dashboard project settings provide:
 
 - Project URL → backend `SUPABASE_URL`
 - Public publishable key → backend `SUPABASE_PUBLISHABLE_KEY`
-- Server secret/service-role key → background-worker and account-deletion Railway secret
+- Server secret/service-role key → schedulers, background worker, and account-deletion Railway secret
 - PostgreSQL connection string, reserved for CLI administration
 
 Boardnest uses the current `sb_publishable_...` key format on the API server.
 The browser does not receive a Supabase client or key. Normal request handling
 needs `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`; the account-deletion flow
-and enabled background scheduler also need the service-role key for their
+and enabled background schedulers also need the service-role key for their
 narrowly granted RPCs.
 
 ## 5. Secret boundaries

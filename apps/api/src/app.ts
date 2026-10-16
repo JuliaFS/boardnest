@@ -33,6 +33,7 @@ import type { BoardnestDataService } from './graphql/data-service.js';
 import { type GraphQLContext, resolvers, typeDefs } from './graphql/schema.js';
 import { createMaxDepthRule } from './graphql/security.js';
 import type { InvitationEmailService } from './invitations/invitation-email.js';
+import type { CustomNotificationScheduler } from './notifications/custom-notification-scheduler.js';
 import type { NotificationDeliveryWorker } from './notifications/notification-delivery-worker.js';
 import {
   createInMemoryEventBus,
@@ -71,6 +72,7 @@ export interface ServerOptions {
   corsOrigin: string;
   createDataService: (accessToken: string) => BoardnestDataService;
   cookieSameSite?: CookieSameSite;
+  customNotificationScheduler?: CustomNotificationScheduler;
   events?: RealtimeEventBus;
   emailTransport?: Pick<MailTransport, 'close'>;
   guestAdmission: GuestAdmission;
@@ -148,6 +150,8 @@ export async function createServer(
               await websocketCleanup.dispose();
               await Promise.all([
                 events.close(),
+                options.customNotificationScheduler?.close() ??
+                  Promise.resolve(),
                 Promise.resolve(options.emailTransport?.close?.()),
                 options.guestAdmission.close(),
                 options.notificationDeliveryWorker?.close() ??

@@ -61,8 +61,8 @@ exactly, including scheme and port.
   owners and admins retain administrative access.
 - GraphQL resolvers require authentication and use a Supabase client carrying
   the current user's JWT. Normal requests never use the service-role key. Only
-  the background reminder scheduler and authenticated account-deletion service
-  use it to call their dedicated RPCs.
+  the background schedulers and authenticated account-deletion service use it
+  to call their dedicated RPCs.
 - RLS helpers live in a non-exposed `private` schema with controlled execution
   grants and fully qualified relation names.
 - Database triggers protect cross-tenant relationships and invariants such as

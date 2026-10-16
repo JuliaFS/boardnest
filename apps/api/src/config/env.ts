@@ -6,6 +6,22 @@ const environmentSchema = z
     API_URL: z.url(),
     COOKIE_SAME_SITE: z.enum(['lax', 'none']).default('lax'),
     CORS_ORIGIN: z.url(),
+    CUSTOM_NOTIFICATION_SCHEDULER_BATCH_SIZE: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(500)
+      .default(100),
+    CUSTOM_NOTIFICATION_SCHEDULER_ENABLED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+    CUSTOM_NOTIFICATION_SCHEDULER_INTERVAL_MS: z.coerce
+      .number()
+      .int()
+      .min(5_000)
+      .max(300_000)
+      .default(30_000),
     EMAIL_PROVIDER: z.preprocess(
       (value) => (value === '' ? undefined : value),
       z.enum(['resend', 'smtp']).optional(),
@@ -158,6 +174,17 @@ const environmentSchema = z
         code: 'custom',
         message:
           'SUPABASE_SERVICE_ROLE_KEY is required when the reminder scheduler is enabled.',
+        path: ['SUPABASE_SERVICE_ROLE_KEY'],
+      });
+    }
+    if (
+      environment.CUSTOM_NOTIFICATION_SCHEDULER_ENABLED &&
+      !environment.SUPABASE_SERVICE_ROLE_KEY
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message:
+          'SUPABASE_SERVICE_ROLE_KEY is required when the custom notification scheduler is enabled.',
         path: ['SUPABASE_SERVICE_ROLE_KEY'],
       });
     }

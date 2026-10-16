@@ -102,6 +102,11 @@ leases across competing claims, quota boundaries, retry exhaustion, stale-token
 protection, and aggregate production metrics. Worker unit tests additionally
 verify deterministic retry `Message-ID` values and that one permanent SMTP
 failure does not abort the remaining claimed batch.
+The custom scheduler smoke test verifies one-time completion, channel masking,
+stable occurrence replay, month-end anchoring, DST-safe local recurrence, and
+missed-interval recovery. Scheduler unit tests cover bounded RPC calls,
+same-process overlapping-run coalescing, parallel API instances, recovery after
+a failed poll, and shutdown.
 
 ## Covered critical behavior
 
@@ -126,6 +131,8 @@ failure does not abort the remaining claimed batch.
 - custom notification schedule CRUD, context authorization, channel gates, and
   plan-specific count and interval limits.
 - concurrency-safe reminder scheduling and local-time recurrence.
+- concurrency-safe custom notification scheduling, stable replay, calendar
+  anchoring, and missed-occurrence recovery.
 - account-deletion ownership transfer, explicit personal-workspace deletion,
   creator anonymization, and cookie cleanup.
 - queued-email unsubscribe enforcement, duplicate-delivery protection, quota
