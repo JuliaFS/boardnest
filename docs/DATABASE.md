@@ -242,7 +242,7 @@ reminders for archived or completed tasks.
 
 **Purpose:** Store personal one-time and custom-interval notification schedules independently of task reminder recipients.
 
-**Important columns:** Owner, workspace with optional project/task context, title and body, schedule kind, interval value/unit, IANA timezone, next/end/last occurrence timestamps, channels, and lifecycle status.
+**Important columns:** Owner, workspace with optional project/task context, title and body, schedule kind, interval value/unit, IANA timezone, local recurrence anchor, next/end/last occurrence timestamps, channels, and lifecycle status.
 
 **Relationships:** Workspace context is required. Project and task composite foreign keys prevent cross-workspace or cross-project context. Deleting the selected context or owner removes the schedule.
 
@@ -250,7 +250,7 @@ reminders for archived or completed tasks.
 
 **Security:** Only the owner can read or mutate a schedule, and the owner must retain access to its workspace and optional private context. A protected trigger validates context, timezone, effective channel preferences, plan quota, and minimum interval on every insert, update, and resume.
 
-Guest, Free, and Pro allow respectively 3, 10, and 100 active custom schedules per user/workspace. Their minimum recurring intervals are one day, one hour, and five minutes. The table is an API model only in this stage; a later scheduler will produce `custom.notification` occurrences.
+Guest, Free, and Pro allow respectively 3, 10, and 100 active custom schedules per user/workspace. Their minimum recurring intervals are one day, one hour, and five minutes. The service-role scheduler claims due rows concurrently, produces canonical `custom.notification` events, completes one-time rows, preserves month-end and local DST intent, and skips stale missed occurrences without flooding the recipient.
 
 ### Reminder-generated `notifications`
 

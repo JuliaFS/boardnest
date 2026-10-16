@@ -14,7 +14,9 @@ The API emits these aggregate messages:
 - `Notification delivery worker error` when claiming or recording a batch
   fails;
 - `Processed ... due task reminder(s)` after reminder scheduling work;
-- `Reminder scheduler error` when the scheduler RPC fails.
+- `Reminder scheduler error` when the scheduler RPC fails;
+- `Processed ... due custom notification schedule(s)` after custom schedule work;
+- `Custom notification scheduler error` when its RPC fails.
 
 Railway should retain these logs and alert on repeated worker or scheduler
 errors. Do not alert on one retryable SMTP failure alone; the outbox records it
@@ -68,7 +70,8 @@ healthy worker can reclaim an abandoned attempt before an operator intervenes.
 
 1. Confirm Railway reports the API deployment as healthy and `/health` returns
    `{"service":"boardnest-api","status":"ok"}`.
-2. Confirm `REMINDER_SCHEDULER_ENABLED=true` and
+2. Confirm `REMINDER_SCHEDULER_ENABLED=true`,
+   `CUSTOM_NOTIFICATION_SCHEDULER_ENABLED=true`, and
    `EMAIL_DELIVERY_WORKER_ENABLED=true` on the Railway API service.
 3. Run `notification_delivery_health()` and record aggregate values.
 4. Search Railway logs for worker, scheduler, SMTP authentication, and Supabase
@@ -112,8 +115,9 @@ use the new preference.
 
 ## Verification after deployment
 
-1. Apply migrations through `400_notification_hardening.sql`.
-2. Run `database/tests/011_notification_hardening.sql` only against a
+1. Apply migrations through `410_custom_notification_scheduler.sql`.
+2. Run `database/tests/011_notification_hardening.sql` and
+   `database/tests/012_custom_notification_scheduler.sql` only against a
    disposable Supabase-compatible database.
 3. Deploy one API replica and verify normal reminder and email delivery.
 4. Disable email for the test account before a queued future delivery. Confirm

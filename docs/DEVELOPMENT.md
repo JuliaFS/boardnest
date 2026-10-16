@@ -89,6 +89,9 @@ These values are read only by the API process:
 - `INVITATION_EMAIL_FROM` (required when email delivery is enabled)
 - `SMTP_HOST`, `SMTP_PORT`, and `SMTP_SECURE` (required for SMTP)
 - `SMTP_USER` and `SMTP_PASSWORD` (required for SMTP; server-only secrets)
+- `CUSTOM_NOTIFICATION_SCHEDULER_ENABLED`
+- `CUSTOM_NOTIFICATION_SCHEDULER_INTERVAL_MS`
+- `CUSTOM_NOTIFICATION_SCHEDULER_BATCH_SIZE`
 - `REMINDER_SCHEDULER_ENABLED`
 - `REMINDER_SCHEDULER_INTERVAL_MS`
 - `REMINDER_SCHEDULER_BATCH_SIZE`
@@ -100,7 +103,7 @@ These values are read only by the API process:
 `SUPABASE_PUBLISHABLE_KEY` is deliberately public and is also used by the API
 client to support every Supabase signing-key mode. The service-role key and
 direct database URL shown in `.env.example` are secrets. The service-role key is
-required for account deletion, when `REMINDER_SCHEDULER_ENABLED=true`, and when
+required for account deletion, when either scheduler is enabled, and when
 `EMAIL_DELIVERY_WORKER_ENABLED=true`.
 Without it, ordinary local UI development still works but the deletion endpoint
 returns 503. Never prefix secrets with `VITE_`, log them, commit them, or send
@@ -116,6 +119,9 @@ App Password as `SMTP_PASSWORD`. Port `465` with `SMTP_SECURE=true` is also
 supported. Set `EMAIL_DELIVERY_WORKER_ENABLED=true` only after migration 370 is
 applied; the worker uses the same SMTP transport and sender as invitations.
 Never use the normal Gmail password or expose SMTP credentials to the browser.
+Set `CUSTOM_NOTIFICATION_SCHEDULER_ENABLED=true` only after migration 410 is
+applied. Its interval and batch settings have the same bounds as the task
+reminder scheduler.
 
 ## Workspace conventions
 

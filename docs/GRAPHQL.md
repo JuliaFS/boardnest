@@ -21,8 +21,8 @@ submits a bearer token. The API extracts the access token from its `HttpOnly`
 cookie, rotates an expired session when possible, and passes the authenticated
 user's JWT to Supabase. GraphQL request handling deliberately does not use the
 service-role key, so RLS remains its resource-authorization boundary. The
-separate background reminder scheduler uses that key only for its dedicated,
-non-GraphQL RPC.
+separate background reminder and custom-notification schedulers use that key
+only for their dedicated, non-GraphQL RPCs.
 
 Subscriptions use the same `/graphql` path with the `graphql-transport-ws`
 protocol. The WebSocket handshake carries the eligible `HttpOnly` access cookie;
@@ -231,9 +231,10 @@ preferences, quota, and minimum interval on every activation. Guest, Free, and
 Pro plans allow 3/10/100 active schedules with minimum intervals of one day,
 one hour, and five minutes respectively.
 
-This stage persists and manages schedules only. A later scheduler stage will
-turn due rows into idempotent `custom.notification` events and email outbox
-deliveries.
+The service-role custom notification scheduler turns due rows into idempotent
+`custom.notification` events and entitled email outbox deliveries. GraphQL
+clients manage schedule intent only; occurrence execution remains a trusted
+background operation.
 
 `notificationDeliveries(workspaceId:, limit:, offset:)` exposes the current
 recipient's email outbox history. The API never accepts a recipient ID for this

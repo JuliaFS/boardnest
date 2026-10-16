@@ -16,8 +16,8 @@ neither domain model has been introduced yet.
 Canonical events queue email work in `notification_deliveries`. The API-hosted
 delivery worker claims due rows and sends them through Nodemailer SMTP.
 Invitation email remains a separate synchronous flow. Custom schedules have an
-authorized GraphQL CRUD API and a frontend for personal schedule management.
-Executing their due occurrences remains a later scheduler stage.
+authorized GraphQL CRUD API, a frontend for personal schedule management, and a
+service-role scheduler that produces due canonical occurrences.
 
 ## Event catalog
 
@@ -158,6 +158,22 @@ workspace-plan entitlements so unavailable channels are visible but disabled.
 Custom schedules currently notify only their creator. The recipient control
 states this explicitly; team recipients require a future normalized recipient
 model and authorization rules rather than a frontend-only selector.
+
+## Custom schedule execution
+
+`process_due_scheduled_notifications` claims a bounded due batch with `FOR
+UPDATE SKIP LOCKED`. Each row produces a stable event key from the schedule ID
+and due timestamp, then calls `create_notification_event` with the schedule's
+requested channel mask. The producer rechecks current preferences and plan
+entitlements at execution time.
+
+One-time schedules become `completed`. Minute/hour recurrences use elapsed time
+so a UTC offset change neither duplicates nor removes an interval. Day, week,
+month, and year recurrences retain their original local calendar anchor and
+wall-clock time across DST. Month/year occurrences clamp to the target month's
+final day without permanent date drift. After downtime, one due occurrence is
+produced and the schedule advances directly to the first future occurrence
+instead of replaying every missed interval.
 
 `notificationDeliveries` lists only rows addressed to the authenticated user.
 It provides pending, processing, delivered, failed, and canceled status with

@@ -116,8 +116,9 @@ the provider accepts a message but the success update cannot reach PostgreSQL.
 Custom notification schedules are stored separately from task reminders
 because they are personal and may target only a workspace or project. The API
 owns their CRUD contract while PostgreSQL validates hierarchy, RLS, timezone,
-channels, and plan limits. Executing due custom occurrences remains a separate
-scheduler stage, so this API stage does not silently introduce another timer.
+channels, and plan limits. A separate API-hosted timer invokes the bounded,
+service-role-only custom scheduler transaction; PostgreSQL owns occurrence
+idempotency, channel masking, local-calendar recurrence, and atomic advancement.
 The notification frontend reads email delivery status through the authenticated
 GraphQL data service. Recipient identity is derived from the session rather
 than browser input, and the database independently enforces it with RLS.

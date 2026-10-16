@@ -108,30 +108,33 @@ selected by the `rediss://` scheme.
    Dockerfile's local default.
 7. Add these service variables:
 
-| Variable                            | Production value                                  |
-| ----------------------------------- | ------------------------------------------------- |
-| `API_URL`                           | Exact public API origin, without a trailing slash |
-| `COOKIE_SAME_SITE`                  | `lax` for same-site subdomains; otherwise `none`  |
-| `CORS_ORIGIN`                       | Exact Vercel/custom web origin                    |
-| `EMAIL_PROVIDER`                    | `resend` for production or `smtp` for SMTP        |
-| `INVITATION_EMAIL_FROM`             | Provider-authorized sender address                |
-| `NODE_ENV`                          | `production`                                      |
-| `REDIS_URL`                         | Private Upstash `rediss://...` connection string  |
-| `RESEND_API_KEY`                    | Server-only Resend sending key                    |
-| `SMTP_HOST`                         | SMTP host; `smtp.gmail.com` for Gmail             |
-| `SMTP_PASSWORD`                     | SMTP secret; Google App Password for Gmail        |
-| `SMTP_PORT`                         | `587` for Gmail STARTTLS                          |
-| `SMTP_SECURE`                       | `false` for Gmail on port 587                     |
-| `SMTP_USER`                         | Authenticated SMTP/Gmail address                  |
-| `REMINDER_SCHEDULER_ENABLED`        | `true`                                            |
-| `REMINDER_SCHEDULER_INTERVAL_MS`    | `30000`                                           |
-| `REMINDER_SCHEDULER_BATCH_SIZE`     | `100`                                             |
-| `EMAIL_DELIVERY_WORKER_ENABLED`     | `true`                                            |
-| `EMAIL_DELIVERY_WORKER_INTERVAL_MS` | `15000`                                           |
-| `EMAIL_DELIVERY_WORKER_BATCH_SIZE`  | `25`                                              |
-| `SUPABASE_PUBLISHABLE_KEY`          | Supabase public publishable key                   |
-| `SUPABASE_SERVICE_ROLE_KEY`         | Supabase secret service-role key                  |
-| `SUPABASE_URL`                      | Supabase project URL                              |
+| Variable                                    | Production value                                  |
+| ------------------------------------------- | ------------------------------------------------- |
+| `API_URL`                                   | Exact public API origin, without a trailing slash |
+| `COOKIE_SAME_SITE`                          | `lax` for same-site subdomains; otherwise `none`  |
+| `CORS_ORIGIN`                               | Exact Vercel/custom web origin                    |
+| `EMAIL_PROVIDER`                            | `resend` for production or `smtp` for SMTP        |
+| `INVITATION_EMAIL_FROM`                     | Provider-authorized sender address                |
+| `NODE_ENV`                                  | `production`                                      |
+| `REDIS_URL`                                 | Private Upstash `rediss://...` connection string  |
+| `RESEND_API_KEY`                            | Server-only Resend sending key                    |
+| `SMTP_HOST`                                 | SMTP host; `smtp.gmail.com` for Gmail             |
+| `SMTP_PASSWORD`                             | SMTP secret; Google App Password for Gmail        |
+| `SMTP_PORT`                                 | `587` for Gmail STARTTLS                          |
+| `SMTP_SECURE`                               | `false` for Gmail on port 587                     |
+| `SMTP_USER`                                 | Authenticated SMTP/Gmail address                  |
+| `CUSTOM_NOTIFICATION_SCHEDULER_ENABLED`     | `true`                                            |
+| `CUSTOM_NOTIFICATION_SCHEDULER_INTERVAL_MS` | `30000`                                           |
+| `CUSTOM_NOTIFICATION_SCHEDULER_BATCH_SIZE`  | `100`                                             |
+| `REMINDER_SCHEDULER_ENABLED`                | `true`                                            |
+| `REMINDER_SCHEDULER_INTERVAL_MS`            | `30000`                                           |
+| `REMINDER_SCHEDULER_BATCH_SIZE`             | `100`                                             |
+| `EMAIL_DELIVERY_WORKER_ENABLED`             | `true`                                            |
+| `EMAIL_DELIVERY_WORKER_INTERVAL_MS`         | `15000`                                           |
+| `EMAIL_DELIVERY_WORKER_BATCH_SIZE`          | `25`                                              |
+| `SUPABASE_PUBLISHABLE_KEY`                  | Supabase public publishable key                   |
+| `SUPABASE_SERVICE_ROLE_KEY`                 | Supabase secret service-role key                  |
+| `SUPABASE_URL`                              | Supabase project URL                              |
 
 The API serves HTTP, GraphQL, and WebSockets from the same process. Railway
 must not be configured as a short-lived serverless function.
@@ -142,7 +145,7 @@ and verified sender, or select `smtp` with all SMTP values. Gmail SMTP is useful
 for initial testing but a transactional provider is recommended for production.
 Keep every provider credential in Railway only. The notification worker
 requires SMTP; Resend remains supported for invitation-only delivery. Apply
-migrations through `400_notification_hardening.sql` before deploying this
+migrations through `410_custom_notification_scheduler.sql` before deploying this
 release. Enable the worker only after migration 370 is present. Start with one
 Railway API replica while validating Gmail delivery; database leases support
 multiple replicas when scaling later. Configure outbox monitoring and alerts

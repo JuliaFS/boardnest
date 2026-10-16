@@ -16,6 +16,9 @@ describe('API environment', () => {
     expect(parseEnvironment(required)).toEqual({
       ...required,
       COOKIE_SAME_SITE: 'lax',
+      CUSTOM_NOTIFICATION_SCHEDULER_BATCH_SIZE: 100,
+      CUSTOM_NOTIFICATION_SCHEDULER_ENABLED: false,
+      CUSTOM_NOTIFICATION_SCHEDULER_INTERVAL_MS: 30_000,
       EMAIL_DELIVERY_WORKER_BATCH_SIZE: 25,
       EMAIL_DELIVERY_WORKER_ENABLED: false,
       EMAIL_DELIVERY_WORKER_INTERVAL_MS: 15_000,
@@ -60,6 +63,31 @@ describe('API environment', () => {
       REMINDER_SCHEDULER_ENABLED: true,
       REMINDER_SCHEDULER_INTERVAL_MS: 5_000,
       SUPABASE_SERVICE_ROLE_KEY: 'sb_secret_boardnest_server_only_test_value',
+    });
+  });
+
+  it('requires a service role key only when the custom notification scheduler is enabled', () => {
+    expect(() =>
+      parseEnvironment({
+        ...required,
+        CUSTOM_NOTIFICATION_SCHEDULER_ENABLED: 'true',
+      }),
+    ).toThrow(
+      'SUPABASE_SERVICE_ROLE_KEY is required when the custom notification scheduler is enabled',
+    );
+
+    expect(
+      parseEnvironment({
+        ...required,
+        CUSTOM_NOTIFICATION_SCHEDULER_BATCH_SIZE: '50',
+        CUSTOM_NOTIFICATION_SCHEDULER_ENABLED: 'true',
+        CUSTOM_NOTIFICATION_SCHEDULER_INTERVAL_MS: '5000',
+        SUPABASE_SERVICE_ROLE_KEY: 'sb_secret_boardnest_server_only_test_value',
+      }),
+    ).toMatchObject({
+      CUSTOM_NOTIFICATION_SCHEDULER_BATCH_SIZE: 50,
+      CUSTOM_NOTIFICATION_SCHEDULER_ENABLED: true,
+      CUSTOM_NOTIFICATION_SCHEDULER_INTERVAL_MS: 5_000,
     });
   });
 

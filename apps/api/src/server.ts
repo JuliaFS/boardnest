@@ -10,6 +10,10 @@ import {
   createSmtpInvitationEmailService,
 } from './invitations/invitation-email.js';
 import {
+  createSupabaseCustomNotificationScheduler,
+  type CustomNotificationScheduler,
+} from './notifications/custom-notification-scheduler.js';
+import {
   createSupabaseNotificationDeliveryWorker,
   type NotificationDeliveryWorker,
 } from './notifications/notification-delivery-worker.js';
@@ -77,6 +81,7 @@ const guestAdmission = await createRedisGuestAdmission(
   throw error;
 });
 let reminderScheduler: ReminderScheduler | undefined;
+let customNotificationScheduler: CustomNotificationScheduler | undefined;
 let notificationDeliveryWorker: NotificationDeliveryWorker | undefined;
 const accountDeletionService = environment.SUPABASE_SERVICE_ROLE_KEY
   ? createSupabaseAccountDeletionService({
@@ -94,6 +99,20 @@ if (environment.REMINDER_SCHEDULER_ENABLED) {
   reminderScheduler = createSupabaseReminderScheduler({
     batchSize: environment.REMINDER_SCHEDULER_BATCH_SIZE,
     intervalMs: environment.REMINDER_SCHEDULER_INTERVAL_MS,
+    serviceRoleKey,
+    supabaseUrl: environment.SUPABASE_URL,
+  });
+}
+if (environment.CUSTOM_NOTIFICATION_SCHEDULER_ENABLED) {
+  const serviceRoleKey = environment.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceRoleKey) {
+    throw new Error(
+      'SUPABASE_SERVICE_ROLE_KEY is required when the custom notification scheduler is enabled.',
+    );
+  }
+  customNotificationScheduler = createSupabaseCustomNotificationScheduler({
+    batchSize: environment.CUSTOM_NOTIFICATION_SCHEDULER_BATCH_SIZE,
+    intervalMs: environment.CUSTOM_NOTIFICATION_SCHEDULER_INTERVAL_MS,
     serviceRoleKey,
     supabaseUrl: environment.SUPABASE_URL,
   });
@@ -119,6 +138,7 @@ const server = await createServer({
   ...(accountDeletionService ? { accountDeletionService } : {}),
   authService,
   corsOrigin: environment.CORS_ORIGIN,
+  ...(customNotificationScheduler ? { customNotificationScheduler } : {}),
   createDataService: (accessToken) =>
     createBoardnestDataService(
       environment.SUPABASE_URL,
@@ -138,6 +158,7 @@ const server = await createServer({
 }).catch(async (error: unknown) => {
   await Promise.allSettled([
     events.close(),
+    customNotificationScheduler?.close(),
     guestAdmission.close(),
     reminderScheduler?.close(),
     notificationDeliveryWorker?.close(),
@@ -147,6 +168,7 @@ const server = await createServer({
 });
 
 server.listen(environment.PORT, () => {
+  customNotificationScheduler?.start();
   reminderScheduler?.start();
   notificationDeliveryWorker?.start();
   console.info(

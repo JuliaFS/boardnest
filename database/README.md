@@ -80,6 +80,7 @@ Run every file exactly once and in filename order:
 | `380_custom_notification_schedules.sql` | Contextual custom schedules, plan limits, RLS, and grants   |
 | `390_system_notification_events.sql`    | Atomic membership, task, assignment, and comment producers  |
 | `400_notification_hardening.sql`        | Preference-safe claims, monitoring, and outbox indexes      |
+| `410_custom_notification_scheduler.sql` | Concurrent custom occurrence processing and recurrence      |
 
 Do not run `database/tests/*.sql` as migrations. The smoke test inserts deterministic temporary records and rolls the transaction back.
 
@@ -120,8 +121,9 @@ represented by `schedule_kind = 'once'` and its chosen `next_run_at`.
 `scheduled_notifications` stores user-defined one-time or recurring schedules
 at workspace, project, or task scope. Recurring rows combine a positive
 `interval_value` with minute, hour, day, week, month, or year units and preserve
-an IANA timezone. Stage 380 exposes authorized CRUD data; due-occurrence
-processing is intentionally a separate scheduler stage.
+an IANA timezone plus the original local calendar anchor. Stage 380 exposes
+authorized CRUD data; stage 410 claims due rows, creates canonical occurrences,
+and advances or completes them atomically.
 
 `notification_event_types` defines the canonical event vocabulary and channel
 defaults. `plan_notification_events` caps channels for every plan/event pair,
@@ -151,6 +153,14 @@ notifications, queues eligible email deliveries, and advances or completes the
 schedule. Multiple API instances can run it without delivering the same
 occurrence twice. Missed recurring runs advance to the next future occurrence
 instead of flooding the recipient after downtime.
+
+`process_due_scheduled_notifications` applies the same bounded `SKIP LOCKED`
+claim model to custom schedules. It creates one stable event key per scheduled
+occurrence through `create_notification_event`, respects the schedule's channel
+selection, and completes one-time rows. Minute/hour intervals represent elapsed
+time; day/week/month/year intervals retain the local wall-clock anchor across
+DST. Monthly and yearly recurrence uses the original local date anchor, so a
+schedule from a month end returns to that day when a later month contains it.
 
 The GraphQL API creates a reminder and its first recipient set through
 `create_task_reminder_with_recipients`. Recipient edits use
