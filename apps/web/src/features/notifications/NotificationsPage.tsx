@@ -352,13 +352,15 @@ function InboxPanel({
       return true;
     } catch (mutationError) {
       setActionError(notificationMutationMessage(mutationError));
-      try {
-        await client.query({
-          fetchPolicy: 'network-only',
-          query: UNREAD_NOTIFICATION_COUNT_QUERY,
-        });
-      } catch {
-        // Apollo removes the optimistic layer even when the recovery request fails.
+      if (navigator.onLine) {
+        try {
+          await client.query({
+            fetchPolicy: 'network-only',
+            query: UNREAD_NOTIFICATION_COUNT_QUERY,
+          });
+        } catch {
+          // Apollo removes the optimistic layer even when recovery is unavailable.
+        }
       }
       return false;
     } finally {

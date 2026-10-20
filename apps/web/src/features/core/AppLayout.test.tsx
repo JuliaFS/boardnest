@@ -25,7 +25,11 @@ vi.mock('../auth/AuthProvider', () => ({
   }),
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  delete (document as { visibilityState?: string }).visibilityState;
+  delete (navigator as { onLine?: boolean }).onLine;
+});
 
 describe('AppLayout notification badge', () => {
   it('hides the badge when there are no unread notifications', async () => {
@@ -66,7 +70,7 @@ describe('AppLayout notification badge', () => {
     ).toBeTruthy();
   });
 
-  it('polls the count every 30 seconds', async () => {
+  it('polls the count every 60 seconds', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       renderLayout(4, 5);
@@ -81,6 +85,44 @@ describe('AppLayout notification badge', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('stops polling while the browser tab is hidden', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      renderLayout(6, 7);
+      await screen.findByRole('link', { name: 'Notifications, 6 unread' });
+
+      setVisibilityState('hidden');
+      fireEvent(document, new Event('visibilitychange'));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(UNREAD_NOTIFICATION_POLL_INTERVAL_MS);
+      });
+      expect(
+        screen.getByRole('link', { name: 'Notifications, 6 unread' }),
+      ).toBeTruthy();
+
+      setVisibilityState('visible');
+      fireEvent(document, new Event('visibilitychange'));
+      expect(
+        await screen.findByRole('link', { name: 'Notifications, 7 unread' }),
+      ).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('skips the count query while offline and loads it after reconnecting', async () => {
+    setOnlineState(false);
+    renderLayout(8);
+
+    expect(screen.getByRole('link', { name: 'Notifications' })).toBeTruthy();
+
+    setOnlineState(true);
+    fireEvent(window, new Event('online'));
+    expect(
+      await screen.findByRole('link', { name: 'Notifications, 8 unread' }),
+    ).toBeTruthy();
   });
 });
 
@@ -97,4 +139,18 @@ function renderLayout(...unreadCounts: number[]) {
       </MockedProvider>
     </MemoryRouter>,
   );
+}
+
+function setOnlineState(onLine: boolean) {
+  Object.defineProperty(navigator, 'onLine', {
+    configurable: true,
+    value: onLine,
+  });
+}
+
+function setVisibilityState(visibilityState: DocumentVisibilityState) {
+  Object.defineProperty(document, 'visibilityState', {
+    configurable: true,
+    value: visibilityState,
+  });
 }

@@ -17,27 +17,50 @@ const navigation = [
   { label: 'Settings', to: '/settings' },
 ];
 
-export const UNREAD_NOTIFICATION_POLL_INTERVAL_MS = 30_000;
+export const UNREAD_NOTIFICATION_POLL_INTERVAL_MS = 60_000;
 
 export function AppLayout() {
   const { signOut, user } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
+  const [isTabVisible, setIsTabVisible] = useState(
+    () => document.visibilityState === 'visible',
+  );
   const unreadNotifications = useQuery<UnreadNotificationCountData>(
     UNREAD_NOTIFICATION_COUNT_QUERY,
-    { pollInterval: UNREAD_NOTIFICATION_POLL_INTERVAL_MS },
+    {
+      fetchPolicy: 'network-only',
+      pollInterval:
+        isOnline && isTabVisible ? UNREAD_NOTIFICATION_POLL_INTERVAL_MS : 0,
+      skip: !isOnline,
+    },
   );
   const unreadCount = unreadNotifications.data?.unreadNotificationCount ?? 0;
 
   useEffect(() => {
-    function refreshVisibleTab() {
-      if (document.visibilityState !== 'visible') return;
+    function handleVisibilityChange() {
+      const visible = document.visibilityState === 'visible';
+      setIsTabVisible(visible);
+      if (!visible || !navigator.onLine) return;
       void unreadNotifications.refetch().catch(() => undefined);
     }
 
-    document.addEventListener('visibilitychange', refreshVisibleTab);
+    function handleOnline() {
+      setIsOnline(true);
+    }
+
+    function handleOffline() {
+      setIsOnline(false);
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
     return () => {
-      document.removeEventListener('visibilitychange', refreshVisibleTab);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
     };
   }, [unreadNotifications.refetch]);
 
