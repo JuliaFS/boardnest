@@ -133,6 +133,8 @@ bodies, email addresses, or credentials.
 
 Authenticated clients can use:
 
+- `unreadNotificationCount` for an exact count scoped to the verified current
+  user without accepting a client-supplied user identifier;
 - `notificationEventTypes` for active catalog metadata;
 - `notificationEventPreferences` for the current user's explicit overrides;
 - `notificationPlanEvents(workspaceId:)` for the workspace's effective plan

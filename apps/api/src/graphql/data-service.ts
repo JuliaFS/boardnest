@@ -376,6 +376,7 @@ export interface BoardnestDataService {
     workspaceId: string,
   ) => Promise<NotificationPlanEvent[]>;
   notificationPreferences: (userId: string) => Promise<NotificationPreferences>;
+  unreadNotificationCount: (userId: string) => Promise<number>;
   notifications: (
     userId: string,
     unreadOnly: boolean,
@@ -1162,6 +1163,16 @@ class SupabaseBoardnestDataService implements BoardnestDataService {
       .order('created_at', { ascending: false })
       .range(pagination.offset, pagination.offset + pagination.limit);
     return connection(notificationSchema, response, pagination);
+  }
+
+  async unreadNotificationCount(userId: string): Promise<number> {
+    const response = await this.client
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .is('read_at', null);
+    throwForError(response.error);
+    return z.number().int().nonnegative().parse(response.count);
   }
 
   async notification(id: string): Promise<Notification | null> {

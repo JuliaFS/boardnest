@@ -706,6 +706,7 @@ export const typeDefs = `#graphql
     task(id: ID!): Task
     taskStatuses(projectId: ID!): [TaskStatus!]!
     notifications(unreadOnly: Boolean = false, limit: Int = 25, offset: Int = 0): NotificationConnection!
+    unreadNotificationCount: Int!
     notificationPreferences: NotificationPreferences!
     notificationEventTypes: [NotificationEventType!]!
     notificationEventPreferences: [NotificationEventPreference!]!
@@ -1120,6 +1121,14 @@ export const resolvers = {
         args.unreadOnly ?? false,
         pagination(args),
       );
+    },
+    unreadNotificationCount: async (
+      _parent: unknown,
+      _args: unknown,
+      context: GraphQLContext,
+    ) => {
+      const authenticated = requireAuth(context);
+      return authenticated.data.unreadNotificationCount(authenticated.user.id);
     },
     notificationPreferences: async (
       _parent: unknown,
