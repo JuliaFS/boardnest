@@ -77,7 +77,50 @@ export function notificationMutationMessage(error: unknown): string {
   return message || 'The notification could not be saved. Please try again.';
 }
 
-export function notificationRoute(payload: unknown): string | null {
+const uuidPattern =
+  '[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}';
+const workspaceRoutePattern = new RegExp(`^/workspaces/(${uuidPattern})$`, 'i');
+const projectRoutePattern = new RegExp(`^/projects/(${uuidPattern})$`, 'i');
+const taskRoutePattern = new RegExp(
+  `^/projects/(${uuidPattern})/tasks/(${uuidPattern})$`,
+  'i',
+);
+
+const notificationRouteContextSchema = z.object({
+  payload: z.unknown(),
+  projectId: z.uuid().nullable(),
+  taskId: z.uuid().nullable(),
+  workspaceId: z.uuid(),
+});
+
+export interface NotificationRouteContext {
+  payload: unknown;
+  projectId: string | null;
+  taskId: string | null;
+  workspaceId: string;
+}
+
+export function notificationRoute(context: unknown): string | null {
+  const parsedContext = notificationRouteContextSchema.safeParse(context);
+  if (!parsedContext.success) return null;
+
+  const { payload, projectId, taskId, workspaceId } = parsedContext.data;
+  const payloadRoute = extractPayloadRoute(payload);
+  if (
+    payloadRoute &&
+    routeMatchesContext(payloadRoute, { projectId, taskId, workspaceId })
+  ) {
+    return payloadRoute;
+  }
+
+  if (projectId && taskId) {
+    return `/projects/${projectId}/tasks/${taskId}`;
+  }
+  if (projectId) return `/projects/${projectId}`;
+  return `/workspaces/${workspaceId}`;
+}
+
+function extractPayloadRoute(payload: unknown): string | null {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
     return null;
   }
@@ -86,13 +129,36 @@ export function notificationRoute(payload: unknown): string | null {
   if (typeof route !== 'string') return null;
 
   const normalizedRoute = route.trim();
-  if (
-    !normalizedRoute.startsWith('/') ||
-    normalizedRoute.startsWith('//') ||
-    normalizedRoute.includes('\\')
-  ) {
-    return null;
+  if (normalizedRoute.length > 500) return null;
+
+  return workspaceRoutePattern.test(normalizedRoute) ||
+    projectRoutePattern.test(normalizedRoute) ||
+    taskRoutePattern.test(normalizedRoute)
+    ? normalizedRoute
+    : null;
+}
+
+function routeMatchesContext(
+  route: string,
+  context: Omit<NotificationRouteContext, 'payload'>,
+): boolean {
+  const taskMatch = taskRoutePattern.exec(route);
+  if (taskMatch) {
+    return (
+      equalId(taskMatch[1], context.projectId) &&
+      equalId(taskMatch[2], context.taskId)
+    );
   }
 
-  return normalizedRoute;
+  const projectMatch = projectRoutePattern.exec(route);
+  if (projectMatch) return equalId(projectMatch[1], context.projectId);
+
+  const workspaceMatch = workspaceRoutePattern.exec(route);
+  return workspaceMatch
+    ? equalId(workspaceMatch[1], context.workspaceId)
+    : false;
+}
+
+function equalId(routeId: string | undefined, contextId: string | null) {
+  return routeId?.toLowerCase() === contextId?.toLowerCase();
 }

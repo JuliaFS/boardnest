@@ -102,7 +102,15 @@ describe('NotificationsPage', () => {
     const user = userEvent.setup();
     render(
       <MemoryRouter initialEntries={['/notifications']}>
-        <MockedProvider mocks={notificationMocks([notification()])}>
+        <MockedProvider
+          mocks={notificationMocks([
+            notification({
+              projectId: null,
+              taskId: null,
+              workspaceId: 'invalid-workspace-id',
+            }),
+          ])}
+        >
           <>
             <NotificationsPage />
             <LocationProbe />
@@ -125,6 +133,32 @@ describe('NotificationsPage', () => {
     await waitFor(() => {
       expect(screen.queryByRole('button', { name: 'Mark as read' })).toBeNull();
       expect(screen.getByTestId('location').textContent).toBe('/notifications');
+    });
+  });
+
+  it('derives a task route when payload.route is missing', async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/notifications']}>
+        <MockedProvider mocks={notificationMocks([notification()])}>
+          <>
+            <NotificationsPage />
+            <LocationProbe />
+          </>
+        </MockedProvider>
+      </MemoryRouter>,
+    );
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Open notification: Task assigned',
+      }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location').textContent).toBe(
+        `/projects/${projectId}/tasks/${taskId}`,
+      );
     });
   });
 
@@ -291,7 +325,10 @@ function notificationMocks(
 function notification(
   overrides: Partial<{
     payload: Record<string, unknown>;
+    projectId: string | null;
     readAt: string | null;
+    taskId: string | null;
+    workspaceId: string;
   }> = {},
 ) {
   return {

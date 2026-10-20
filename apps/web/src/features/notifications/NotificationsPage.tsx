@@ -355,7 +355,7 @@ function InboxPanel({
   }
 
   async function openNotification(notification: NotificationSummary) {
-    const route = notificationRoute(notification.payload);
+    const route = notificationRoute(notification);
     if (!route) return;
     if (notification.readAt || (await markAsRead(notification))) {
       void navigate(route);
@@ -373,7 +373,7 @@ function InboxPanel({
         </p>
       ) : null}
       {notifications.map((notification) => {
-        const route = notificationRoute(notification.payload);
+        const route = notificationRoute(notification);
         const pending = pendingNotificationId === notification.id;
         const content = <NotificationContent notification={notification} />;
         return (

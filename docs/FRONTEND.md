@@ -104,11 +104,14 @@ Project membership is managed from the project details page. See
 [Members and invitations](MEMBERS.md) for the workspace invitation flow,
 project roles, and access model.
 
-Inbox entries with an application-relative route are keyboard-accessible and
-open their related workspace, project, or task after being marked as read.
-Entries without a route remain in the inbox and expose a separate `Mark as
-read` action. The read state is updated optimistically while the authenticated
-GraphQL mutation is in flight.
+Inbox entries are keyboard-accessible and open their related workspace,
+project, or task after being marked as read. Payload routes are runtime
+validated against an allowlist and must match the notification's structured
+workspace, project, and task identifiers. Missing or rejected payload routes
+fall back to the deepest valid structured context: task, project, then
+workspace. Entries without any valid destination remain in the inbox and
+expose a separate `Mark as read` action. The read state is updated
+optimistically while the authenticated GraphQL mutation is in flight.
 
 ## Environment
 
