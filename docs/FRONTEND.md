@@ -92,7 +92,7 @@ workflow.
 | `/projects/:projectId`               | Project details and management                             |
 | `/projects/:projectId/board`         | Interactive real-time Kanban board                         |
 | `/projects/:projectId/tasks/:taskId` | Task details and editing                                   |
-| `/notifications`                     | Notification timeline and empty state                      |
+| `/notifications`                     | Actionable notification inbox and schedule management      |
 | `/members`                           | Workspace roster, roles, and pending invitation management |
 | `/invite/:token`                     | Authenticated, email-matched invitation acceptance         |
 | `/settings`                          | Reserved UI extension point for preferences                |
@@ -103,6 +103,12 @@ All application routes are protected. Anonymous visitors are redirected to
 Project membership is managed from the project details page. See
 [Members and invitations](MEMBERS.md) for the workspace invitation flow,
 project roles, and access model.
+
+Inbox entries with an application-relative route are keyboard-accessible and
+open their related workspace, project, or task after being marked as read.
+Entries without a route remain in the inbox and expose a separate `Mark as
+read` action. The read state is updated optimistically while the authenticated
+GraphQL mutation is in flight.
 
 ## Environment
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   notificationMutationMessage,
+  notificationRoute,
   scheduledNotificationFormSchema,
 } from './notification-schemas';
 
@@ -54,5 +55,23 @@ describe('scheduled notification validation', () => {
         ),
       ),
     ).toContain('Pause or delete a schedule');
+  });
+});
+
+describe('notification route parsing', () => {
+  it('accepts an application-relative route', () => {
+    expect(
+      notificationRoute({ route: '/projects/project-id/tasks/task-id' }),
+    ).toBe('/projects/project-id/tasks/task-id');
+  });
+
+  it.each([
+    null,
+    {},
+    { route: 'https://example.com' },
+    { route: '//example.com' },
+    { route: '/\\example.com' },
+  ])('rejects a missing or non-local route: %j', (payload) => {
+    expect(notificationRoute(payload)).toBeNull();
   });
 });
