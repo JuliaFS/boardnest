@@ -1,9 +1,16 @@
 import { MockedProvider } from '@apollo/client/testing/react';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { AppLayout } from './AppLayout';
+import { AppLayout, UNREAD_NOTIFICATION_POLL_INTERVAL_MS } from './AppLayout';
 import { UNREAD_NOTIFICATION_COUNT_QUERY } from './graphql';
 
 vi.mock('../auth/AuthProvider', () => ({
@@ -43,18 +50,48 @@ describe('AppLayout notification badge', () => {
       expect(within(link).getByText(visibleLabel)).toBeTruthy();
     },
   );
+
+  it('refetches the count when the browser tab becomes visible', async () => {
+    renderLayout(2, 3);
+    await screen.findByRole('link', {
+      name: 'Notifications, 2 unread',
+    });
+
+    fireEvent(document, new Event('visibilitychange'));
+
+    expect(
+      await screen.findByRole('link', {
+        name: 'Notifications, 3 unread',
+      }),
+    ).toBeTruthy();
+  });
+
+  it('polls the count every 30 seconds', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      renderLayout(4, 5);
+      await screen.findByRole('link', { name: 'Notifications, 4 unread' });
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(UNREAD_NOTIFICATION_POLL_INTERVAL_MS);
+      });
+      expect(
+        await screen.findByRole('link', { name: 'Notifications, 5 unread' }),
+      ).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
-function renderLayout(unreadNotificationCount: number) {
+function renderLayout(...unreadCounts: number[]) {
   render(
     <MemoryRouter initialEntries={['/dashboard']}>
       <MockedProvider
-        mocks={[
-          {
-            request: { query: UNREAD_NOTIFICATION_COUNT_QUERY },
-            result: { data: { unreadNotificationCount } },
-          },
-        ]}
+        mocks={unreadCounts.map((unreadNotificationCount) => ({
+          request: { query: UNREAD_NOTIFICATION_COUNT_QUERY },
+          result: { data: { unreadNotificationCount } },
+        }))}
       >
         <AppLayout />
       </MockedProvider>

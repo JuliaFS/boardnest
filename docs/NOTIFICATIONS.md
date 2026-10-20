@@ -180,6 +180,12 @@ the complete count. Marking an item as read decrements the Apollo cached count
 optimistically. A failed mutation rolls back the optimistic layer and refetches
 the authoritative count from the API.
 
+Until notification subscriptions are available, the navigation count is
+polled every 30 seconds and refetched whenever the browser tab becomes visible.
+The polling query, visibility refresh, and mark-as-read cache update all write
+the same exact-count cache entry. A future GraphQL notification subscription
+can replace polling without changing the badge component.
+
 ## Custom schedule execution
 
 `process_due_scheduled_notifications` claims a bounded due batch with `FOR

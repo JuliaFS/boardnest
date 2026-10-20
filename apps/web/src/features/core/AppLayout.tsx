@@ -1,5 +1,5 @@
 import { useQuery } from '@apollo/client/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet } from 'react-router';
 
 import { useAuth } from '../auth/AuthProvider';
@@ -17,14 +17,29 @@ const navigation = [
   { label: 'Settings', to: '/settings' },
 ];
 
+export const UNREAD_NOTIFICATION_POLL_INTERVAL_MS = 30_000;
+
 export function AppLayout() {
   const { signOut, user } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
   const unreadNotifications = useQuery<UnreadNotificationCountData>(
     UNREAD_NOTIFICATION_COUNT_QUERY,
+    { pollInterval: UNREAD_NOTIFICATION_POLL_INTERVAL_MS },
   );
   const unreadCount = unreadNotifications.data?.unreadNotificationCount ?? 0;
+
+  useEffect(() => {
+    function refreshVisibleTab() {
+      if (document.visibilityState !== 'visible') return;
+      void unreadNotifications.refetch().catch(() => undefined);
+    }
+
+    document.addEventListener('visibilitychange', refreshVisibleTab);
+    return () => {
+      document.removeEventListener('visibilitychange', refreshVisibleTab);
+    };
+  }, [unreadNotifications.refetch]);
 
   async function handleSignOut() {
     setSignOutError(null);

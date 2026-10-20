@@ -119,6 +119,11 @@ updated immediately through Apollo cache writes when an Inbox item is marked as
 read. Mutation failures restore Apollo's optimistic state and trigger an exact
 count refetch.
 
+Until realtime notification subscriptions are introduced, the unread count is
+polled every 30 seconds and refreshed on the browser `visibilitychange` event
+when the document becomes visible. Both mechanisms reuse the authenticated
+exact-count GraphQL query.
+
 ## Environment
 
 The frontend requires three public build-time URLs:
