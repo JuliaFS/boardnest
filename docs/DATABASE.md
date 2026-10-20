@@ -163,7 +163,7 @@ For a workspace-visible project, a workspace member can work on tasks without an
 
 **Important columns:** recipient, optional actor, context references, canonical type, stable event key, content, JSON payload, and `read_at`.
 
-**Indexes:** Recipient timeline, partial unread index, and a partial unique recipient/event-key index for retry safety.
+**Indexes:** Recipient timeline, partial unread index, and a partial unique recipient/event-key index for retry safety. The partial `(user_id, created_at)` unread index also supports exact per-recipient counts without scanning read notification history.
 
 **Security:** Recipients can read, mark read, and delete. Only the trusted API creates notifications.
 

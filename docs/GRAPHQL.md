@@ -62,6 +62,7 @@ check.
 | `task`                         | Read one accessible task                             |
 | `taskStatuses`                 | List ordered Kanban columns for a project            |
 | `notifications`                | List the current user's notifications                |
+| `unreadNotificationCount`      | Count the current user's unread notifications        |
 | `notificationPreferences`      | Read the current user's channel and event choices    |
 | `notificationEventTypes`       | List active canonical notification event metadata    |
 | `notificationEventPreferences` | List the current user's event-specific overrides     |
@@ -75,6 +76,17 @@ List queries return `nodes` and `pageInfo`. `limit` is restricted to 1–100 and
 `offset` cannot be negative. One extra row is fetched to derive `hasNextPage`.
 Offset pagination is appropriate for the current data volume; cursor pagination is a future
 option for large, frequently updated feeds.
+
+`unreadNotificationCount` accepts no arguments. The resolver derives the
+recipient from the verified session and performs an exact, head-only count of
+rows whose `read_at` value is null. The query therefore returns no notification
+content and cannot be used to count another user's notifications.
+
+```graphql
+query UnreadNotificationCount {
+  unreadNotificationCount
+}
+```
 
 ## Mutations
 

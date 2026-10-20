@@ -141,6 +141,10 @@ export interface NotificationsData {
   notifications: { nodes: NotificationSummary[]; pageInfo: PageInfo };
 }
 
+export interface UnreadNotificationCountData {
+  unreadNotificationCount: number;
+}
+
 export interface ScheduledNotificationSummary {
   id: string;
   workspaceId: string;
@@ -732,6 +736,12 @@ export const NOTIFICATIONS_QUERY = gql`
         offset
       }
     }
+  }
+`;
+
+export const UNREAD_NOTIFICATION_COUNT_QUERY = gql`
+  query UnreadNotificationCount {
+    unreadNotificationCount
   }
 `;
 

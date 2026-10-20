@@ -560,6 +560,36 @@ describe('GraphQL project and task workflow resolvers', () => {
 });
 
 describe('GraphQL reminder workflow resolvers', () => {
+  it('reads the unread notification count for the authenticated user', async () => {
+    const unreadNotificationCount = vi.fn().mockResolvedValue(7);
+
+    await expect(
+      runQuery(
+        'unreadNotificationCount',
+        {},
+        context(createDataService({ unreadNotificationCount })),
+      ),
+    ).resolves.toBe(7);
+    expect(unreadNotificationCount).toHaveBeenCalledWith(user.id);
+  });
+
+  it('rejects unread notification counts without authentication', async () => {
+    const unreadNotificationCount = vi.fn();
+
+    await expect(
+      runQuery(
+        'unreadNotificationCount',
+        {},
+        context(
+          createDataService({ unreadNotificationCount }),
+          createEvents(),
+          null,
+        ),
+      ),
+    ).rejects.toMatchObject({ extensions: { code: 'UNAUTHENTICATED' } });
+    expect(unreadNotificationCount).not.toHaveBeenCalled();
+  });
+
   it('creates a reminder with normalized schedule, channels, and recipients', async () => {
     const createTaskReminder = vi.fn().mockResolvedValue(reminder);
 
