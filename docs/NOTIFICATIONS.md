@@ -159,12 +159,17 @@ Custom schedules currently notify only their creator. The recipient control
 states this explicitly; team recipients require a future normalized recipient
 model and authorization rules rather than a frontend-only selector.
 
-Inbox notifications carrying an application-relative `payload.route` open the
-related application screen. Opening an unread entry first applies an optimistic
-read state and calls `markNotificationAsRead`; an already-read entry navigates
-without repeating the mutation. Notifications without a route expose an
-explicit `Mark as read` action instead. External and protocol-relative payload
-routes are not navigated.
+Inbox navigation treats the JSON payload as untrusted input. Only exact
+workspace, project, and task-detail route shapes are accepted, and every route
+identifier must match the notification's structured context fields. Absolute,
+protocol-relative, JavaScript, unknown, malformed, and context-mismatched routes
+are rejected. The client then derives a destination from the deepest valid
+structured context: task, project, then workspace. A notification without any
+valid destination exposes an explicit `Mark as read` action instead.
+
+Opening an unread entry first applies an optimistic read state and calls
+`markNotificationAsRead`; an already-read entry navigates without repeating the
+mutation.
 
 ## Custom schedule execution
 
