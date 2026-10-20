@@ -76,3 +76,23 @@ export function notificationMutationMessage(error: unknown): string {
   }
   return message || 'The notification could not be saved. Please try again.';
 }
+
+export function notificationRoute(payload: unknown): string | null {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return null;
+  }
+
+  const route = (payload as Record<string, unknown>).route;
+  if (typeof route !== 'string') return null;
+
+  const normalizedRoute = route.trim();
+  if (
+    !normalizedRoute.startsWith('/') ||
+    normalizedRoute.startsWith('//') ||
+    normalizedRoute.includes('\\')
+  ) {
+    return null;
+  }
+
+  return normalizedRoute;
+}

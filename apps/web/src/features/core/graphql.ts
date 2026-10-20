@@ -69,12 +69,23 @@ export interface ProjectMemberSummary {
 
 export interface NotificationSummary {
   id: string;
+  type: string;
   title: string;
   body: string | null;
+  payload: Record<string, unknown>;
+  workspaceId: string;
+  projectId: string | null;
+  taskId: string | null;
   reminderId: string | null;
   scheduledFor: string | null;
   readAt: string | null;
   createdAt: string;
+}
+
+export interface MarkNotificationAsReadData {
+  markNotificationAsRead: Pick<NotificationSummary, 'id' | 'readAt'> & {
+    __typename?: 'Notification';
+  };
 }
 
 export interface TaskSummary {
@@ -703,8 +714,13 @@ export const NOTIFICATIONS_QUERY = gql`
     notifications(unreadOnly: $unreadOnly) {
       nodes {
         id
+        type
         title
         body
+        payload
+        workspaceId
+        projectId
+        taskId
         reminderId
         scheduledFor
         readAt
@@ -715,6 +731,15 @@ export const NOTIFICATIONS_QUERY = gql`
         limit
         offset
       }
+    }
+  }
+`;
+
+export const MARK_NOTIFICATION_AS_READ_MUTATION = gql`
+  mutation MarkNotificationAsRead($id: ID!) {
+    markNotificationAsRead(id: $id) {
+      id
+      readAt
     }
   }
 `;

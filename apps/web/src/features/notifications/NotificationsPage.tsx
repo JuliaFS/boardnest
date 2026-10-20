@@ -1,9 +1,11 @@
 import { useMutation, useQuery } from '@apollo/client/react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router';
 
 import { useAuth } from '../auth/AuthProvider';
 import {
   DELETE_SCHEDULED_NOTIFICATION_MUTATION,
+  MARK_NOTIFICATION_AS_READ_MUTATION,
   NOTIFICATION_DELIVERIES_QUERY,
   NOTIFICATION_SETTINGS_QUERY,
   NOTIFICATIONS_QUERY,
@@ -16,7 +18,9 @@ import {
   WORKSPACES_QUERY,
   type NotificationDeliveriesData,
   type NotificationEventPreferenceSummary,
+  type MarkNotificationAsReadData,
   type NotificationSettingsData,
+  type NotificationSummary,
   type NotificationsData,
   type ProjectsData,
   type ScheduledNotificationSummary,
@@ -30,7 +34,10 @@ import {
 import { Modal } from '../core/Modal';
 import { PageHeader } from '../core/PageHeader';
 import { EmptyState, PageSkeleton, QueryError } from '../core/QueryState';
-import { notificationMutationMessage } from './notification-schemas';
+import {
+  notificationMutationMessage,
+  notificationRoute,
+} from './notification-schemas';
 import { ScheduledNotificationForm } from './ScheduledNotificationForm';
 
 type NotificationTab = 'deliveries' | 'inbox' | 'preferences' | 'schedules';
@@ -300,6 +307,15 @@ function InboxPanel({
   loading,
   onRetry,
 }: PanelQueryProps<NotificationsData>) {
+  const navigate = useNavigate();
+  const [pendingNotificationId, setPendingNotificationId] = useState<
+    string | null
+  >(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [markNotificationAsRead] = useMutation<MarkNotificationAsReadData>(
+    MARK_NOTIFICATION_AS_READ_MUTATION,
+  );
+
   if (loading) return <PageSkeleton />;
   if (error) return <QueryError message={error.message} onRetry={onRetry} />;
   const notifications = data?.notifications.nodes ?? [];
@@ -311,29 +327,120 @@ function InboxPanel({
       />
     );
   }
+
+  async function markAsRead(notification: NotificationSummary) {
+    if (notification.readAt) return true;
+
+    setActionError(null);
+    setPendingNotificationId(notification.id);
+    const readAt = new Date().toISOString();
+    try {
+      await markNotificationAsRead({
+        optimisticResponse: {
+          markNotificationAsRead: {
+            __typename: 'Notification',
+            id: notification.id,
+            readAt,
+          },
+        },
+        variables: { id: notification.id },
+      });
+      return true;
+    } catch (mutationError) {
+      setActionError(notificationMutationMessage(mutationError));
+      return false;
+    } finally {
+      setPendingNotificationId(null);
+    }
+  }
+
+  async function openNotification(notification: NotificationSummary) {
+    const route = notificationRoute(notification.payload);
+    if (!route) return;
+    if (notification.readAt || (await markAsRead(notification))) {
+      void navigate(route);
+    }
+  }
+
   return (
     <div className="grid gap-3">
-      {notifications.map((notification) => (
-        <article
-          className={`rounded-2xl border p-5 ${
-            notification.readAt
-              ? 'border-slate-800 bg-slate-900/40'
-              : 'border-indigo-400/30 bg-indigo-400/5'
-          }`}
-          key={notification.id}
+      {actionError ? (
+        <p
+          className="rounded-xl border border-rose-900/70 bg-rose-950/30 p-3 text-sm text-rose-200"
+          role="alert"
         >
-          <h2 className="font-semibold text-slate-100">{notification.title}</h2>
-          {notification.body ? (
-            <p className="mt-1 text-sm leading-6 text-slate-400">
-              {notification.body}
-            </p>
-          ) : null}
-          <p className="mt-2 text-xs text-slate-500">
-            {formatDate(notification.createdAt)}
-          </p>
-        </article>
-      ))}
+          {actionError}
+        </p>
+      ) : null}
+      {notifications.map((notification) => {
+        const route = notificationRoute(notification.payload);
+        const pending = pendingNotificationId === notification.id;
+        const content = <NotificationContent notification={notification} />;
+        return (
+          <article
+            className={`overflow-hidden rounded-2xl border ${
+              notification.readAt
+                ? 'border-slate-800 bg-slate-900/40'
+                : 'border-indigo-400/30 bg-indigo-400/5'
+            }`}
+            key={notification.id}
+          >
+            {route ? (
+              <button
+                aria-label={`Open notification: ${notification.title}`}
+                className="block w-full p-5 text-left transition hover:bg-slate-800/50 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-indigo-300 disabled:cursor-wait disabled:opacity-70"
+                disabled={pending}
+                onClick={() => void openNotification(notification)}
+                type="button"
+              >
+                {content}
+              </button>
+            ) : (
+              <div className="p-5">
+                {content}
+                {!notification.readAt ? (
+                  <button
+                    className={`${secondaryButtonClassName} mt-4`}
+                    disabled={pending}
+                    onClick={() => void markAsRead(notification)}
+                    type="button"
+                  >
+                    {pending ? 'Marking as read…' : 'Mark as read'}
+                  </button>
+                ) : null}
+              </div>
+            )}
+          </article>
+        );
+      })}
     </div>
+  );
+}
+
+function NotificationContent({
+  notification,
+}: {
+  notification: NotificationSummary;
+}) {
+  return (
+    <>
+      <div className="flex items-start justify-between gap-3">
+        <h2 className="font-semibold text-slate-100">{notification.title}</h2>
+        {!notification.readAt ? (
+          <span className="rounded-full bg-indigo-400/15 px-2 py-1 text-xs font-semibold text-indigo-200">
+            Unread
+          </span>
+        ) : null}
+      </div>
+      {notification.body ? (
+        <p className="mt-1 text-sm leading-6 text-slate-400">
+          {notification.body}
+        </p>
+      ) : null}
+      <p className="mt-2 text-xs text-slate-500">
+        {formatDate(notification.createdAt)}
+      </p>
+    </>
   );
 }
 

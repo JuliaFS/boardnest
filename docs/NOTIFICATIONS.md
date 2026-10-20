@@ -159,6 +159,13 @@ Custom schedules currently notify only their creator. The recipient control
 states this explicitly; team recipients require a future normalized recipient
 model and authorization rules rather than a frontend-only selector.
 
+Inbox notifications carrying an application-relative `payload.route` open the
+related application screen. Opening an unread entry first applies an optimistic
+read state and calls `markNotificationAsRead`; an already-read entry navigates
+without repeating the mutation. Notifications without a route expose an
+explicit `Mark as read` action instead. External and protocol-relative payload
+routes are not navigated.
+
 ## Custom schedule execution
 
 `process_due_scheduled_notifications` claims a bounded due batch with `FOR

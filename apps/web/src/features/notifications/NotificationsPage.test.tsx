@@ -1,13 +1,15 @@
 import { MockedProvider } from '@apollo/client/testing/react';
-import { cleanup, render, screen } from '@testing-library/react';
+import type { MockedResponse } from '@apollo/client/testing';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   NOTIFICATION_DELIVERIES_QUERY,
   NOTIFICATION_SETTINGS_QUERY,
   NOTIFICATIONS_QUERY,
+  MARK_NOTIFICATION_AS_READ_MUTATION,
   PROJECTS_QUERY,
   SCHEDULED_NOTIFICATIONS_QUERY,
   WORKSPACES_QUERY,
@@ -15,6 +17,9 @@ import {
 import { NotificationsPage } from './NotificationsPage';
 
 const workspaceId = '6992c303-a240-4e15-8fcc-461d53756324';
+const notificationId = '014b78ab-48c4-4ca5-815a-1055a2d38d9c';
+const projectId = '7a1e63bf-715d-41c0-a81a-f86539d07d6e';
+const taskId = 'b75e3536-a899-42b8-b136-305446ddae69';
 
 vi.mock('../auth/AuthProvider', () => ({
   useAuth: () => ({
@@ -55,10 +60,114 @@ describe('NotificationsPage', () => {
     ).toBe('self');
     expect(screen.getByText('person@example.com (you)')).toBeTruthy();
   });
+
+  it('marks an unread routed notification as read before navigating', async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/notifications']}>
+        <MockedProvider
+          mocks={notificationMocks([
+            notification({
+              payload: {
+                route: `/projects/${projectId}/tasks/${taskId}`,
+              },
+            }),
+          ])}
+        >
+          <>
+            <NotificationsPage />
+            <LocationProbe />
+          </>
+        </MockedProvider>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('Unread')).toBeTruthy();
+    const openButton = screen.getByRole('button', {
+      name: 'Open notification: Task assigned',
+    });
+    openButton.focus();
+    expect(document.activeElement).toBe(openButton);
+    await user.keyboard('{Enter}');
+
+    await waitFor(() => {
+      expect(screen.queryByText('Unread')).toBeNull();
+      expect(screen.getByTestId('location').textContent).toBe(
+        `/projects/${projectId}/tasks/${taskId}`,
+      );
+    });
+  });
+
+  it('offers a separate mark-as-read action when no route is present', async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/notifications']}>
+        <MockedProvider mocks={notificationMocks([notification()])}>
+          <>
+            <NotificationsPage />
+            <LocationProbe />
+          </>
+        </MockedProvider>
+      </MemoryRouter>,
+    );
+
+    const markButton = await screen.findByRole('button', {
+      name: 'Mark as read',
+    });
+    expect(
+      screen.queryByRole('button', {
+        name: 'Open notification: Task assigned',
+      }),
+    ).toBeNull();
+
+    await user.click(markButton);
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Mark as read' })).toBeNull();
+      expect(screen.getByTestId('location').textContent).toBe('/notifications');
+    });
+  });
+
+  it('opens an already-read notification without repeating the mutation', async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/notifications']}>
+        <MockedProvider
+          mocks={notificationMocks(
+            [
+              notification({
+                payload: { route: `/projects/${projectId}` },
+                readAt: '2030-01-15T11:00:00.000Z',
+              }),
+            ],
+            false,
+          )}
+        >
+          <>
+            <NotificationsPage />
+            <LocationProbe />
+          </>
+        </MockedProvider>
+      </MemoryRouter>,
+    );
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Open notification: Task assigned',
+      }),
+    );
+
+    expect(screen.getByTestId('location').textContent).toBe(
+      `/projects/${projectId}`,
+    );
+  });
 });
 
-function notificationMocks() {
-  return [
+function notificationMocks(
+  notifications: ReturnType<typeof notification>[] = [],
+  includeMarkMutation = true,
+) {
+  const mocks: MockedResponse[] = [
     {
       request: { query: WORKSPACES_QUERY },
       result: {
@@ -99,7 +208,7 @@ function notificationMocks() {
       result: {
         data: {
           notifications: {
-            nodes: [],
+            nodes: notifications,
             pageInfo: { hasNextPage: false, limit: 25, offset: 0 },
           },
         },
@@ -155,4 +264,55 @@ function notificationMocks() {
       },
     },
   ];
+
+  if (notifications.length && includeMarkMutation) {
+    const firstNotification = notifications[0];
+    if (!firstNotification) return mocks;
+    mocks.push({
+      request: {
+        query: MARK_NOTIFICATION_AS_READ_MUTATION,
+        variables: { id: firstNotification.id },
+      },
+      result: {
+        data: {
+          markNotificationAsRead: {
+            __typename: 'Notification',
+            id: firstNotification.id,
+            readAt: '2030-01-15T12:00:00.000Z',
+          },
+        },
+      },
+    });
+  }
+
+  return mocks;
+}
+
+function notification(
+  overrides: Partial<{
+    payload: Record<string, unknown>;
+    readAt: string | null;
+  }> = {},
+) {
+  return {
+    __typename: 'Notification',
+    body: 'You were assigned to Prepare release.',
+    createdAt: '2030-01-15T10:00:00.000Z',
+    id: notificationId,
+    payload: {},
+    projectId,
+    readAt: null,
+    reminderId: null,
+    scheduledFor: null,
+    taskId,
+    title: 'Task assigned',
+    type: 'task.assigned',
+    workspaceId,
+    ...overrides,
+  };
+}
+
+function LocationProbe() {
+  const location = useLocation();
+  return <output data-testid="location">{location.pathname}</output>;
 }
