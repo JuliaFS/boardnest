@@ -360,7 +360,7 @@ export interface BoardnestDataService {
     userId: string,
   ) => Promise<string>;
   revokeInvitation: (id: string) => Promise<Invitation>;
-  markNotificationAsRead: (id: string) => Promise<Notification>;
+  markNotificationAsRead: (id: string, userId: string) => Promise<Notification>;
   moveTask: (id: string, statusId: string, position: number) => Promise<Task>;
   notification: (id: string) => Promise<Notification | null>;
   notificationEventPreferences: (
@@ -1184,11 +1184,15 @@ class SupabaseBoardnestDataService implements BoardnestDataService {
     return optional(notificationSchema, response);
   }
 
-  async markNotificationAsRead(id: string): Promise<Notification> {
+  async markNotificationAsRead(
+    id: string,
+    userId: string,
+  ): Promise<Notification> {
     const response = await this.client
       .from('notifications')
       .update({ read_at: new Date().toISOString() })
       .eq('id', id)
+      .eq('user_id', userId)
       .select('*')
       .single();
     return required(notificationSchema, response);

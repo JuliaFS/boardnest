@@ -97,6 +97,11 @@ replacement, global notification preference updates, and event-specific
 notification preference upserts. GraphQL enums map to the
 lowercase values enforced by PostgreSQL.
 
+`markNotificationAsRead(id:)` derives the recipient from the verified session.
+The data update filters by both notification ID and authenticated user ID, while
+PostgreSQL RLS independently enforces the same recipient boundary. A client
+cannot mark another user's notification as read.
+
 `updateNotificationEventPreference` accepts one canonical dotted event type and
 explicit in-app/email choices. PostgreSQL RLS binds the resulting override to
 the verified current user. The selected channels remain constrained by global

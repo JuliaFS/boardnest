@@ -31,6 +31,7 @@ const statusId = '6954de6d-ed8e-4409-8be8-9e0ce72ba8c4';
 const nextStatusId = '67b31b8b-abbb-4134-b2d8-32984172c3ed';
 const assigneeId = 'b6067e89-1702-49b6-92f7-d2f2ccbc4685';
 const reminderId = '98fa7790-e43b-4e9e-a600-8f8a56fc9864';
+const notificationId = '014b78ab-48c4-4ca5-815a-1055a2d38d9c';
 const scheduledNotificationId = '13efb57b-af68-4da8-8d43-e127e276f596';
 const timestamp = new Date(0).toISOString();
 const nextRunAt = '2030-01-15T08:00:00.000Z';
@@ -588,6 +589,38 @@ describe('GraphQL reminder workflow resolvers', () => {
       ),
     ).rejects.toMatchObject({ extensions: { code: 'UNAUTHENTICATED' } });
     expect(unreadNotificationCount).not.toHaveBeenCalled();
+  });
+
+  it('marks notifications as read only for the authenticated recipient', async () => {
+    const markNotificationAsRead = vi.fn().mockResolvedValue(undefined);
+
+    await runMutation(
+      'markNotificationAsRead',
+      { id: notificationId },
+      context(createDataService({ markNotificationAsRead })),
+    );
+
+    expect(markNotificationAsRead).toHaveBeenCalledWith(
+      notificationId,
+      user.id,
+    );
+  });
+
+  it('rejects notification read mutations without authentication', async () => {
+    const markNotificationAsRead = vi.fn();
+
+    await expect(
+      runMutation(
+        'markNotificationAsRead',
+        { id: notificationId },
+        context(
+          createDataService({ markNotificationAsRead }),
+          createEvents(),
+          null,
+        ),
+      ),
+    ).rejects.toMatchObject({ extensions: { code: 'UNAUTHENTICATED' } });
+    expect(markNotificationAsRead).not.toHaveBeenCalled();
   });
 
   it('creates a reminder with normalized schedule, channels, and recipients', async () => {
