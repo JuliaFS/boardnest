@@ -119,6 +119,12 @@ updated immediately through Apollo cache writes when an Inbox item is marked as
 read. Mutation failures restore Apollo's optimistic state and trigger an exact
 count refetch.
 
+Until realtime notification subscriptions are introduced, the unread count is
+polled every 60 seconds only while the browser is online and the tab is visible.
+Polling stops for hidden tabs, the query is skipped while offline, and returning
+to a visible tab triggers an immediate refresh. All synchronization paths reuse
+the authenticated exact-count GraphQL query.
+
 ## Environment
 
 The frontend requires three public build-time URLs:
