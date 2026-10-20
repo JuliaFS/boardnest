@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@apollo/client/react';
+import { useApolloClient, useMutation, useQuery } from '@apollo/client/react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 
@@ -26,6 +26,7 @@ import {
   type ScheduledNotificationSummary,
   type ScheduledNotificationsData,
   type WorkspacesData,
+  UNREAD_NOTIFICATION_COUNT_QUERY,
 } from '../core/graphql';
 import {
   primaryButtonClassName,
@@ -39,6 +40,7 @@ import {
   notificationRoute,
 } from './notification-schemas';
 import { ScheduledNotificationForm } from './ScheduledNotificationForm';
+import { decrementUnreadNotificationCount } from './unread-notification-cache';
 
 type NotificationTab = 'deliveries' | 'inbox' | 'preferences' | 'schedules';
 
@@ -308,6 +310,7 @@ function InboxPanel({
   onRetry,
 }: PanelQueryProps<NotificationsData>) {
   const navigate = useNavigate();
+  const client = useApolloClient();
   const [pendingNotificationId, setPendingNotificationId] = useState<
     string | null
   >(null);
@@ -343,11 +346,20 @@ function InboxPanel({
             readAt,
           },
         },
+        update: decrementUnreadNotificationCount,
         variables: { id: notification.id },
       });
       return true;
     } catch (mutationError) {
       setActionError(notificationMutationMessage(mutationError));
+      try {
+        await client.query({
+          fetchPolicy: 'network-only',
+          query: UNREAD_NOTIFICATION_COUNT_QUERY,
+        });
+      } catch {
+        // Apollo removes the optimistic layer even when the recovery request fails.
+      }
       return false;
     } finally {
       setPendingNotificationId(null);

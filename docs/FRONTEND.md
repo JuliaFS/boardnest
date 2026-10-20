@@ -113,6 +113,12 @@ workspace. Entries without any valid destination remain in the inbox and
 expose a separate `Mark as read` action. The read state is updated
 optimistically while the authenticated GraphQL mutation is in flight.
 
+The main navigation reads `unreadNotificationCount` and displays an accessible
+Notifications badge. The badge is hidden at zero, capped visually at `99+`, and
+updated immediately through Apollo cache writes when an Inbox item is marked as
+read. Mutation failures restore Apollo's optimistic state and trigger an exact
+count refetch.
+
 ## Environment
 
 The frontend requires three public build-time URLs:

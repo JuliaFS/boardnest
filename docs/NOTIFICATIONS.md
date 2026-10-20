@@ -173,6 +173,13 @@ Opening an unread entry first applies an optimistic read state and calls
 `markNotificationAsRead`; an already-read entry navigates without repeating the
 mutation.
 
+The authenticated navigation displays the exact unread count beside
+Notifications. Zero is hidden, values from 1 through 99 are shown directly, and
+larger values are presented visually as `99+` while assistive technology receives
+the complete count. Marking an item as read decrements the Apollo cached count
+optimistically. A failed mutation rolls back the optimistic layer and refetches
+the authoritative count from the API.
+
 ## Custom schedule execution
 
 `process_due_scheduled_notifications` claims a bounded due batch with `FOR

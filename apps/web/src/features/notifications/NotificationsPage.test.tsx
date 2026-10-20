@@ -1,3 +1,4 @@
+import { InMemoryCache } from '@apollo/client';
 import { MockedProvider } from '@apollo/client/testing/react';
 import type { MockedResponse } from '@apollo/client/testing';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
@@ -12,7 +13,9 @@ import {
   MARK_NOTIFICATION_AS_READ_MUTATION,
   PROJECTS_QUERY,
   SCHEDULED_NOTIFICATIONS_QUERY,
+  UNREAD_NOTIFICATION_COUNT_QUERY,
   WORKSPACES_QUERY,
+  type UnreadNotificationCountData,
 } from '../core/graphql';
 import { NotificationsPage } from './NotificationsPage';
 
@@ -63,9 +66,11 @@ describe('NotificationsPage', () => {
 
   it('marks an unread routed notification as read before navigating', async () => {
     const user = userEvent.setup();
+    const cache = unreadCountCache(5);
     render(
       <MemoryRouter initialEntries={['/notifications']}>
         <MockedProvider
+          cache={cache}
           mocks={notificationMocks([
             notification({
               payload: {
@@ -95,6 +100,46 @@ describe('NotificationsPage', () => {
       expect(screen.getByTestId('location').textContent).toBe(
         `/projects/${projectId}/tasks/${taskId}`,
       );
+      expect(readUnreadCount(cache)).toBe(4);
+    });
+  });
+
+  it('restores and refetches the unread count when marking as read fails', async () => {
+    const user = userEvent.setup();
+    const item = notification();
+    const cache = unreadCountCache(5);
+    const mocks = notificationMocks([item], false);
+    mocks.push(
+      {
+        request: {
+          query: MARK_NOTIFICATION_AS_READ_MUTATION,
+          variables: { id: item.id },
+        },
+        error: new Error('Mutation failed'),
+      },
+      {
+        request: { query: UNREAD_NOTIFICATION_COUNT_QUERY },
+        result: { data: { unreadNotificationCount: 6 } },
+      },
+    );
+
+    render(
+      <MemoryRouter initialEntries={['/notifications']}>
+        <MockedProvider cache={cache} mocks={mocks}>
+          <NotificationsPage />
+        </MockedProvider>
+      </MemoryRouter>,
+    );
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Open notification: Task assigned',
+      }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeTruthy();
+      expect(readUnreadCount(cache)).toBe(6);
     });
   });
 
@@ -347,6 +392,21 @@ function notification(
     workspaceId,
     ...overrides,
   };
+}
+
+function unreadCountCache(unreadNotificationCount: number) {
+  const cache = new InMemoryCache();
+  cache.writeQuery<UnreadNotificationCountData>({
+    data: { unreadNotificationCount },
+    query: UNREAD_NOTIFICATION_COUNT_QUERY,
+  });
+  return cache;
+}
+
+function readUnreadCount(cache: InMemoryCache) {
+  return cache.readQuery<UnreadNotificationCountData>({
+    query: UNREAD_NOTIFICATION_COUNT_QUERY,
+  })?.unreadNotificationCount;
 }
 
 function LocationProbe() {
