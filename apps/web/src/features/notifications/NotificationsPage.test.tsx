@@ -115,6 +115,7 @@ describe('NotificationsPage', () => {
           query: MARK_NOTIFICATION_AS_READ_MUTATION,
           variables: { id: item.id },
         },
+        delay: 50,
         error: new Error('Mutation failed'),
       },
       {
@@ -136,6 +137,7 @@ describe('NotificationsPage', () => {
         name: 'Open notification: Task assigned',
       }),
     );
+    expect(readUnreadCount(cache)).toBe(4);
 
     await waitFor(() => {
       expect(screen.getByRole('alert')).toBeTruthy();
@@ -150,6 +152,7 @@ describe('NotificationsPage', () => {
         <MockedProvider
           mocks={notificationMocks([
             notification({
+              payload: { route: 'https://external.example/collect' },
               projectId: null,
               taskId: null,
               workspaceId: 'invalid-workspace-id',
@@ -206,6 +209,44 @@ describe('NotificationsPage', () => {
       );
     });
   });
+
+  it.each([
+    {
+      expected: `/projects/${projectId}`,
+      notification: notification({ taskId: null }),
+      title: 'project',
+    },
+    {
+      expected: `/workspaces/${workspaceId}`,
+      notification: notification({ projectId: null, taskId: null }),
+      title: 'workspace',
+    },
+  ])(
+    'derives and opens the $title fallback route',
+    async ({ expected, notification: item }) => {
+      const user = userEvent.setup();
+      render(
+        <MemoryRouter initialEntries={['/notifications']}>
+          <MockedProvider mocks={notificationMocks([item])}>
+            <>
+              <NotificationsPage />
+              <LocationProbe />
+            </>
+          </MockedProvider>
+        </MemoryRouter>,
+      );
+
+      await user.click(
+        await screen.findByRole('button', {
+          name: 'Open notification: Task assigned',
+        }),
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('location').textContent).toBe(expected);
+      });
+    },
+  );
 
   it('opens an already-read notification without repeating the mutation', async () => {
     const user = userEvent.setup();
@@ -405,6 +446,7 @@ function unreadCountCache(unreadNotificationCount: number) {
 
 function readUnreadCount(cache: InMemoryCache) {
   return cache.readQuery<UnreadNotificationCountData>({
+    optimistic: true,
     query: UNREAD_NOTIFICATION_COUNT_QUERY,
   })?.unreadNotificationCount;
 }

@@ -183,15 +183,39 @@ describe('Boardnest data service', () => {
     vi.setSystemTime(new Date(readAt));
     try {
       await expect(
-        service.markNotificationAsRead(notificationId),
+        service.markNotificationAsRead(notificationId, userId),
       ).resolves.toEqual(updatedNotification);
 
       expect(supabase.builder.update).toHaveBeenCalledWith({ read_at: readAt });
       expect(supabase.builder.eq).toHaveBeenCalledWith('id', notificationId);
+      expect(supabase.builder.eq).toHaveBeenCalledWith('user_id', userId);
       expect(supabase.builder.select).toHaveBeenCalledWith('*');
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('scopes notification read updates to the authenticated recipient', async () => {
+    supabase.builder.single.mockResolvedValue({
+      data: null,
+      error: { message: 'No rows found' },
+    });
+    const service = createBoardnestDataService(
+      'https://example.supabase.co',
+      'publishable-key',
+      'access-token',
+    );
+
+    await expect(
+      service.markNotificationAsRead(notificationId, userId),
+    ).rejects.toThrow('The database operation failed.');
+
+    expect(supabase.builder.eq).toHaveBeenNthCalledWith(
+      1,
+      'id',
+      notificationId,
+    );
+    expect(supabase.builder.eq).toHaveBeenNthCalledWith(2, 'user_id', userId);
   });
 
   it('updates and moves tasks through the expected database operations', async () => {

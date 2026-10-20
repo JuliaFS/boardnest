@@ -281,6 +281,66 @@ where tr.task_id = '30000000-0000-4000-8000-000000000021';
 reset role;
 set local role service_role;
 
+insert into public.notifications (
+  id,
+  user_id,
+  workspace_id,
+  type,
+  title
+)
+values
+  (
+    '40000000-0000-4000-8000-000000000011',
+    '00000000-0000-4000-8000-000000000011',
+    '10000000-0000-4000-8000-000000000011',
+    'reminder.test',
+    'Guest notification'
+  ),
+  (
+    '40000000-0000-4000-8000-000000000012',
+    '00000000-0000-4000-8000-000000000012',
+    '10000000-0000-4000-8000-000000000012',
+    'reminder.test',
+    'Free notification'
+  );
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000012', true);
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-4000-8000-000000000012","role":"authenticated","is_anonymous":false}',
+  true
+);
+
+do $$
+declare
+  affected_rows integer;
+  visible_unread_count integer;
+begin
+  select count(*)
+  into visible_unread_count
+  from public.notifications
+  where read_at is null;
+
+  if visible_unread_count <> 1 then
+    raise exception 'Expected unread count to include only the authenticated recipient';
+  end if;
+
+  update public.notifications
+  set read_at = statement_timestamp()
+  where id = '40000000-0000-4000-8000-000000000011';
+
+  get diagnostics affected_rows = row_count;
+  if affected_rows <> 0 then
+    raise exception 'Authenticated user unexpectedly marked another recipient notification as read';
+  end if;
+end;
+$$;
+
+reset role;
+set local role service_role;
+
 insert into public.notification_deliveries (
   reminder_id,
   workspace_id,

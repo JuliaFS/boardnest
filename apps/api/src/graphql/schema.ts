@@ -1455,7 +1455,13 @@ export const resolvers = {
       _parent: unknown,
       args: { id: string },
       context: GraphQLContext,
-    ) => requireAuth(context).data.markNotificationAsRead(uuid(args.id)),
+    ) => {
+      const authenticated = requireAuth(context);
+      return authenticated.data.markNotificationAsRead(
+        uuid(args.id),
+        authenticated.user.id,
+      );
+    },
     createTaskReminder: async (
       _parent: unknown,
       args: { input: unknown },

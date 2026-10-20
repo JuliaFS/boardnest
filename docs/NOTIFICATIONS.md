@@ -171,7 +171,9 @@ valid destination exposes an explicit `Mark as read` action instead.
 
 Opening an unread entry first applies an optimistic read state and calls
 `markNotificationAsRead`; an already-read entry navigates without repeating the
-mutation.
+mutation. The mutation derives the recipient from the authenticated session and
+updates only a row whose notification ID and user ID both match. Recipient-only
+RLS provides an independent database boundary.
 
 The authenticated navigation displays the exact unread count beside
 Notifications. Zero is hidden, values from 1 through 99 are shown directly, and

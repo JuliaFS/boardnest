@@ -63,7 +63,9 @@ Database RLS and trigger behavior is verified by the SQL files under
 documented in `docs/SUPABASE.md`; they are destructive and must not be executed
 against the hosted project. The notification model smoke test also verifies
 automatic plan assignment, preference creation, the three-task guest reminder
-limit, quota release after pausing, and rejection of guest email reminders.
+limit, quota release after pausing, rejection of guest email reminders,
+recipient-only unread visibility, and rejection of cross-recipient read
+updates.
 The reminder API function smoke test verifies atomic reminder creation and
 rollback when recipient replacement violates task-recipient constraints.
 The scheduler smoke test verifies one-time completion, recurrence across a DST
@@ -92,6 +94,11 @@ Frontend tests cover schedule form validation, actionable plan-limit messages,
 the accessible creation modal, personal-recipient disclosure, and plan usage.
 The API resolver suite also verifies that delivery history always derives its
 recipient from the authenticated session.
+Notification inbox tests cover keyboard activation, unread mutation and
+navigation, already-read behavior, untrusted-route rejection, structured route
+fallbacks, optimistic unread-count updates, rollback recovery, and accessible
+badge boundaries. API tests verify that unread counts and read mutations are
+scoped to the authenticated recipient and reject unauthenticated access.
 The system event smoke test verifies workspace and project membership, task
 creation, assignment, detail and status changes, comments, reminders, actor
 exclusion, reminder event-specific opt-out, and workspace-removal privacy
