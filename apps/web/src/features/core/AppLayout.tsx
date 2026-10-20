@@ -1,8 +1,13 @@
+import { useQuery } from '@apollo/client/react';
 import { useState } from 'react';
 import { Link, NavLink, Outlet } from 'react-router';
 
 import { useAuth } from '../auth/AuthProvider';
 import { getAuthErrorMessage } from '../auth/auth-errors';
+import {
+  UNREAD_NOTIFICATION_COUNT_QUERY,
+  type UnreadNotificationCountData,
+} from './graphql';
 
 const navigation = [
   { label: 'Overview', to: '/dashboard' },
@@ -16,6 +21,10 @@ export function AppLayout() {
   const { signOut, user } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
+  const unreadNotifications = useQuery<UnreadNotificationCountData>(
+    UNREAD_NOTIFICATION_COUNT_QUERY,
+  );
+  const unreadCount = unreadNotifications.data?.unreadNotificationCount ?? 0;
 
   async function handleSignOut() {
     setSignOutError(null);
@@ -56,22 +65,39 @@ export function AppLayout() {
           Boardnest
         </Link>
         <nav aria-label="Main navigation" className="mt-3 grid gap-1 md:mt-10">
-          {navigation.map((item) => (
-            <NavLink
-              className={({ isActive }) =>
-                `rounded-xl px-3 py-2.5 text-sm font-medium transition ${
-                  isActive
-                    ? 'bg-indigo-400/15 text-indigo-200'
-                    : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'
-                }`
-              }
-              key={item.to}
-              onClick={() => setMenuOpen(false)}
-              to={item.to}
-            >
-              {item.label}
-            </NavLink>
-          ))}
+          {navigation.map((item) => {
+            const showsUnreadCount =
+              item.to === '/notifications' && unreadCount > 0;
+            return (
+              <NavLink
+                aria-label={
+                  showsUnreadCount
+                    ? `Notifications, ${unreadCount} unread`
+                    : undefined
+                }
+                className={({ isActive }) =>
+                  `flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
+                    isActive
+                      ? 'bg-indigo-400/15 text-indigo-200'
+                      : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'
+                  }`
+                }
+                key={item.to}
+                onClick={() => setMenuOpen(false)}
+                to={item.to}
+              >
+                <span>{item.label}</span>
+                {showsUnreadCount ? (
+                  <span
+                    aria-hidden="true"
+                    className="min-w-6 rounded-full bg-indigo-400 px-2 py-0.5 text-center text-xs font-bold leading-5 text-slate-950"
+                  >
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                ) : null}
+              </NavLink>
+            );
+          })}
         </nav>
         <div className="mt-auto border-t border-slate-800 pt-5">
           <p className="truncate text-sm font-semibold text-slate-200">
