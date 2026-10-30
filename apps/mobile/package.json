@@ -30,7 +30,8 @@
   "devDependencies": {
     "@types/react": "~19.3.0",
     "expo-doctor": "1.21.5",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "vitest": "catalog:"
   },
   "scripts": {
     "start": "expo start",
@@ -38,6 +39,7 @@
     "android": "expo start --android",
     "build": "expo export --platform web --output-dir dist",
     "ios": "expo start --ios",
+    "test": "vitest run",
     "web": "expo start --web",
     "doctor": "expo-doctor",
     "lint": "expo lint",

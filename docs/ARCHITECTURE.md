@@ -94,6 +94,11 @@ contracts and domain helpers may be shared through workspace packages. Mobile
 uses Supabase bearer sessions accepted by the same API; the browser's
 HTTP-only cookie model remains unchanged. See [Mobile](MOBILE.md).
 
+The native route hierarchy separates the authentication stack, the four-tab
+application shell, and workspace/project/task detail routes. Reusable controls
+consume semantic native theme tokens and own accessibility behavior such as
+touch-target sizing, focus transfer, live feedback, and safe-area layout.
+
 ## Deployment topology
 
 - Web: Vercel

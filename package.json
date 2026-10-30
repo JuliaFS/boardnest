@@ -31,7 +31,7 @@
     "redis:up": "docker compose up -d --wait redis",
     "smoke:production": "node scripts/production-smoke.mjs",
     "test": "pnpm --recursive --if-present test",
-    "test:ci": "pnpm --filter @boardnest/shared --filter @boardnest/graphql-types --parallel test && pnpm --filter @boardnest/api --filter @boardnest/web --parallel test:coverage",
+    "test:ci": "pnpm --filter @boardnest/shared --filter @boardnest/graphql-types --filter @boardnest/mobile --parallel test && pnpm --filter @boardnest/api --filter @boardnest/web --parallel test:coverage",
     "test:coverage": "pnpm --filter @boardnest/api --filter @boardnest/web --parallel test:coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
