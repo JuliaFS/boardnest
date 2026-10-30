@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 
 import {
   AppButton,
@@ -15,10 +15,10 @@ export default function ProjectsScreen() {
   const { showToast } = useFeedback();
   const [showNavigationPreview, setShowNavigationPreview] = useState(false);
 
-  function openRoute(route: string, message: string) {
+  function openRoute(route: Href, message: string) {
     setShowNavigationPreview(false);
     showToast({ message, tone: 'info' });
-    router.push(route as never);
+    router.push(route);
   }
 
   return (
