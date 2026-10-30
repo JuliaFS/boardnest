@@ -18,6 +18,9 @@ The browser uses the Node API as an authentication backend-for-frontend. The API
 ## Repository boundaries
 
 - `apps/web` owns browser rendering, routing, forms, accessibility, and Apollo client state.
+- `apps/mobile` owns native rendering, Expo Router navigation, device lifecycle,
+  and platform-specific interaction. It will use the same GraphQL business API
+  without importing browser presentation code.
 - `apps/api` owns GraphQL, authentication context, authorization, validation, transactions, and event publication.
 - `packages/shared` contains framework-independent values and utilities that genuinely apply on both sides. It must not depend on either application.
 - `packages/graphql-types` reserves a future generated-type boundary; it must
@@ -78,6 +81,14 @@ The API starts as a modular monolith: one deployable service with feature-orient
 Apollo Server 5 runs through Express 5 beside the health and authentication
 routes. Resolvers validate input and delegate persistence to an RLS-aware data
 service. Transport code does not duplicate database policy logic.
+
+### Mobile
+
+Expo and React Native provide a separate native presentation boundary. Expo
+Router owns file-based mobile navigation, while platform-independent GraphQL
+contracts and domain helpers may be shared through workspace packages. Mobile
+will use Supabase bearer sessions accepted by the same API; the browser's
+HTTP-only cookie model remains unchanged. See [Mobile](MOBILE.md).
 
 ## Deployment topology
 
