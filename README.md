@@ -89,6 +89,7 @@ The browser never receives a Supabase key or readable authentication token.
 ```text
 apps/
   api/                 Express, Apollo Server, auth, GraphQL, WebSockets
+  mobile/              Expo, React Native, and Expo Router native client
   web/                 React, Vite, Apollo Client, forms, Kanban UI
 packages/
   config/              Reserved shared configuration boundary
@@ -109,6 +110,7 @@ trade-offs.
 | Layer     | Technology                                                            |
 | --------- | --------------------------------------------------------------------- |
 | Web       | React 19, TypeScript, Vite, React Router, Apollo Client, Tailwind CSS |
+| Mobile    | Expo 58, React Native 0.88, TypeScript, Expo Router                   |
 | Forms/UI  | React Hook Form, Zod, `@dnd-kit/react`                                |
 | API       | Node.js 24, Express 5, Apollo Server 5, GraphQL, `graphql-ws`         |
 | Data/Auth | Supabase PostgreSQL, Supabase Auth, SQL-first migrations, RLS         |
@@ -154,6 +156,15 @@ Open:
 `nvm install`, Corepack activation, and `pnpm install` are setup/update
 commands. A normal development session needs only `nvm use`, `pnpm redis:up`,
 and `pnpm dev` when dependencies are already installed.
+
+The mobile foundation starts separately and does not require Redis or the API
+until data integration is added:
+
+```bash
+pnpm dev:mobile
+```
+
+See [Mobile](docs/MOBILE.md) for its architecture and development boundary.
 
 ## Environment variables
 

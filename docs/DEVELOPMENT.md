@@ -14,28 +14,30 @@ pnpm install
 
 ## Commands
 
-| Command              | Purpose                                 |
-| -------------------- | --------------------------------------- |
-| `pnpm dev`           | Run web and API development processes   |
-| `pnpm docker:build`  | Build the API and web container images  |
-| `pnpm docker:config` | Validate resolved Compose configuration |
-| `pnpm docker:up`     | Build and start the full Docker stack   |
-| `pnpm docker:logs`   | Follow web, API, and Redis logs         |
-| `pnpm docker:down`   | Remove the local Docker stack           |
-| `pnpm format`        | Format supported repository files       |
-| `pnpm format:check`  | Verify formatting without edits         |
-| `pnpm lint`          | Run ESLint with zero warnings allowed   |
-| `pnpm redis:up`      | Start and health-check local Redis      |
-| `pnpm redis:logs`    | Follow local Redis container logs       |
-| `pnpm redis:down`    | Stop the local Redis container          |
-| `pnpm typecheck`     | Type-check every applicable workspace   |
-| `pnpm test`          | Run workspace tests once                |
-| `pnpm test:ci`       | Run shared tests and API/web coverage   |
-| `pnpm test:coverage` | Run API/web tests with coverage gates   |
-| `pnpm test:e2e`      | Run Playwright tests in Chromium        |
-| `pnpm test:e2e:ui`   | Open the interactive Playwright runner  |
-| `pnpm build`         | Produce application and package builds  |
-| `pnpm check`         | Run the complete local quality gate     |
+| Command                   | Purpose                                 |
+| ------------------------- | --------------------------------------- |
+| `pnpm dev`                | Run web and API development processes   |
+| `pnpm dev:mobile`         | Run the Expo mobile development server  |
+| `pnpm dev:mobile:android` | Start Expo and open Android             |
+| `pnpm docker:build`       | Build the API and web container images  |
+| `pnpm docker:config`      | Validate resolved Compose configuration |
+| `pnpm docker:up`          | Build and start the full Docker stack   |
+| `pnpm docker:logs`        | Follow web, API, and Redis logs         |
+| `pnpm docker:down`        | Remove the local Docker stack           |
+| `pnpm format`             | Format supported repository files       |
+| `pnpm format:check`       | Verify formatting without edits         |
+| `pnpm lint`               | Run ESLint with zero warnings allowed   |
+| `pnpm redis:up`           | Start and health-check local Redis      |
+| `pnpm redis:logs`         | Follow local Redis container logs       |
+| `pnpm redis:down`         | Stop the local Redis container          |
+| `pnpm typecheck`          | Type-check every applicable workspace   |
+| `pnpm test`               | Run workspace tests once                |
+| `pnpm test:ci`            | Run shared tests and API/web coverage   |
+| `pnpm test:coverage`      | Run API/web tests with coverage gates   |
+| `pnpm test:e2e`           | Run Playwright tests in Chromium        |
+| `pnpm test:e2e:ui`        | Open the interactive Playwright runner  |
+| `pnpm build`              | Produce application and package builds  |
+| `pnpm check`              | Run the complete local quality gate     |
 
 Run `pnpm check` before opening a pull request.
 
@@ -154,6 +156,20 @@ For the containerized workflow, the web application uses
 `http://localhost:8080` while the API remains on port `4000`. Do not run
 `pnpm dev` and `pnpm docker:up` simultaneously with the default ports.
 Detailed setup and port override examples are in [Docker](DOCKER.md).
+
+## Mobile development
+
+The Expo client lives in `apps/mobile` and uses the same pinned Node.js and pnpm
+toolchain as the rest of the monorepo. Start it separately from the web and API
+processes:
+
+```bash
+pnpm dev:mobile
+```
+
+The foundation phase does not contact the API. Device networking, public mobile
+environment values, project boundaries, and validation commands are documented
+in [Mobile](MOBILE.md) and [`apps/mobile/README.md`](../apps/mobile/README.md).
 
 ## Continuous integration
 

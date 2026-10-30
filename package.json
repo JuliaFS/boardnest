@@ -14,6 +14,8 @@
     "build": "pnpm --recursive --if-present build",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm test:e2e",
     "dev": "pnpm --parallel --filter @boardnest/api --filter @boardnest/web dev",
+    "dev:mobile": "pnpm --filter @boardnest/mobile start",
+    "dev:mobile:android": "pnpm --filter @boardnest/mobile android",
     "docker:build": "docker compose build",
     "docker:config": "docker compose config",
     "docker:down": "docker compose down",
