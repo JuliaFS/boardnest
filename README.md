@@ -176,6 +176,11 @@ Copy [.env.example](.env.example) to `.env`. Never commit the populated file.
 | `VITE_GRAPHQL_URL`                          | Public               | GraphQL HTTP endpoint                         |
 | `VITE_WS_URL`                               | Public               | GraphQL WebSocket endpoint                    |
 | `VITE_TURNSTILE_SITE_KEY`                   | Public               | Cloudflare Turnstile widget site key          |
+| `EXPO_PUBLIC_API_URL`                       | Public mobile        | Mobile REST API origin                        |
+| `EXPO_PUBLIC_GRAPHQL_URL`                   | Public mobile        | Mobile GraphQL HTTP endpoint                  |
+| `EXPO_PUBLIC_SUPABASE_URL`                  | Public mobile        | Supabase project URL for native Auth          |
+| `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`      | Public mobile        | Supabase publishable key for native Auth      |
+| `EXPO_PUBLIC_TURNSTILE_SITE_KEY`            | Public mobile        | Mobile Cloudflare Turnstile site key          |
 | `API_URL`                                   | Server               | Public API origin used for Auth callback URLs |
 | `COOKIE_SAME_SITE`                          | Server               | `lax` or production-only `none` cookie mode   |
 | `SUPABASE_URL`                              | Server               | Supabase project URL                          |

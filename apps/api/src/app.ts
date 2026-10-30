@@ -28,7 +28,11 @@ import {
   readAuthCookies,
   setSessionCookies,
 } from './auth/cookies.js';
-import { resolveRequestSession } from './auth/session.js';
+import {
+  parseBearerAuthorization,
+  readBearerAccessToken,
+  resolveRequestSession,
+} from './auth/session.js';
 import type { BoardnestDataService } from './graphql/data-service.js';
 import { type GraphQLContext, resolvers, typeDefs } from './graphql/schema.js';
 import { createMaxDepthRule } from './graphql/security.js';
@@ -114,17 +118,25 @@ export async function createServer(
           user: null,
         },
       onConnect: async (context) => {
-        if (context.extra.request.headers.origin !== options.corsOrigin) {
+        const requestOrigin = context.extra.request.headers.origin;
+        if (requestOrigin && requestOrigin !== options.corsOrigin) {
           return false;
         }
 
-        const cookies = readAuthCookies(context.extra.request);
-        if (!cookies.accessToken) return false;
+        const connectionAuthorization = isRecord(context.connectionParams)
+          ? (context.connectionParams.authorization ??
+            context.connectionParams.Authorization)
+          : undefined;
+        const accessToken =
+          parseBearerAuthorization(connectionAuthorization) ??
+          readBearerAccessToken(context.extra.request) ??
+          readAuthCookies(context.extra.request).accessToken;
+        if (!accessToken) return false;
 
         try {
-          const user = await options.authService.verify(cookies.accessToken);
+          const user = await options.authService.verify(accessToken);
           websocketContexts.set(context.extra.request, {
-            data: options.createDataService(cookies.accessToken),
+            data: options.createDataService(accessToken),
             events,
             user,
           });
@@ -488,6 +500,7 @@ function trustedOrigin(expectedOrigin: string) {
   return (request: Request, response: Response, next: NextFunction): void => {
     if (
       request.method === 'POST' &&
+      request.headers.origin !== undefined &&
       request.headers.origin !== expectedOrigin
     ) {
       response.status(403).json({ error: 'Untrusted request origin' });
@@ -495,6 +508,10 @@ function trustedOrigin(expectedOrigin: string) {
     }
     next();
   };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
 }
 
 function readQueryString(value: unknown): string | null {

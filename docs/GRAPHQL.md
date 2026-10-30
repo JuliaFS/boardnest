@@ -37,10 +37,20 @@ service-role key, so RLS remains its resource-authorization boundary. The
 separate background reminder and custom-notification schedulers use that key
 only for their dedicated, non-GraphQL RPCs.
 
+Native requests send `Authorization: Bearer <access-token>`. The API verifies
+the token through the configured Supabase project before building context;
+invalid, expired, and tokens issued by another project are unauthenticated.
+Requests without a browser Origin are supported for native clients, while an
+explicit unexpected Origin remains rejected.
+
 Subscriptions use the same `/graphql` path with the `graphql-transport-ws`
 protocol. The WebSocket handshake carries the eligible `HttpOnly` access cookie;
 browser JavaScript still cannot read the token. The server verifies the exact
 origin and session before accepting the connection.
+
+Native WebSocket clients may instead provide the same Bearer value in GraphQL
+`connectionParams.authorization`. Cookie and bearer transports resolve to the
+same authorization context.
 
 Workspace and project creation use separate insert and read requests. Their
 membership rows are created by `AFTER INSERT` triggers, while their select

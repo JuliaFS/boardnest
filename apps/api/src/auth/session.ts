@@ -13,6 +13,17 @@ export interface RequestSession {
   user: PublicAuthUser;
 }
 
+export function parseBearerAuthorization(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+
+  const match = /^Bearer\s+(\S+)$/i.exec(value.trim());
+  return match?.[1] ?? null;
+}
+
+export function readBearerAccessToken(request: IncomingMessage): string | null {
+  return parseBearerAuthorization(request.headers.authorization);
+}
+
 export async function resolveRequestSession(
   request: IncomingMessage,
   response: ServerResponse,
@@ -20,6 +31,18 @@ export async function resolveRequestSession(
   secureCookies: boolean,
   cookieSameSite: CookieSameSite = 'Lax',
 ): Promise<RequestSession | null> {
+  const bearerAccessToken = readBearerAccessToken(request);
+  if (bearerAccessToken) {
+    try {
+      return {
+        accessToken: bearerAccessToken,
+        user: await authService.verify(bearerAccessToken),
+      };
+    } catch {
+      return null;
+    }
+  }
+
   const cookies = readAuthCookies(request);
 
   if (cookies.accessToken) {

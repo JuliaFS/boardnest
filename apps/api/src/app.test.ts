@@ -269,6 +269,67 @@ describe('API server', () => {
     await expect(response.json()).resolves.toEqual({ user });
   });
 
+  it('authenticates GraphQL HTTP requests from a mobile Bearer token', async () => {
+    const { authService, server } = await startServer();
+    const response = await fetch(await getUrl(server, '/graphql'), {
+      body: JSON.stringify({
+        query: '{ currentUser { id email } }',
+      }),
+      headers: {
+        authorization: 'Bearer mobile-access-token',
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    });
+
+    expect(response.status).toBe(200);
+    expect(authService.verify).toHaveBeenCalledWith('mobile-access-token');
+    await expect(response.json()).resolves.toEqual({
+      data: { currentUser: { email: user.email, id: user.id } },
+    });
+  });
+
+  it('rejects an explicit untrusted Origin even with a Bearer token', async () => {
+    const { authService, server } = await startServer();
+    const response = await fetch(await getUrl(server, '/graphql'), {
+      body: JSON.stringify({ query: '{ currentUser { id } }' }),
+      headers: {
+        authorization: 'Bearer mobile-access-token',
+        'content-type': 'application/json',
+        origin: 'https://attacker.example',
+      },
+      method: 'POST',
+    });
+
+    expect(response.status).toBe(403);
+    expect(authService.verify).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['invalid', 'invalid-token'],
+    ['expired', 'expired-token'],
+    ['from another Supabase project', 'foreign-token'],
+  ])('rejects an %s mobile Bearer token', async (_label, token) => {
+    const authService = createAuthService();
+    vi.mocked(authService.verify).mockRejectedValueOnce(
+      new Error('Token verification failed'),
+    );
+    const { server } = await startServer(authService);
+    const response = await fetch(await getUrl(server, '/graphql'), {
+      body: JSON.stringify({ query: '{ workspaces { nodes { id } } }' }),
+      headers: {
+        authorization: `Bearer ${token}`,
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    });
+    const body = (await response.json()) as {
+      errors: Array<{ extensions: { code: string } }>;
+    };
+
+    expect(body.errors[0]?.extensions.code).toBe('UNAUTHENTICATED');
+  });
+
   it('rotates cookies through the refresh token when access is invalid', async () => {
     const authService = createAuthService();
     vi.mocked(authService.verify).mockRejectedValue(new Error('expired'));
@@ -602,6 +663,37 @@ describe('API server', () => {
       },
     });
     expect(dataService.project).toHaveBeenCalledTimes(2);
+    await client.dispose();
+  });
+
+  it('authenticates GraphQL WebSocket connections with a Bearer token', async () => {
+    const { authService, server } = await startServer();
+    const httpUrl = await getUrl(server, '/graphql');
+    const client = createClient({
+      connectionParams: {
+        authorization: 'Bearer mobile-websocket-token',
+      },
+      url: httpUrl.replace('http:', 'ws:'),
+      webSocketImpl: WebSocket,
+    });
+    const result = new Promise<unknown>((resolve, reject) => {
+      const unsubscribe = client.subscribe(
+        { query: '{ currentUser { id } }' },
+        {
+          complete: () => undefined,
+          error: reject,
+          next: (value) => {
+            unsubscribe();
+            resolve(value);
+          },
+        },
+      );
+    });
+
+    await expect(result).resolves.toEqual({
+      data: { currentUser: { id: user.id } },
+    });
+    expect(authService.verify).toHaveBeenCalledWith('mobile-websocket-token');
     await client.dispose();
   });
 });
