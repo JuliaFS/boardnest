@@ -5,6 +5,19 @@
 Apollo Server 5 serves the application API at `http://localhost:4000/graphql`.
 Its local landing page and introspection are enabled outside production.
 
+## Shared client contracts
+
+The API TypeScript schema is the single source used by GraphQL Code Generator.
+Shared operations live in `packages/graphql-types/src/operations`, and generated
+schema, input, response, enum, and typed-document definitions live in
+`packages/graphql-types/src/generated`. Web and mobile import shared documents
+from `@boardnest/graphql-types`; each application owns its own Apollo transport
+and authentication configuration.
+
+Run `pnpm graphql:generate` after changing the schema or a shared operation.
+Run `pnpm graphql:check` to verify that the checked-in output is current. CI
+performs the same check before linting and type-checking.
+
 ```text
 Browser + HttpOnly cookies
   -> exact Origin check and Apollo CSRF prevention

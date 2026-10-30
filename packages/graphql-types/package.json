@@ -2,5 +2,29 @@
   "name": "@boardnest/graphql-types",
   "version": "0.1.0",
   "private": true,
-  "description": "Reserved boundary for future generated GraphQL types"
+  "description": "Generated Boardnest GraphQL schema types and shared typed documents",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "generate": "graphql-codegen --config codegen.ts",
+    "generate:check": "graphql-codegen --config codegen.ts --check",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit --pretty false"
+  },
+  "dependencies": {
+    "@graphql-typed-document-node/core": "^3.2.0",
+    "graphql": "^16.14.2"
+  },
+  "devDependencies": {
+    "@graphql-codegen/cli": "^7.4.6",
+    "@graphql-codegen/typed-document-node": "^7.2.0",
+    "@graphql-codegen/typescript": "^6.1.2",
+    "@graphql-codegen/typescript-operations": "^6.2.0",
+    "vitest": "catalog:"
+  }
 }

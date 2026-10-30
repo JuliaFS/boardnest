@@ -23,8 +23,10 @@ The browser uses the Node API as an authentication backend-for-frontend. The API
   without importing browser presentation code.
 - `apps/api` owns GraphQL, authentication context, authorization, validation, transactions, and event publication.
 - `packages/shared` contains framework-independent values and utilities that genuinely apply on both sides. It must not depend on either application.
-- `packages/graphql-types` reserves a future generated-type boundary; it must
-  not become a second handwritten domain model.
+- `packages/graphql-types` generates schema types and typed GraphQL documents
+  from the API schema. Web and mobile may share operations from this package,
+  while transport, authentication, and Apollo cache configuration remain
+  platform-specific.
 - `packages/config` is reserved for reusable configuration once duplication justifies extraction.
 - `database` owns all PostgreSQL schema and seed SQL.
 

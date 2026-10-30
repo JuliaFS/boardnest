@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -8,6 +9,7 @@ type FoundationScreenProps = {
   title: string;
   description: string;
   items: readonly string[];
+  children?: ReactNode;
 };
 
 export function FoundationScreen({
@@ -15,6 +17,7 @@ export function FoundationScreen({
   title,
   description,
   items,
+  children,
 }: FoundationScreenProps) {
   return (
     <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.safeArea}>
@@ -42,6 +45,8 @@ export function FoundationScreen({
             </View>
           ))}
         </View>
+
+        {children}
       </ScrollView>
     </SafeAreaView>
   );

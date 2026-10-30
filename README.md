@@ -93,7 +93,7 @@ apps/
   web/                 React, Vite, Apollo Client, forms, Kanban UI
 packages/
   config/              Reserved shared configuration boundary
-  graphql-types/       Reserved GraphQL code-generation boundary
+  graphql-types/       Generated schema types and shared typed documents
   shared/              Runtime-independent shared code
 database/
   migrations/          Ordered SQL schema, RLS, and grants
@@ -157,8 +157,8 @@ Open:
 commands. A normal development session needs only `nvm use`, `pnpm redis:up`,
 and `pnpm dev` when dependencies are already installed.
 
-The mobile foundation starts separately and does not require Redis or the API
-until data integration is added:
+The mobile client starts separately. Start the API and Redis as well when
+testing its public GraphQL connection:
 
 ```bash
 pnpm dev:mobile

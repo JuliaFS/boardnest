@@ -1,4 +1,4 @@
-import { gql } from '@apollo/client';
+import { MobileConnectionDocument } from '@boardnest/graphql-types';
 import { describe, expect, it, vi } from 'vitest';
 
 import { createApolloClient } from './apollo-client';
@@ -15,13 +15,7 @@ describe('Apollo Client', () => {
 
     await client.query({
       fetchPolicy: 'network-only',
-      query: gql`
-        query CurrentUserForClientTest {
-          currentUser {
-            id
-          }
-        }
-      `,
+      query: MobileConnectionDocument,
     });
 
     expect(fetchMock).toHaveBeenCalledOnce();

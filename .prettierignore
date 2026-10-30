@@ -1,6 +1,7 @@
 coverage
 dist
 node_modules
+packages/graphql-types/src/generated
 pnpm-lock.yaml
 playwright-report
 test-results
