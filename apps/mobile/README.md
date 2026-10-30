@@ -12,6 +12,8 @@ The mobile foundation currently provides:
 - a bearer-authenticated Apollo Client;
 - shared generated GraphQL documents and result types;
 - Boardnest color and spacing tokens;
+- accessible reusable controls and standard loading, error, and empty states;
+- protected workspace, project, and task route destinations;
 - Android, iOS, and web development targets;
 - monorepo lint and type-check integration.
 
@@ -80,6 +82,7 @@ All `EXPO_PUBLIC_*` values are embedded in the application bundle and must be tr
 ```bash
 pnpm --filter @boardnest/mobile lint
 pnpm --filter @boardnest/mobile typecheck
+pnpm --filter @boardnest/mobile test
 pnpm --filter @boardnest/mobile doctor
 pnpm graphql:check
 ```
@@ -91,6 +94,8 @@ The root `pnpm lint` and `pnpm typecheck` commands also validate mobile source c
 - Routes belong in `src/app`.
 - Reusable native components belong in `src/components`.
 - Theme tokens belong in `src/theme`.
+- Shared native controls and feedback patterns belong in `src/components/ui`.
+- Route construction belongs in `src/navigation`; identifiers must be encoded before navigation.
 - Browser DOM components, web Tailwind classes, React Router code, and cookie handling must not be imported into the mobile application.
 - Shared GraphQL documents and generated types must be imported from `@boardnest/graphql-types`; Apollo transport and authentication stay inside the mobile application.
 - Native behavior must be configured through Expo config and plugins. Generated `android` and `ios` folders are not committed.

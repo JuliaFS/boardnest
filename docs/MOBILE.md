@@ -86,6 +86,31 @@ Expo Router owns mobile navigation. Routes live in `apps/mobile/src/app`, with a
 - Notifications;
 - Settings.
 
+The authenticated stack also reserves typed destinations for workspace,
+project, and task details:
+
+- `/workspaces/:workspaceId`;
+- `/projects/:projectId`;
+- `/projects/:projectId/tasks/:taskId`.
+
+Route builders in `apps/mobile/src/navigation/routes.ts` encode identifiers
+before navigation. The Projects tab includes a temporary route preview until
+the native workspace and project queries are connected.
+
+## Native design system
+
+Reusable native controls live in `apps/mobile/src/components/ui`. The first
+design-system layer includes buttons, labeled text fields, safe-area screens,
+a focus-aware bottom sheet, persistent banners, transient toast feedback, and
+loading, error, and empty states. Interactive controls use a minimum 48-point
+touch target, expose screen-reader roles and labels, and announce asynchronous
+errors and feedback through live regions.
+
+Semantic color, spacing, radius, and typography tokens live in
+`apps/mobile/src/theme`. The application deliberately keeps the existing dark
+appearance for this phase. Components consume semantic tokens so a light theme
+can be introduced later without duplicating component behavior.
+
 Unauthenticated users are restricted to the auth route group. A restored session
 opens the tab shell, and logout clears both Supabase storage and Apollo cache.
 

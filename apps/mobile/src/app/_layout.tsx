@@ -9,6 +9,7 @@ import { StatusBar } from 'expo-status-bar';
 import { ApolloProvider } from '@apollo/client/react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
+import { FeedbackProvider } from '@/components/ui';
 import { MobileAuthProvider, useMobileAuth } from '@/features/auth/mobile-auth';
 import { mobileApolloClient } from '@/lib/apollo';
 import { theme } from '@/theme';
@@ -31,7 +32,9 @@ export default function RootLayout() {
       <MobileAuthProvider>
         <ThemeProvider value={boardnestNavigationTheme}>
           <StatusBar style="light" />
-          <SessionGate />
+          <FeedbackProvider>
+            <SessionGate />
+          </FeedbackProvider>
         </ThemeProvider>
       </MobileAuthProvider>
     </ApolloProvider>
@@ -65,6 +68,9 @@ function SessionGate() {
       <Stack.Screen name="index" />
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="workspaces/[workspaceId]" />
+      <Stack.Screen name="projects/[projectId]/index" />
+      <Stack.Screen name="projects/[projectId]/tasks/[taskId]" />
       <Stack.Screen name="auth/callback" />
       <Stack.Screen name="auth/reset-password" />
       <Stack.Screen name="invite/[token]" />
