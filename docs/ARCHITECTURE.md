@@ -7,13 +7,15 @@ Boardnest is a portfolio-grade, multi-tenant project management SaaS. The archit
 ## System context
 
 ```text
-Browser ── HTTP-only session cookie ──> Node.js API
-                                          ├─ Auth ───> Supabase Auth
-                                          ├─ SQL ────> Supabase PostgreSQL
-                                          └─ Pub/Sub > Redis
+Browser ── HTTP-only session cookie ──┐
+                                      ├─> Node.js API ──> Supabase Auth/PostgreSQL
+Mobile ── Supabase bearer token ──────┘        └────────> Redis
 ```
 
-The browser uses the Node API as an authentication backend-for-frontend. The API exchanges credentials with Supabase Auth and keeps access and refresh tokens in `HttpOnly` cookies. Business data goes through GraphQL. This creates one application authorization boundary and avoids exposing tokens to browser JavaScript or coupling UI components directly to database tables.
+The browser uses the Node API as an authentication backend-for-frontend and
+keeps tokens in `HttpOnly` cookies. Mobile stores its Supabase session in native
+secure storage and presents the access token to the same API. Both transports
+create the same RLS-aware GraphQL context.
 
 ## Repository boundaries
 
@@ -49,7 +51,7 @@ Project membership grants access to private projects and can narrow task-editing
 
 ### Authentication and authorization
 
-Supabase Auth owns credentials and sessions. `auth.users` is not duplicated, and no password is stored by Boardnest. A public `profiles` row references the Auth user UUID. The Node API owns the browser-facing login, registration, refresh, callback, and logout endpoints; session cookies are `HttpOnly`, `SameSite=Lax`, and `Secure` outside local development.
+Supabase Auth owns credentials and sessions. `auth.users` is not duplicated, and no password is stored by Boardnest. A public `profiles` row references the Auth user UUID. The Node API owns the browser-facing cookie flow. The mobile Supabase client owns the native PKCE and refresh flow and persists session data through Expo SecureStore.
 
 The API validates Supabase JWTs, requires authentication at resolver boundaries,
 and creates a request-scoped Supabase client carrying the user's JWT. PostgreSQL
@@ -89,7 +91,7 @@ service. Transport code does not duplicate database policy logic.
 Expo and React Native provide a separate native presentation boundary. Expo
 Router owns file-based mobile navigation, while platform-independent GraphQL
 contracts and domain helpers may be shared through workspace packages. Mobile
-will use Supabase bearer sessions accepted by the same API; the browser's
+uses Supabase bearer sessions accepted by the same API; the browser's
 HTTP-only cookie model remains unchanged. See [Mobile](MOBILE.md).
 
 ## Deployment topology

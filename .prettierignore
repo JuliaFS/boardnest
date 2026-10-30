@@ -1,5 +1,7 @@
 coverage
 dist
+**/.expo
+**/expo-env.d.ts
 node_modules
 packages/graphql-types/src/generated
 pnpm-lock.yaml

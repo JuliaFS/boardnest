@@ -169,9 +169,10 @@ processes:
 pnpm dev:mobile
 ```
 
-The Dashboard executes a public GraphQL connectivity query through the mobile
-Apollo Client. Device networking, public mobile environment values, shared
-contract generation, project boundaries, and validation commands are
+The mobile client restores a secure Supabase session and sends its bearer token
+through the platform-specific Apollo Client. Device networking, auth redirect
+URLs, public mobile environment values, shared contract generation, project
+boundaries, and validation commands are
 documented in [Mobile](MOBILE.md) and
 [`apps/mobile/README.md`](../apps/mobile/README.md).
 

@@ -7,14 +7,16 @@ The mobile foundation currently provides:
 - Expo SDK 58 and React Native 0.88;
 - Expo Router with typed file-based routes;
 - initial Dashboard, Projects, Notifications, and Settings tabs;
-- a native Apollo Client and public GraphQL connectivity check;
+- Supabase registration, login, recovery, and secure session persistence;
+- protected Expo Router routes and Boardnest deep links;
+- a bearer-authenticated Apollo Client;
 - shared generated GraphQL documents and result types;
 - Boardnest color and spacing tokens;
 - Android, iOS, and web development targets;
 - monorepo lint and type-check integration.
 
-The public query does not require authentication. Mobile bearer authentication
-and protected feature data are intentionally reserved for the next phase.
+The web and mobile clients use the same Supabase users. Web sessions remain in
+HTTP-only cookies, while native sessions use Expo SecureStore and bearer tokens.
 
 ## Prerequisites
 
@@ -40,7 +42,7 @@ During the Expo SDK 58 transition, the public Expo Go store application may temp
 ## Local API addresses
 
 Copy `apps/mobile/.env.example` to `apps/mobile/.env.local` and set
-`EXPO_PUBLIC_GRAPHQL_URL` to an address the selected device can reach.
+the API addresses, Supabase publishable values, and Turnstile site key.
 
 A physical device cannot reach the computer through `localhost`. Replace `192.168.1.100` with the computer's LAN address. An Android emulator normally reaches the host through `10.0.2.2`.
 
@@ -48,18 +50,28 @@ For an Android emulator, use:
 
 ```dotenv
 EXPO_PUBLIC_GRAPHQL_URL=http://10.0.2.2:4000/graphql
+EXPO_PUBLIC_API_URL=http://10.0.2.2:4000
 ```
 
 For a physical device, use the development computer's LAN address:
 
 ```dotenv
 EXPO_PUBLIC_GRAPHQL_URL=http://192.168.1.100:4000/graphql
+EXPO_PUBLIC_API_URL=http://192.168.1.100:4000
 ```
 
-Start Redis and the API with `pnpm redis:up` and `pnpm dev`, then open the
-Dashboard. A successful unauthenticated request reports that the public query
-completed without a session. This is expected until mobile authentication is
-implemented.
+Add `boardnest://auth/callback` and `boardnest://auth/reset-password` to Supabase
+Authentication > URL Configuration > Redirect URLs. The Turnstile widget uses
+`EXPO_PUBLIC_WEB_URL` as its trusted base URL, so that hostname must be allowed
+by the corresponding Cloudflare Turnstile widget.
+
+Expo Go uses an `exp://<host>:<port>/--/auth/...` redirect rather than the
+standalone `boardnest://` scheme. Allow the exact development URLs shown by the
+running Expo server, or use a development build to test the final scheme.
+
+Start Redis and the API with `pnpm redis:up` and `pnpm dev`. Sign in with an
+existing web account, close Expo Go, reopen the project, and verify that the
+session is restored. The Dashboard GraphQL query must return that same user.
 
 All `EXPO_PUBLIC_*` values are embedded in the application bundle and must be treated as public. Never place a Supabase service-role key, SMTP password, Redis URL, Railway token, or any other secret in the mobile environment.
 
