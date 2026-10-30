@@ -9,7 +9,9 @@ function readOptionalString(value: unknown): string | undefined {
   return trimmedValue.length > 0 ? trimmedValue : undefined;
 }
 
-const configuredGraphqlUrl = readOptionalString(process.env.EXPO_PUBLIC_GRAPHQL_URL);
+const configuredGraphqlUrl = readOptionalString(
+  process.env.EXPO_PUBLIC_GRAPHQL_URL,
+);
 
 export const mobileEnvironment = {
   graphqlUrl: configuredGraphqlUrl ?? DEFAULT_GRAPHQL_URL,
