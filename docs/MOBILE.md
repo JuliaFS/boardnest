@@ -2,7 +2,7 @@
 
 ## Scope
 
-`apps/mobile` is the native Boardnest client built with Expo SDK 58, React Native 0.88, TypeScript, and Expo Router. The first foundation phase establishes the application boundary, navigation shell, design tokens, configuration conventions, and repository quality checks. It intentionally does not connect authentication or GraphQL data.
+`apps/mobile` is the native Boardnest client built with Expo SDK 58, React Native 0.88, TypeScript, and Expo Router. The foundation establishes the application boundary, navigation shell, design tokens, configuration conventions, and repository quality checks. The client now also has a platform-specific Apollo Client and a public connectivity query; authenticated feature data remains a later phase.
 
 The existing Vite application remains the browser client. Mobile is an additional presentation layer, not a replacement for the web application.
 
@@ -19,6 +19,28 @@ Mobile client ────┘              │
 Both clients will use the same API, users, workspaces, projects, tasks, and notification data. Mobile business operations must go through the GraphQL API rather than querying business tables directly. This preserves API validation, authorization, plan limits, event publication, and PostgreSQL RLS behavior.
 
 Platform-specific UI stays inside each application. Framework-independent validation, GraphQL documents, generated types, constants, and pure domain functions may move into workspace packages only when both clients need them.
+
+## Shared GraphQL contracts
+
+`packages/graphql-types` is generated from the API schema and owns the typed
+documents shared by web and mobile. The first shared operation is
+`MobileConnection`, a public `currentUser` query used to prove that both clients
+compile against the same contract. A missing session is a valid public result.
+
+Apollo configuration remains platform-specific:
+
+- `apps/web/src/lib/apollo-client.ts` uses browser cookies and WebSockets;
+- `apps/mobile/src/lib/apollo.ts` uses the native HTTP transport and will add
+  bearer authentication in the authentication phase.
+
+After changing the API schema or a shared operation, regenerate the contract:
+
+```bash
+pnpm graphql:generate
+```
+
+`pnpm graphql:check` performs a dry-run comparison. CI runs it explicitly so a
+schema or document change cannot be merged with stale generated types.
 
 ## Authentication direction
 
@@ -56,10 +78,9 @@ See [`apps/mobile/README.md`](../apps/mobile/README.md) for device setup, local 
 
 ## Planned phases
 
-1. Shared GraphQL documents and generated types.
-2. Mobile bearer authentication and secure session storage.
-3. Native workspace and project flows.
-4. Tasks, comments, and mobile board interactions.
-5. GraphQL subscription reconnection and cache synchronization.
-6. Notification inbox, reminders, and preferences.
-7. Push delivery, mobile hardening, testing, and Google Play release preparation.
+1. Mobile bearer authentication and secure session storage.
+2. Native workspace and project flows.
+3. Tasks, comments, and mobile board interactions.
+4. GraphQL subscription reconnection and cache synchronization.
+5. Notification inbox, reminders, and preferences.
+6. Push delivery, mobile hardening, testing, and Google Play release preparation.

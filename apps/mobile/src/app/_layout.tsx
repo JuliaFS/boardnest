@@ -1,6 +1,8 @@
 import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { ApolloProvider } from '@apollo/client/react';
 
+import { mobileApolloClient } from '@/lib/apollo';
 import { theme } from '@/theme';
 
 const boardnestNavigationTheme = {
@@ -17,12 +19,14 @@ const boardnestNavigationTheme = {
 
 export default function RootLayout() {
   return (
-    <ThemeProvider value={boardnestNavigationTheme}>
-      <StatusBar style="light" />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="(tabs)" />
-      </Stack>
-    </ThemeProvider>
+    <ApolloProvider client={mobileApolloClient}>
+      <ThemeProvider value={boardnestNavigationTheme}>
+        <StatusBar style="light" />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="(tabs)" />
+        </Stack>
+      </ThemeProvider>
+    </ApolloProvider>
   );
 }

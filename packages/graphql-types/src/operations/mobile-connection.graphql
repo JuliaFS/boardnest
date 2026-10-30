@@ -1,0 +1,9 @@
+query MobileConnection {
+  currentUser {
+    id
+    email
+    displayName
+    isAnonymous
+    role
+  }
+}

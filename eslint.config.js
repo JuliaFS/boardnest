@@ -9,6 +9,7 @@ export default tseslint.config(
       '**/coverage/**',
       '**/dist/**',
       '**/node_modules/**',
+      'packages/graphql-types/src/generated/**',
       '**/playwright-report/**',
       '**/test-results/**',
     ],
