@@ -113,12 +113,17 @@ query UnreadNotificationCount {
 
 ## Mutations
 
-The schema supports workspace and project creation, project update/deletion,
+The schema supports workspace creation/update, project creation/update/deletion,
 task creation/update/deletion/movement, task assignment, comments, invitations,
 marking notifications as read, reminder lifecycle management, recipient
 replacement, global notification preference updates, and event-specific
 notification preference upserts. GraphQL enums map to the
 lowercase values enforced by PostgreSQL.
+
+`updateWorkspace(id:, input:)` accepts a partial name/slug update and rejects an
+empty input. PostgreSQL RLS limits the mutation to workspace owners and admins.
+Both create and update return `CONFLICT` with an actionable message when the
+globally unique slug is already used.
 
 `markNotificationAsRead(id:)` derives the recipient from the verified session.
 The data update filters by both notification ID and authenticated user ID, while

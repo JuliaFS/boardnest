@@ -14,6 +14,7 @@ The mobile foundation currently provides:
 - Boardnest color and spacing tokens;
 - accessible reusable controls and standard loading, error, and empty states;
 - protected workspace, project, and task route destinations;
+- workspace listing, details, creation, editing, member roles, and permissions;
 - Android, iOS, and web development targets;
 - monorepo lint and type-check integration.
 
@@ -74,6 +75,12 @@ running Expo server, or use a development build to test the final scheme.
 Start Redis and the API with `pnpm redis:up` and `pnpm dev`. Sign in with an
 existing web account, close Expo Go, reopen the project, and verify that the
 session is restored. The Dashboard GraphQL query must return that same user.
+
+The Dashboard lists the same workspace records as the web client. Owners and
+admins can create or edit a workspace and manage non-owner member roles from the
+workspace details screen. Members and viewers can inspect the roster but cannot
+open management controls. Duplicate slugs are rejected by the API with a clear
+message and remain globally unique across Boardnest.
 
 All `EXPO_PUBLIC_*` values are embedded in the application bundle and must be treated as public. Never place a Supabase service-role key, SMTP password, Redis URL, Railway token, or any other secret in the mobile environment.
 

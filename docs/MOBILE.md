@@ -97,6 +97,25 @@ Route builders in `apps/mobile/src/navigation/routes.ts` encode identifiers
 before navigation. The Projects tab includes a temporary route preview until
 the native workspace and project queries are connected.
 
+## Mobile workspaces
+
+The Dashboard uses the shared `MobileWorkspaces` operation to list every active
+workspace visible to the authenticated user. Creating a workspace automatically
+derives a URL-safe slug from its name, including Bulgarian transliteration. A
+user may override that slug; the API returns an explicit conflict message when
+the globally unique value is already in use.
+
+Workspace details and members are loaded together through the shared
+`MobileWorkspaceDetails` operation. The screen derives the current user's role
+from the returned membership. Owners and admins may edit workspace metadata and
+change non-owner member roles; members and viewers receive read-only controls.
+PostgreSQL RLS independently enforces the same permission boundary, so hiding a
+mobile control is never the authorization mechanism.
+
+Mobile and web use the same GraphQL API and Supabase PostgreSQL rows. A workspace
+created or edited on either client is therefore visible on the other after its
+query is refreshed.
+
 ## Native design system
 
 Reusable native controls live in `apps/mobile/src/components/ui`. The first
@@ -135,7 +154,7 @@ See [`apps/mobile/README.md`](../apps/mobile/README.md) for device setup, local 
 
 ## Planned phases
 
-1. Native workspace and project flows.
+1. Native project flows on top of the completed workspace foundation.
 2. Tasks, comments, and mobile board interactions.
 3. GraphQL subscription reconnection and cache synchronization.
 4. Notification inbox, reminders, and preferences.

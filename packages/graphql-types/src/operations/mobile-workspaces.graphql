@@ -1,0 +1,89 @@
+query MobileWorkspaces($limit: Int = 50, $offset: Int = 0) {
+  workspaces(limit: $limit, offset: $offset) {
+    nodes {
+      id
+      name
+      slug
+      createdBy
+      createdAt
+      updatedAt
+    }
+    pageInfo {
+      hasNextPage
+      limit
+      offset
+    }
+  }
+}
+
+query MobileWorkspaceDetails($id: ID!, $memberLimit: Int = 100) {
+  currentUser {
+    id
+  }
+  workspace(id: $id) {
+    id
+    name
+    slug
+    createdBy
+    createdAt
+    updatedAt
+  }
+  workspaceMembers(workspaceId: $id, limit: $memberLimit) {
+    nodes {
+      workspaceId
+      userId
+      displayName
+      avatarUrl
+      role
+      joinedAt
+      updatedAt
+    }
+    pageInfo {
+      hasNextPage
+      limit
+      offset
+    }
+  }
+}
+
+mutation CreateMobileWorkspace($input: CreateWorkspaceInput!) {
+  createWorkspace(input: $input) {
+    id
+    name
+    slug
+    createdBy
+    createdAt
+    updatedAt
+  }
+}
+
+mutation UpdateMobileWorkspace($id: ID!, $input: UpdateWorkspaceInput!) {
+  updateWorkspace(id: $id, input: $input) {
+    id
+    name
+    slug
+    createdBy
+    createdAt
+    updatedAt
+  }
+}
+
+mutation UpdateMobileWorkspaceMemberRole(
+  $workspaceId: ID!
+  $userId: ID!
+  $role: WorkspaceRole!
+) {
+  updateWorkspaceMemberRole(
+    workspaceId: $workspaceId
+    userId: $userId
+    role: $role
+  ) {
+    workspaceId
+    userId
+    displayName
+    avatarUrl
+    role
+    joinedAt
+    updatedAt
+  }
+}

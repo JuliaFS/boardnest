@@ -221,6 +221,43 @@ function runQuery(
 }
 
 describe('GraphQL project and task workflow resolvers', () => {
+  it('updates a workspace with validated fields', async () => {
+    const updateWorkspace = vi.fn().mockResolvedValue({
+      id: workspaceId,
+      name: 'Updated team',
+      slug: 'updated-team',
+    });
+    const value = context(createDataService({ updateWorkspace }));
+
+    await expect(
+      runMutation(
+        'updateWorkspace',
+        {
+          id: workspaceId,
+          input: { name: ' Updated team ', slug: 'updated-team' },
+        },
+        value,
+      ),
+    ).resolves.toMatchObject({ name: 'Updated team', slug: 'updated-team' });
+    expect(updateWorkspace).toHaveBeenCalledWith(workspaceId, {
+      name: 'Updated team',
+      slug: 'updated-team',
+    });
+  });
+
+  it('rejects an empty workspace update', async () => {
+    const updateWorkspace = vi.fn();
+
+    await expect(
+      runMutation(
+        'updateWorkspace',
+        { id: workspaceId, input: {} },
+        context(createDataService({ updateWorkspace })),
+      ),
+    ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
+    expect(updateWorkspace).not.toHaveBeenCalled();
+  });
+
   it('accepts an invitation token through the authenticated data service', async () => {
     const token = 'a'.repeat(43);
     const membership = {
