@@ -34,6 +34,7 @@ import type {
   UpdateScheduledNotificationData,
   UpdateTaskData,
   UpdateTaskReminderData,
+  UpdateWorkspaceData,
   Workspace,
   WorkspaceMember,
   WorkspaceMembership,
@@ -434,6 +435,10 @@ export interface BoardnestDataService {
     id: string,
     status: 'active' | 'paused',
   ) => Promise<TaskReminder>;
+  updateWorkspace: (
+    id: string,
+    input: UpdateWorkspaceData,
+  ) => Promise<Workspace>;
   replaceTaskReminderRecipients: (
     id: string,
     recipientIds: string[],
@@ -592,6 +597,23 @@ class SupabaseBoardnestDataService implements BoardnestDataService {
       .eq('id', id)
       .single();
     return required(workspaceSchema, response);
+  }
+
+  async updateWorkspace(
+    id: string,
+    input: UpdateWorkspaceData,
+  ): Promise<Workspace> {
+    const response = await this.client
+      .from('workspaces')
+      .update(input)
+      .eq('id', id)
+      .select('*')
+      .single();
+    throwForError(
+      response.error,
+      'This workspace URL slug already exists. Choose a unique slug by adding a word or number.',
+    );
+    return workspaceSchema.parse(response.data);
   }
 
   async projects(

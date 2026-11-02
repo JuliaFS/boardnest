@@ -1,142 +1,131 @@
-import { MobileConnectionDocument } from '@boardnest/graphql-types';
+import { MobileWorkspacesDocument } from '@boardnest/graphql-types';
 import { useQuery } from '@apollo/client/react';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { FoundationScreen } from '@/components/foundation-screen';
-import { mobileEnvironment } from '@/lib/environment';
-import { theme } from '@/theme';
+import {
+  AppButton,
+  AppScreen,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  useFeedback,
+} from '@/components/ui';
+import { WorkspaceFormSheet } from '@/features/workspaces/WorkspaceFormSheet';
+import { mobileRoutes } from '@/navigation/routes';
+import { MIN_TOUCH_TARGET, theme } from '@/theme';
 
 export default function DashboardScreen() {
-  const { data, error, loading, refetch } = useQuery(MobileConnectionDocument, {
-    fetchPolicy: 'network-only',
+  const router = useRouter();
+  const { showToast } = useFeedback();
+  const [showCreateWorkspace, setShowCreateWorkspace] = useState(false);
+  const { data, error, loading, refetch } = useQuery(MobileWorkspacesDocument, {
+    fetchPolicy: 'cache-and-network',
   });
-  const currentUser = data?.currentUser;
-
-  const connectionState = loading
-    ? 'Checking the shared GraphQL API…'
-    : error
-      ? 'The GraphQL API could not be reached.'
-      : 'The shared GraphQL contract is connected.';
+  const workspaces = data?.workspaces.nodes ?? [];
 
   return (
-    <FoundationScreen
-      eyebrow="MOBILE GRAPHQL"
-      title="Welcome to Boardnest"
-      description="The native client uses the shared GraphQL contract and is ready for authentication."
-      items={[
-        'Expo Router navigation is configured.',
-        'Generated GraphQL types are shared with the web client.',
-        'Android, iOS, and web development targets are enabled.',
-      ]}
+    <AppScreen
+      description="Open a workspace to view its members, permissions, and projects."
+      eyebrow="DASHBOARD"
+      title="Your workspaces"
     >
-      <View accessibilityLiveRegion="polite" style={styles.connectionCard}>
-        <View style={styles.connectionHeader}>
-          <View
-            style={[
-              styles.statusMarker,
-              loading
-                ? styles.statusPending
-                : error
-                  ? styles.statusError
-                  : styles.statusReady,
-            ]}
-          />
-          <Text style={styles.connectionTitle}>GraphQL connection</Text>
+      <AppButton
+        label="Create workspace"
+        onPress={() => setShowCreateWorkspace(true)}
+      />
+      {loading && !data ? (
+        <LoadingState
+          description="Loading the workspaces available to your account."
+          title="Loading workspaces"
+        />
+      ) : null}
+      {error && !data ? (
+        <ErrorState
+          actionLabel="Try again"
+          description={error.message}
+          onAction={() => void refetch()}
+          title="Workspaces could not be loaded"
+        />
+      ) : null}
+      {!loading && !error && workspaces.length === 0 ? (
+        <EmptyState
+          actionLabel="Create your first workspace"
+          description="A workspace contains members, projects, tasks, and notifications."
+          onAction={() => setShowCreateWorkspace(true)}
+          title="No workspaces yet"
+        />
+      ) : null}
+      {workspaces.length > 0 ? (
+        <View accessibilityRole="list" style={styles.list}>
+          {workspaces.map((workspace) => (
+            <Pressable
+              accessibilityHint="Opens workspace details and members"
+              accessibilityLabel={`${workspace.name}, workspace`}
+              accessibilityRole="button"
+              key={workspace.id}
+              onPress={() => router.push(mobileRoutes.workspace(workspace.id))}
+              style={({ pressed }) => [
+                styles.card,
+                pressed && styles.cardPressed,
+              ]}
+            >
+              <View style={styles.cardHeading}>
+                <Text style={styles.cardTitle}>{workspace.name}</Text>
+                <Text accessibilityElementsHidden style={styles.arrow}>
+                  ›
+                </Text>
+              </View>
+              <Text style={styles.slug}>/{workspace.slug}</Text>
+              <Text style={styles.updatedAt}>
+                Updated {new Date(workspace.updatedAt).toLocaleDateString()}
+              </Text>
+            </Pressable>
+          ))}
         </View>
-        <Text style={styles.connectionText}>{connectionState}</Text>
-        {!mobileEnvironment.hasConfiguredGraphqlUrl ? (
-          <Text style={styles.configurationHint}>
-            Using the localhost default. Configure EXPO_PUBLIC_GRAPHQL_URL for a
-            physical device.
-          </Text>
-        ) : null}
-        {!loading && !error ? (
-          <Text style={styles.connectionDetail}>
-            {currentUser
-              ? `Session detected for ${currentUser.displayName ?? currentUser.email ?? currentUser.id}.`
-              : 'The public query completed without an authenticated session.'}
-          </Text>
-        ) : null}
-        {error ? (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => void refetch()}
-            style={({ pressed }) => [
-              styles.retryButton,
-              pressed && styles.retryButtonPressed,
-            ]}
-          >
-            <Text style={styles.retryButtonText}>Try again</Text>
-          </Pressable>
-        ) : null}
-      </View>
-    </FoundationScreen>
+      ) : null}
+      <WorkspaceFormSheet
+        onClose={() => setShowCreateWorkspace(false)}
+        onCompleted={(workspace) => {
+          setShowCreateWorkspace(false);
+          showToast({
+            message: `${workspace.name} was created.`,
+            tone: 'success',
+          });
+          router.push(mobileRoutes.workspace(workspace.id));
+        }}
+        visible={showCreateWorkspace}
+      />
+    </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  connectionCard: {
-    gap: theme.spacing.md,
-    padding: theme.spacing.lg,
-    borderWidth: 1,
+  arrow: { color: theme.colors.primary, fontSize: 30 },
+  card: {
+    minHeight: MIN_TOUCH_TARGET,
+    gap: theme.spacing.sm,
     borderColor: theme.colors.border,
     borderRadius: theme.radius.lg,
-    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    backgroundColor: theme.colors.surface,
+    padding: theme.spacing.lg,
   },
-  connectionHeader: {
+  cardHeading: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.sm,
+    justifyContent: 'space-between',
+    gap: theme.spacing.md,
   },
-  statusMarker: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  statusReady: {
-    backgroundColor: theme.colors.success,
-  },
-  statusPending: {
-    backgroundColor: theme.colors.primary,
-  },
-  statusError: {
-    backgroundColor: theme.colors.danger,
-  },
-  connectionTitle: {
+  cardPressed: { opacity: 0.72 },
+  cardTitle: {
+    flex: 1,
     color: theme.colors.text,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  connectionText: {
-    color: theme.colors.text,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  connectionDetail: {
-    color: theme.colors.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  configurationHint: {
-    color: theme.colors.primary,
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  retryButton: {
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: theme.spacing.lg,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.primary,
-  },
-  retryButtonPressed: {
-    opacity: 0.8,
-  },
-  retryButtonText: {
-    color: theme.colors.primaryContrast,
-    fontSize: 15,
+    fontSize: 20,
     fontWeight: '800',
   },
+  list: { gap: theme.spacing.md },
+  slug: { color: theme.colors.primary, fontSize: 14, fontWeight: '700' },
+  updatedAt: { color: theme.colors.textMuted, fontSize: 13 },
 });

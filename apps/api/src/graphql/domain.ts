@@ -286,6 +286,11 @@ export interface Pagination {
   offset: number;
 }
 
+export interface UpdateWorkspaceData {
+  name?: string;
+  slug?: string;
+}
+
 export interface CreateProjectData {
   description?: string | null;
   due_date?: string | null;

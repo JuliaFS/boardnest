@@ -58,6 +58,29 @@ describe('Boardnest data service', () => {
     supabase.builder.update.mockReturnValue(supabase.builder);
   });
 
+  it('returns a clear conflict when a workspace slug already exists', async () => {
+    supabase.builder.single.mockResolvedValue({
+      data: null,
+      error: { code: '23505', message: 'duplicate key' },
+    });
+    const service = createBoardnestDataService(
+      'https://example.supabase.co',
+      'publishable-key',
+      'access-token',
+    );
+
+    await expect(
+      service.updateWorkspace(workspaceId, { slug: 'existing-team' }),
+    ).rejects.toThrow(
+      'This workspace URL slug already exists. Choose a unique slug by adding a word or number.',
+    );
+
+    expect(supabase.builder.update).toHaveBeenCalledWith({
+      slug: 'existing-team',
+    });
+    expect(supabase.builder.eq).toHaveBeenCalledWith('id', workspaceId);
+  });
+
   it('performs an exact head-only unread count for one user', async () => {
     supabase.builder.is.mockResolvedValue({
       count: 4,

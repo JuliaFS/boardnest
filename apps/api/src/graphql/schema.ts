@@ -21,6 +21,7 @@ import type {
   UpdateScheduledNotificationData,
   UpdateTaskData,
   UpdateTaskReminderData,
+  UpdateWorkspaceData,
 } from './domain.js';
 
 export interface GraphQLContext {
@@ -49,6 +50,9 @@ const createWorkspaceSchema = z.object({
     .max(63)
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
 });
+const updateWorkspaceSchema = createWorkspaceSchema
+  .partial()
+  .refine((input) => Object.keys(input).length > 0, 'No changes supplied.');
 const createProjectSchema = z.object({
   description: z.string().max(10_000).nullish(),
   dueDate: z.iso.date().nullish(),
@@ -591,6 +595,7 @@ export const typeDefs = `#graphql
   type InvitationPayload { invitation: Invitation!, token: String, emailSent: Boolean! }
 
   input CreateWorkspaceInput { name: String!, slug: String! }
+  input UpdateWorkspaceInput { name: String, slug: String }
   input CreateProjectInput {
     workspaceId: ID!
     name: String!
@@ -722,6 +727,7 @@ export const typeDefs = `#graphql
 
   type Mutation {
     createWorkspace(input: CreateWorkspaceInput!): Workspace!
+    updateWorkspace(id: ID!, input: UpdateWorkspaceInput!): Workspace!
     createProject(input: CreateProjectInput!): Project!
     updateProject(id: ID!, input: UpdateProjectInput!): Project!
     deleteProject(id: ID!): DeletePayload!
@@ -1236,6 +1242,15 @@ export const resolvers = {
         authenticated.user.id,
       );
     },
+    updateWorkspace: async (
+      _parent: unknown,
+      args: { id: string; input: unknown },
+      context: GraphQLContext,
+    ) =>
+      requireAuth(context).data.updateWorkspace(
+        uuid(args.id),
+        toUpdateWorkspaceData(parse(updateWorkspaceSchema, args.input)),
+      ),
     createProject: async (
       _parent: unknown,
       args: { input: unknown },
@@ -1735,6 +1750,15 @@ function toCreateProjectData(
     status: input.status,
     visibility: input.visibility,
     workspace_id: input.workspaceId,
+  };
+}
+
+function toUpdateWorkspaceData(
+  input: z.infer<typeof updateWorkspaceSchema>,
+): UpdateWorkspaceData {
+  return {
+    ...(input.name === undefined ? {} : { name: input.name }),
+    ...(input.slug === undefined ? {} : { slug: input.slug }),
   };
 }
 

@@ -6,7 +6,9 @@ This private workspace is the shared GraphQL contract boundary for the Boardnest
 
 - The executable schema remains in `apps/api/src/graphql/schema.ts`.
 - Shared client operations belong in `src/operations` as named `.graphql` documents.
-- Generated output belongs in `src/generated/graphql.ts` and is committed.
+- Generated schema types belong in `src/generated/schema.ts`; generated
+  operation types and documents belong in `src/generated/graphql.ts`. Both are
+  committed.
 - Consumers import only from `@boardnest/graphql-types`, never from the generated file directly.
 - Platform-specific Apollo setup stays inside `apps/web` and `apps/mobile`.
 
@@ -40,4 +42,4 @@ pnpm --filter @boardnest/graphql-types test
 4. Remove any replaced handwritten document or response type from the client.
 5. Run `pnpm graphql:check`, type-checking, and relevant client tests.
 
-Do not hand-edit `src/generated/graphql.ts`.
+Do not hand-edit files in `src/generated`.

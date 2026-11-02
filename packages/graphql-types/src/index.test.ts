@@ -1,7 +1,12 @@
 import { Kind, OperationTypeNode } from 'graphql';
 import { describe, expect, it } from 'vitest';
 
-import { MobileConnectionDocument } from './index';
+import {
+  MobileConnectionDocument,
+  MobileWorkspaceDetailsDocument,
+  MobileWorkspacesDocument,
+  UpdateMobileWorkspaceDocument,
+} from './index';
 
 describe('shared GraphQL contracts', () => {
   it('exports a typed public mobile connection query', () => {
@@ -13,6 +18,30 @@ describe('shared GraphQL contracts', () => {
       kind: Kind.OPERATION_DEFINITION,
       name: { value: 'MobileConnection' },
       operation: OperationTypeNode.QUERY,
+    });
+  });
+
+  it.each([
+    ['MobileWorkspaces', MobileWorkspacesDocument, OperationTypeNode.QUERY],
+    [
+      'MobileWorkspaceDetails',
+      MobileWorkspaceDetailsDocument,
+      OperationTypeNode.QUERY,
+    ],
+    [
+      'UpdateMobileWorkspace',
+      UpdateMobileWorkspaceDocument,
+      OperationTypeNode.MUTATION,
+    ],
+  ])('exports the typed %s operation', (name, document, operationType) => {
+    const operation = document.definitions.find(
+      (definition) => definition.kind === Kind.OPERATION_DEFINITION,
+    );
+
+    expect(operation).toMatchObject({
+      kind: Kind.OPERATION_DEFINITION,
+      name: { value: name },
+      operation: operationType,
     });
   });
 });

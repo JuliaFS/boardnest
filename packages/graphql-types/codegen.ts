@@ -4,8 +4,8 @@ const config: CodegenConfig = {
   schema: '../../apps/api/src/graphql/schema.ts',
   documents: 'src/operations/**/*.graphql',
   generates: {
-    'src/generated/graphql.ts': {
-      plugins: ['typescript', 'typescript-operations', 'typed-document-node'],
+    'src/generated/schema.ts': {
+      plugins: ['typescript'],
       config: {
         enumsAsTypes: true,
         scalars: {
@@ -19,6 +19,14 @@ const config: CodegenConfig = {
             output: 'Record<string, unknown>',
           },
         },
+        useTypeImports: true,
+      },
+    },
+    'src/generated/graphql.ts': {
+      plugins: ['typescript-operations', 'typed-document-node'],
+      config: {
+        importSchemaTypesFrom: './src/generated/schema',
+        preResolveTypes: false,
         useTypeImports: true,
       },
     },
