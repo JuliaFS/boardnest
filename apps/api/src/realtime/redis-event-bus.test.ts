@@ -3,7 +3,9 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Task } from '../graphql/domain.js';
 import {
   createRedisEventBusFromClients,
+  decodeSyncEvent,
   decodeTaskEvent,
+  encodeSyncEvent,
   encodeTaskEvent,
   type RedisPublisher,
   type RedisSubscriber,
@@ -106,6 +108,38 @@ describe('Redis real-time event bus', () => {
         JSON.stringify({ ...event, taskId: crypto.randomUUID() }),
       ),
     ).toThrow();
+  });
+
+  it('distributes and validates project sync events', async () => {
+    const broker = new FakeRedisBroker();
+    const publisherBus = createRedisEventBusFromClients({
+      publisher: broker.publisher(),
+      subscriber: broker.subscriber(),
+    });
+    const subscriberBus = createRedisEventBusFromClients({
+      publisher: broker.publisher(),
+      subscriber: broker.subscriber(),
+    });
+    const subscription = (
+      await subscriberBus.subscribeToSync(task.project_id, 'task_comment')
+    )[Symbol.asyncIterator]();
+    const event = {
+      id: '2df85234-1a26-42b6-b10f-622e89d6e7ca',
+      kind: 'task_comment',
+      occurredAt: new Date(0).toISOString(),
+      projectId: task.project_id,
+      taskId: task.id,
+      workspaceId: null,
+    } as const;
+
+    expect(decodeSyncEvent(encodeSyncEvent(event))).toEqual(event);
+    await publisherBus.publishSync(event);
+    await expect(subscription.next()).resolves.toEqual({
+      done: false,
+      value: event,
+    });
+    await subscription.return?.();
+    await Promise.all([publisherBus.close(), subscriberBus.close()]);
   });
 
   it('reports publish failures without failing an already persisted mutation', async () => {

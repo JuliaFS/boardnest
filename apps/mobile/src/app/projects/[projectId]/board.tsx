@@ -7,7 +7,7 @@ import {
 } from '@boardnest/graphql-types';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import {
@@ -21,12 +21,15 @@ import {
   useFeedback,
 } from '@/components/ui';
 import { TaskFormSheet } from '@/features/tasks/TaskFormSheet';
+import { useProjectRealtime } from '@/features/realtime/useProjectRealtime';
 import { canEditTasks } from '@/features/tasks/task-model';
 import {
   groupTasksByStatus,
   moveTaskOptimistically,
+  removeTaskFromColumns,
   restoreTaskColumns,
   type TaskColumns,
+  upsertTaskInColumns,
 } from '@/features/tasks/task-board';
 import { mobileRoutes } from '@/navigation/routes';
 import { theme } from '@/theme';
@@ -75,6 +78,24 @@ export default function ProjectBoardScreen() {
     projectRole,
     board.data?.project?.visibility ?? 'PRIVATE',
   );
+  const handleTaskUpsert = useCallback((task: Task) => {
+    setColumns((current) => upsertTaskInColumns(current, task));
+  }, []);
+  const handleTaskDelete = useCallback((taskId: string) => {
+    setColumns((current) => removeTaskFromColumns(current, taskId));
+  }, []);
+  const refreshProjectAccess = useCallback(() => {
+    void Promise.all([projectAccess.refetch(), workspaceAccess.refetch()]);
+  }, [projectAccess, workspaceAccess]);
+
+  useProjectRealtime({
+    onMembershipChanged: refreshProjectAccess,
+    onTaskCreated: handleTaskUpsert,
+    onTaskDeleted: handleTaskDelete,
+    onTaskUpdated: handleTaskUpsert,
+    projectId: projectId ?? '',
+    skip: !board.data,
+  });
 
   useEffect(() => {
     if (!board.data) return;

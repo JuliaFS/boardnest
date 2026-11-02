@@ -15,6 +15,9 @@ function readOptionalString(value: unknown): string | undefined {
 const configuredGraphqlUrl = readOptionalString(
   process.env.EXPO_PUBLIC_GRAPHQL_URL,
 );
+const configuredWebSocketUrl = readOptionalString(
+  process.env.EXPO_PUBLIC_WS_URL,
+);
 const configuredApiUrl = readOptionalString(process.env.EXPO_PUBLIC_API_URL);
 const configuredSupabaseUrl = readOptionalString(
   process.env.EXPO_PUBLIC_SUPABASE_URL,
@@ -36,4 +39,13 @@ export const mobileEnvironment = {
   webUrl:
     readOptionalString(process.env.EXPO_PUBLIC_WEB_URL) ??
     'https://boardnest-web-omega.vercel.app',
+  websocketUrl:
+    configuredWebSocketUrl ??
+    toWebSocketUrl(configuredGraphqlUrl ?? DEFAULT_GRAPHQL_URL),
 } as const;
+
+export function toWebSocketUrl(graphqlUrl: string): string {
+  const url = new URL(graphqlUrl);
+  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+  return url.toString();
+}

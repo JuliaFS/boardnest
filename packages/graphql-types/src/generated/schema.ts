@@ -693,6 +693,16 @@ export type QueryWorkspacesArgs = {
   offset?: InputMaybe<Scalars['Int']['input']>;
 };
 
+export type RealtimeSyncEvent = {
+  __typename?: 'RealtimeSyncEvent';
+  id: Scalars['ID']['output'];
+  kind: Scalars['String']['output'];
+  occurredAt: Scalars['String']['output'];
+  projectId?: Maybe<Scalars['ID']['output']>;
+  taskId?: Maybe<Scalars['ID']['output']>;
+  workspaceId?: Maybe<Scalars['ID']['output']>;
+};
+
 export type ReminderScheduleKind =
   | 'MONTHLY'
   | 'ONCE'
@@ -749,9 +759,22 @@ export type ScheduledNotificationStatus =
 
 export type Subscription = {
   __typename?: 'Subscription';
+  projectMembershipChanged: RealtimeSyncEvent;
+  taskCommentChanged: RealtimeSyncEvent;
   taskCreated: Task;
   taskDeleted: DeletePayload;
   taskUpdated: Task;
+  workspaceMembershipChanged: RealtimeSyncEvent;
+};
+
+
+export type SubscriptionProjectMembershipChangedArgs = {
+  projectId: Scalars['ID']['input'];
+};
+
+
+export type SubscriptionTaskCommentChangedArgs = {
+  projectId: Scalars['ID']['input'];
 };
 
 
@@ -767,6 +790,11 @@ export type SubscriptionTaskDeletedArgs = {
 
 export type SubscriptionTaskUpdatedArgs = {
   projectId: Scalars['ID']['input'];
+};
+
+
+export type SubscriptionWorkspaceMembershipChangedArgs = {
+  workspaceId: Scalars['ID']['input'];
 };
 
 export type SubscriptionPlan = {

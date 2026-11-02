@@ -17,6 +17,7 @@ The mobile foundation currently provides:
 - workspace listing, details, creation, editing, member roles, and permissions;
 - project listing, details, lifecycle fields, membership, and deletion;
 - task board columns, task CRUD, status changes, assignments, and comments;
+- authenticated GraphQL WebSocket synchronization for tasks, comments, and memberships;
 - workspace invitations and protected native invitation acceptance;
 - Android, iOS, and web development targets;
 - monorepo lint and type-check integration.
@@ -56,6 +57,7 @@ For an Android emulator, use:
 
 ```dotenv
 EXPO_PUBLIC_GRAPHQL_URL=http://10.0.2.2:4000/graphql
+EXPO_PUBLIC_WS_URL=ws://10.0.2.2:4000/graphql
 EXPO_PUBLIC_API_URL=http://10.0.2.2:4000
 ```
 
@@ -63,6 +65,7 @@ For a physical device, use the development computer's LAN address:
 
 ```dotenv
 EXPO_PUBLIC_GRAPHQL_URL=http://192.168.1.100:4000/graphql
+EXPO_PUBLIC_WS_URL=ws://192.168.1.100:4000/graphql
 EXPO_PUBLIC_API_URL=http://192.168.1.100:4000
 ```
 
@@ -111,6 +114,13 @@ workspace/project permissions. Status changes update optimistically and restore
 the previous column state if the API rejects the mutation. Native gestures and
 animations are intentionally deferred until the menu-based workflow has been
 validated on small screens.
+
+The native Apollo transport opens authenticated `graphql-transport-ws`
+connections with the current Supabase bearer token. It reconnects after network
+loss or foreground restoration, then refetches active queries to recover any
+events missed while disconnected. Task events update the board immediately;
+comment and membership events refetch their scoped detail data. A bounded event
+deduplicator prevents repeated deliveries from being applied twice.
 
 All `EXPO_PUBLIC_*` values are embedded in the application bundle and must be treated as public. Never place a Supabase service-role key, SMTP password, Redis URL, Railway token, or any other secret in the mobile environment.
 

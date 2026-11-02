@@ -1,9 +1,13 @@
+import { randomUUID } from 'node:crypto';
+
 import { GraphQLError, GraphQLScalarType, Kind } from 'graphql';
 import { z } from 'zod';
 
 import type { PublicAuthUser } from '../auth/auth-service.js';
 import type {
   RealtimeEventBus,
+  SyncEvent,
+  SyncEventKind,
   TaskEvent,
   TaskEventKind,
 } from '../realtime/event-bus.js';
@@ -771,6 +775,18 @@ export const typeDefs = `#graphql
     taskCreated(projectId: ID!): Task!
     taskUpdated(projectId: ID!): Task!
     taskDeleted(projectId: ID!): DeletePayload!
+    taskCommentChanged(projectId: ID!): RealtimeSyncEvent!
+    projectMembershipChanged(projectId: ID!): RealtimeSyncEvent!
+    workspaceMembershipChanged(workspaceId: ID!): RealtimeSyncEvent!
+  }
+
+  type RealtimeSyncEvent {
+    id: ID!
+    kind: String!
+    occurredAt: String!
+    workspaceId: ID
+    projectId: ID
+    taskId: ID
   }
 `;
 
@@ -1385,12 +1401,20 @@ export const resolvers = {
       context: GraphQLContext,
     ) => {
       const authenticated = requireAuth(context);
+      const taskId = uuid(args.taskId);
       const body = parse(z.string().trim().min(1).max(20_000), args.body);
-      return authenticated.data.addComment(
-        uuid(args.taskId),
+      const comment = await authenticated.data.addComment(
+        taskId,
         body,
         authenticated.user.id,
       );
+      const task = await authenticated.data.task(taskId);
+      if (task) {
+        await context.events.publishSync(
+          syncEvent('task_comment', { projectId: task.project_id, taskId }),
+        );
+      }
+      return comment;
     },
     inviteMember: async (
       _parent: unknown,
@@ -1436,60 +1460,105 @@ export const resolvers = {
       _parent: unknown,
       args: { token: string },
       context: GraphQLContext,
-    ) =>
-      requireAuth(context).data.acceptInvitation(
+    ) => {
+      const membership = await requireAuth(context).data.acceptInvitation(
         parse(invitationTokenSchema, args.token),
-      ),
+      );
+      await context.events.publishSync(
+        syncEvent('workspace_membership', {
+          workspaceId: membership.workspace_id,
+        }),
+      );
+      return membership;
+    },
     addProjectMember: async (
       _parent: unknown,
       args: { projectId: string; role: string; userId: string },
       context: GraphQLContext,
-    ) =>
-      requireAuth(context).data.addProjectMember(
+    ) => {
+      const member = await requireAuth(context).data.addProjectMember(
         uuid(args.projectId),
         uuid(args.userId),
         parse(projectMemberRoleSchema, args.role),
-      ),
+      );
+      await context.events.publishSync(
+        syncEvent('project_membership', {
+          projectId: member.project_id,
+          workspaceId: member.workspace_id,
+        }),
+      );
+      return member;
+    },
     updateProjectMemberRole: async (
       _parent: unknown,
       args: { projectId: string; role: string; userId: string },
       context: GraphQLContext,
-    ) =>
-      requireAuth(context).data.updateProjectMemberRole(
+    ) => {
+      const member = await requireAuth(context).data.updateProjectMemberRole(
         uuid(args.projectId),
         uuid(args.userId),
         parse(projectMemberRoleSchema, args.role),
-      ),
+      );
+      await context.events.publishSync(
+        syncEvent('project_membership', {
+          projectId: member.project_id,
+          workspaceId: member.workspace_id,
+        }),
+      );
+      return member;
+    },
     removeProjectMember: async (
       _parent: unknown,
       args: { projectId: string; userId: string },
       context: GraphQLContext,
-    ) => ({
-      id: await requireAuth(context).data.removeProjectMember(
-        uuid(args.projectId),
+    ) => {
+      const authenticated = requireAuth(context);
+      const projectId = uuid(args.projectId);
+      const project = await authenticated.data.project(projectId);
+      const id = await authenticated.data.removeProjectMember(
+        projectId,
         uuid(args.userId),
-      ),
-    }),
+      );
+      await context.events.publishSync(
+        syncEvent('project_membership', {
+          projectId,
+          workspaceId: project?.workspace_id ?? null,
+        }),
+      );
+      return { id };
+    },
     updateWorkspaceMemberRole: async (
       _parent: unknown,
       args: { role: string; userId: string; workspaceId: string },
       context: GraphQLContext,
-    ) =>
-      requireAuth(context).data.updateWorkspaceMemberRole(
+    ) => {
+      const member = await requireAuth(context).data.updateWorkspaceMemberRole(
         uuid(args.workspaceId),
         uuid(args.userId),
         parse(workspaceMemberRoleSchema, args.role),
-      ),
+      );
+      await context.events.publishSync(
+        syncEvent('workspace_membership', {
+          workspaceId: member.workspace_id,
+        }),
+      );
+      return member;
+    },
     removeWorkspaceMember: async (
       _parent: unknown,
       args: { userId: string; workspaceId: string },
       context: GraphQLContext,
-    ) => ({
-      id: await requireAuth(context).data.removeWorkspaceMember(
-        uuid(args.workspaceId),
+    ) => {
+      const workspaceId = uuid(args.workspaceId);
+      const id = await requireAuth(context).data.removeWorkspaceMember(
+        workspaceId,
         uuid(args.userId),
-      ),
-    }),
+      );
+      await context.events.publishSync(
+        syncEvent('workspace_membership', { workspaceId }),
+      );
+      return { id };
+    },
     revokeInvitation: async (
       _parent: unknown,
       args: { id: string },
@@ -1648,6 +1717,11 @@ export const resolvers = {
     },
   },
   Subscription: {
+    projectMembershipChanged: syncSubscription(
+      'project_membership',
+      'projectId',
+    ),
+    taskCommentChanged: syncSubscription('task_comment', 'projectId'),
     taskCreated: taskSubscription('created'),
     taskDeleted: {
       resolve: async (
@@ -1661,8 +1735,57 @@ export const resolvers = {
       subscribe: subscribeToTaskEvents('deleted'),
     },
     taskUpdated: taskSubscription('updated'),
+    workspaceMembershipChanged: syncSubscription(
+      'workspace_membership',
+      'workspaceId',
+    ),
   },
 };
+
+function syncEvent(
+  kind: SyncEventKind,
+  values: {
+    projectId?: string | null;
+    taskId?: string | null;
+    workspaceId?: string | null;
+  },
+): SyncEvent {
+  return {
+    id: randomUUID(),
+    kind,
+    occurredAt: new Date().toISOString(),
+    projectId: values.projectId ?? null,
+    taskId: values.taskId ?? null,
+    workspaceId: values.workspaceId ?? null,
+  };
+}
+
+function syncSubscription(
+  kind: SyncEventKind,
+  argument: 'projectId' | 'workspaceId',
+) {
+  return {
+    resolve: (event: SyncEvent) => event,
+    subscribe: async (
+      _parent: unknown,
+      args: { projectId?: string; workspaceId?: string },
+      context: GraphQLContext,
+    ) => {
+      const scopeId = uuid(args[argument] ?? '');
+      if (argument === 'projectId') {
+        await requireProjectAccess(context, scopeId);
+      } else {
+        const workspace = await requireAuth(context).data.workspace(scopeId);
+        if (!workspace) {
+          throw new GraphQLError('Workspace not found or access denied.', {
+            extensions: { code: 'FORBIDDEN' },
+          });
+        }
+      }
+      return context.events.subscribeToSync(scopeId, kind);
+    },
+  };
+}
 
 function taskEvent(
   kind: Exclude<TaskEventKind, 'deleted'>,
