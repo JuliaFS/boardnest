@@ -10,6 +10,9 @@ describe('mobile navigation contracts', () => {
       '/workspaces/workspace%20one',
     );
     expect(mobileRoutes.project('project/one')).toBe('/projects/project%2Fone');
+    expect(mobileRoutes.board('project/one')).toBe(
+      '/projects/project%2Fone/board',
+    );
     expect(mobileRoutes.invitation('token/value')).toBe(
       '/invite/token%2Fvalue',
     );

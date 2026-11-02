@@ -13,6 +13,7 @@ import type {
   ScheduledNotification,
   Task,
   TaskAssignee,
+  TaskComment,
   TaskReminder,
 } from './domain.js';
 import { resolvers, type GraphQLContext } from './schema.js';
@@ -568,6 +569,53 @@ describe('GraphQL project and task workflow resolvers', () => {
       task: null,
       taskId,
     } satisfies TaskEvent);
+  });
+
+  it('loads task collaboration data and removes an assignee', async () => {
+    const assignment: TaskAssignee = {
+      assigned_at: timestamp,
+      assigned_by: user.id,
+      task_id: taskId,
+      user_id: assigneeId,
+    };
+    const comment: TaskComment = {
+      author_id: user.id,
+      body: 'Ready for review.',
+      created_at: timestamp,
+      edited_at: null,
+      id: notificationId,
+      task_id: taskId,
+      updated_at: timestamp,
+    };
+    const taskAssignees = vi.fn().mockResolvedValue([assignment]);
+    const taskComments = vi.fn().mockResolvedValue({
+      nodes: [comment],
+      pageInfo: { hasNextPage: false, limit: 25, offset: 5 },
+    });
+    const unassignTask = vi.fn().mockResolvedValue(assigneeId);
+    const value = context(
+      createDataService({ taskAssignees, taskComments, unassignTask }),
+    );
+
+    await expect(runQuery('taskAssignees', { taskId }, value)).resolves.toEqual(
+      [assignment],
+    );
+    await expect(
+      runQuery('taskComments', { limit: 25, offset: 5, taskId }, value),
+    ).resolves.toEqual({
+      nodes: [comment],
+      pageInfo: { hasNextPage: false, limit: 25, offset: 5 },
+    });
+    await expect(
+      runMutation('unassignTask', { assigneeId, taskId }, value),
+    ).resolves.toEqual({ id: assigneeId });
+
+    expect(taskAssignees).toHaveBeenCalledWith(taskId);
+    expect(taskComments).toHaveBeenCalledWith(taskId, {
+      limit: 25,
+      offset: 5,
+    });
+    expect(unassignTask).toHaveBeenCalledWith(taskId, assigneeId);
   });
 
   it('rejects protected mutations before the data layer without authentication', async () => {

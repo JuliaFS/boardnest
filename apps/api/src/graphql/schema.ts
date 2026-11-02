@@ -379,6 +379,8 @@ export const typeDefs = `#graphql
     updatedAt: String!
   }
 
+  type TaskCommentConnection { nodes: [TaskComment!]!, pageInfo: PageInfo! }
+
   type Notification {
     id: ID!
     userId: ID!
@@ -709,6 +711,8 @@ export const typeDefs = `#graphql
     projectMembers(projectId: ID!, limit: Int = 100, offset: Int = 0): ProjectMemberConnection!
     tasks(projectId: ID!, statusId: ID, search: String, limit: Int = 50, offset: Int = 0): TaskConnection!
     task(id: ID!): Task
+    taskAssignees(taskId: ID!): [TaskAssignee!]!
+    taskComments(taskId: ID!, limit: Int = 100, offset: Int = 0): TaskCommentConnection!
     taskStatuses(projectId: ID!): [TaskStatus!]!
     notifications(unreadOnly: Boolean = false, limit: Int = 25, offset: Int = 0): NotificationConnection!
     unreadNotificationCount: Int!
@@ -739,6 +743,7 @@ export const typeDefs = `#graphql
     deleteTask(id: ID!): DeletePayload!
     moveTask(id: ID!, input: MoveTaskInput!): Task!
     assignTask(taskId: ID!, assigneeId: ID!): TaskAssignee!
+    unassignTask(taskId: ID!, assigneeId: ID!): DeletePayload!
     addComment(taskId: ID!, body: String!): TaskComment!
     inviteMember(input: InviteMemberInput!): InvitationPayload!
     acceptInvitation(token: String!): InvitationAcceptance!
@@ -1116,6 +1121,20 @@ export const resolvers = {
       args: { projectId: string },
       context: GraphQLContext,
     ) => requireAuth(context).data.taskStatuses(uuid(args.projectId)),
+    taskAssignees: async (
+      _parent: unknown,
+      args: { taskId: string },
+      context: GraphQLContext,
+    ) => requireAuth(context).data.taskAssignees(uuid(args.taskId)),
+    taskComments: async (
+      _parent: unknown,
+      args: PaginationArguments & { taskId: string },
+      context: GraphQLContext,
+    ) =>
+      requireAuth(context).data.taskComments(
+        uuid(args.taskId),
+        pagination(args),
+      ),
     notifications: async (
       _parent: unknown,
       args: PaginationArguments & { unreadOnly?: boolean | null },
@@ -1350,6 +1369,16 @@ export const resolvers = {
         authenticated.user.id,
       );
     },
+    unassignTask: async (
+      _parent: unknown,
+      args: { assigneeId: string; taskId: string },
+      context: GraphQLContext,
+    ) => ({
+      id: await requireAuth(context).data.unassignTask(
+        uuid(args.taskId),
+        uuid(args.assigneeId),
+      ),
+    }),
     addComment: async (
       _parent: unknown,
       args: { body: string; taskId: string },

@@ -3,10 +3,12 @@ import { describe, expect, it } from 'vitest';
 
 import {
   MobileConnectionDocument,
+  MobileBoardDocument,
   MobileProjectDetailsDocument,
   MobileProjectsDocument,
   MobileWorkspaceDetailsDocument,
   MobileWorkspacesDocument,
+  MobileTaskDetailsDocument,
   UpdateMobileWorkspaceDocument,
 } from './index';
 
@@ -36,6 +38,8 @@ describe('shared GraphQL contracts', () => {
       OperationTypeNode.MUTATION,
     ],
     ['MobileProjects', MobileProjectsDocument, OperationTypeNode.QUERY],
+    ['MobileBoard', MobileBoardDocument, OperationTypeNode.QUERY],
+    ['MobileTaskDetails', MobileTaskDetailsDocument, OperationTypeNode.QUERY],
     [
       'MobileProjectDetails',
       MobileProjectDetailsDocument,

@@ -345,6 +345,29 @@ describe('Boardnest data service', () => {
     });
   });
 
+  it('removes a task assignment by its composite identifier', async () => {
+    const taskId = '6db362d7-bfe5-42aa-8d2d-b98513628f9f';
+    const assigneeId = '2df85234-1a26-42b6-b10f-622e89d6e7ca';
+    supabase.builder.single.mockResolvedValue({
+      data: { user_id: assigneeId },
+      error: null,
+    });
+    const service = createBoardnestDataService(
+      'https://example.supabase.co',
+      'publishable-key',
+      'access-token',
+    );
+
+    await expect(service.unassignTask(taskId, assigneeId)).resolves.toBe(
+      assigneeId,
+    );
+
+    expect(supabase.builder.delete).toHaveBeenCalledOnce();
+    expect(supabase.builder.eq).toHaveBeenCalledWith('task_id', taskId);
+    expect(supabase.builder.eq).toHaveBeenCalledWith('user_id', assigneeId);
+    expect(supabase.builder.select).toHaveBeenCalledWith('user_id');
+  });
+
   it('returns a project-filtered activity feed with pagination', async () => {
     const projectId = '254f67ae-fbfa-4bee-bd4b-b224b7c9fada';
     const activity = {
