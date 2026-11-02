@@ -4,6 +4,7 @@ import {
   findNodeHandle,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -76,7 +77,12 @@ export function BottomSheetModal({
               <Text style={styles.closeLabel}>×</Text>
             </Pressable>
           </View>
-          {children}
+          <ScrollView
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+          >
+            {children}
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -91,6 +97,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   closeLabel: { color: theme.colors.text, fontSize: 30, lineHeight: 32 },
+  content: { gap: theme.spacing.lg },
   description: { color: theme.colors.textMuted, fontSize: 14, lineHeight: 20 },
   handle: {
     width: 48,
@@ -107,6 +114,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.overlay,
   },
   sheet: {
+    maxHeight: '92%',
     gap: theme.spacing.lg,
     borderTopLeftRadius: theme.radius.lg,
     borderTopRightRadius: theme.radius.lg,

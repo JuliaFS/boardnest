@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { MIN_TOUCH_TARGET, theme } from '../theme';
 
-import { mobileRoutes } from './routes';
+import { invitationRouteFromReturnTo, mobileRoutes } from './routes';
 
 describe('mobile navigation contracts', () => {
   it('builds encoded workspace, project, and task routes', () => {
@@ -10,9 +10,21 @@ describe('mobile navigation contracts', () => {
       '/workspaces/workspace%20one',
     );
     expect(mobileRoutes.project('project/one')).toBe('/projects/project%2Fone');
+    expect(mobileRoutes.invitation('token/value')).toBe(
+      '/invite/token%2Fvalue',
+    );
     expect(mobileRoutes.task('project one', 'task/two')).toBe(
       '/projects/project%20one/tasks/task%2Ftwo',
     );
+  });
+
+  it('accepts only safe invitation return routes', () => {
+    const token = 'a'.repeat(43);
+    expect(invitationRouteFromReturnTo(`/invite/${token}`)).toBe(
+      `/invite/${token}`,
+    );
+    expect(invitationRouteFromReturnTo('https://example.com')).toBeNull();
+    expect(invitationRouteFromReturnTo('/projects/one')).toBeNull();
   });
 
   it('keeps interactive controls at an accessible minimum size', () => {

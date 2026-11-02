@@ -176,6 +176,11 @@ workspace roles. `addProjectMember`, `updateProjectMemberRole`, and
 owners/admins and project leads may manage the roster; foreign keys and RLS
 enforce the final authorization and prevent cross-workspace membership.
 
+Mobile uses generated `MobileProjects` and `MobileProjectDetails` queries plus
+typed create, update, delete, project-member, invitation, and invitation-
+acceptance mutations. These documents deliberately reuse the same API surface
+as web; there is no mobile-only persistence or authorization path.
+
 ### Reminder scheduling
 
 `createTaskReminder` accepts one-time, weekly, monthly, quarterly, and yearly

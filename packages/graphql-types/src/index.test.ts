@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   MobileConnectionDocument,
+  MobileProjectDetailsDocument,
+  MobileProjectsDocument,
   MobileWorkspaceDetailsDocument,
   MobileWorkspacesDocument,
   UpdateMobileWorkspaceDocument,
@@ -32,6 +34,12 @@ describe('shared GraphQL contracts', () => {
       'UpdateMobileWorkspace',
       UpdateMobileWorkspaceDocument,
       OperationTypeNode.MUTATION,
+    ],
+    ['MobileProjects', MobileProjectsDocument, OperationTypeNode.QUERY],
+    [
+      'MobileProjectDetails',
+      MobileProjectDetailsDocument,
+      OperationTypeNode.QUERY,
     ],
   ])('exports the typed %s operation', (name, document, operationType) => {
     const operation = document.definitions.find(

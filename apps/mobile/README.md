@@ -15,6 +15,8 @@ The mobile foundation currently provides:
 - accessible reusable controls and standard loading, error, and empty states;
 - protected workspace, project, and task route destinations;
 - workspace listing, details, creation, editing, member roles, and permissions;
+- project listing, details, lifecycle fields, membership, and deletion;
+- workspace invitations and protected native invitation acceptance;
 - Android, iOS, and web development targets;
 - monorepo lint and type-check integration.
 
@@ -81,6 +83,24 @@ admins can create or edit a workspace and manage non-owner member roles from the
 workspace details screen. Members and viewers can inspect the roster but cannot
 open management controls. Duplicate slugs are rejected by the API with a clear
 message and remain globally unique across Boardnest.
+
+The Projects tab scopes its list to a selected workspace. Workspace
+contributors may create projects, while project leads and workspace managers
+may edit project details and manage explicit project roles. Only workspace
+owners and admins receive the destructive project deletion control. PostgreSQL
+RLS remains authoritative for every operation.
+
+Workspace owners and admins can create and revoke invitations from workspace
+details. Email delivery uses the API's configured provider. If delivery is not
+available, the one-time web acceptance URL is displayed as a development
+fallback. The `/invite/:token` mobile route validates the token, preserves it
+through login, and accepts it only when the authenticated email matches.
+
+The Android manifest declares a verified App Link for
+`https://boardnest-web-omega.vercel.app/invite/*`. A store or development build
+requires the matching Digital Asset Links file on the Vercel domain; Expo Go
+does not verify Android App Links. See `docs/MOBILE.md` for the production
+certificate step.
 
 All `EXPO_PUBLIC_*` values are embedded in the application bundle and must be treated as public. Never place a Supabase service-role key, SMTP password, Redis URL, Railway token, or any other secret in the mobile environment.
 

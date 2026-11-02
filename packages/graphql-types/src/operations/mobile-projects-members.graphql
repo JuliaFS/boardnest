@@ -1,0 +1,212 @@
+query MobileProjects($workspaceId: ID!, $limit: Int = 50, $offset: Int = 0) {
+  currentUser {
+    id
+    isAnonymous
+  }
+  workspace(id: $workspaceId) {
+    id
+    name
+    slug
+  }
+  workspaceMembers(workspaceId: $workspaceId, limit: 100) {
+    nodes {
+      userId
+      role
+    }
+    pageInfo {
+      hasNextPage
+      limit
+      offset
+    }
+  }
+  projects(workspaceId: $workspaceId, limit: $limit, offset: $offset) {
+    nodes {
+      id
+      workspaceId
+      name
+      description
+      visibility
+      status
+      startDate
+      dueDate
+      updatedAt
+    }
+    pageInfo {
+      hasNextPage
+      limit
+      offset
+    }
+  }
+}
+
+query MobileProjectDetails($id: ID!) {
+  currentUser {
+    id
+    isAnonymous
+  }
+  project(id: $id) {
+    id
+    workspaceId
+    name
+    description
+    visibility
+    status
+    startDate
+    dueDate
+    updatedAt
+  }
+  projectMembers(projectId: $id, limit: 100) {
+    nodes {
+      projectId
+      workspaceId
+      userId
+      displayName
+      avatarUrl
+      role
+      workspaceRole
+      joinedAt
+      updatedAt
+    }
+    pageInfo {
+      hasNextPage
+      limit
+      offset
+    }
+  }
+}
+
+query MobileProjectWorkspaceMembers($workspaceId: ID!) {
+  workspaceMembers(workspaceId: $workspaceId, limit: 100) {
+    nodes {
+      workspaceId
+      userId
+      displayName
+      avatarUrl
+      role
+      joinedAt
+    }
+    pageInfo {
+      hasNextPage
+      limit
+      offset
+    }
+  }
+}
+
+query MobileWorkspaceInvitations($workspaceId: ID!) {
+  workspaceInvitations(workspaceId: $workspaceId, limit: 100) {
+    nodes {
+      id
+      workspaceId
+      email
+      role
+      status
+      expiresAt
+      createdAt
+    }
+    pageInfo {
+      hasNextPage
+      limit
+      offset
+    }
+  }
+}
+
+mutation CreateMobileProject($input: CreateProjectInput!) {
+  createProject(input: $input) {
+    id
+    workspaceId
+    name
+    description
+    visibility
+    status
+    startDate
+    dueDate
+    updatedAt
+  }
+}
+
+mutation UpdateMobileProject($id: ID!, $input: UpdateProjectInput!) {
+  updateProject(id: $id, input: $input) {
+    id
+    workspaceId
+    name
+    description
+    visibility
+    status
+    startDate
+    dueDate
+    updatedAt
+  }
+}
+
+mutation DeleteMobileProject($id: ID!) {
+  deleteProject(id: $id) {
+    id
+  }
+}
+
+mutation AddMobileProjectMember(
+  $projectId: ID!
+  $userId: ID!
+  $role: ProjectRole!
+) {
+  addProjectMember(projectId: $projectId, userId: $userId, role: $role) {
+    projectId
+    userId
+    role
+    workspaceRole
+  }
+}
+
+mutation UpdateMobileProjectMemberRole(
+  $projectId: ID!
+  $userId: ID!
+  $role: ProjectRole!
+) {
+  updateProjectMemberRole(projectId: $projectId, userId: $userId, role: $role) {
+    projectId
+    userId
+    role
+    workspaceRole
+    updatedAt
+  }
+}
+
+mutation RemoveMobileProjectMember($projectId: ID!, $userId: ID!) {
+  removeProjectMember(projectId: $projectId, userId: $userId) {
+    id
+  }
+}
+
+mutation InviteMobileWorkspaceMember($input: InviteMemberInput!) {
+  inviteMember(input: $input) {
+    emailSent
+    token
+    invitation {
+      id
+      workspaceId
+      email
+      role
+      status
+      expiresAt
+    }
+  }
+}
+
+mutation RevokeMobileWorkspaceInvitation($id: ID!) {
+  revokeInvitation(id: $id) {
+    id
+    status
+    revokedAt
+  }
+}
+
+mutation AcceptMobileWorkspaceInvitation($token: String!) {
+  acceptInvitation(token: $token) {
+    workspaceId
+    userId
+    role
+    joinedAt
+  }
+}

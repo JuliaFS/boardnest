@@ -1,4 +1,4 @@
-import { Link, useRouter } from 'expo-router';
+import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,9 +7,13 @@ import { authStyles } from '@/features/auth/auth-ui';
 import { useMobileAuth } from '@/features/auth/mobile-auth';
 import { TurnstileChallenge } from '@/features/auth/TurnstileChallenge';
 import { mobileEnvironment } from '@/lib/environment';
+import { invitationRouteFromReturnTo, mobileRoutes } from '@/navigation/routes';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { returnTo } = useLocalSearchParams<{
+    returnTo?: string | string[];
+  }>();
   const { signIn } = useMobileAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,7 +27,10 @@ export default function LoginScreen() {
     setError(null);
     try {
       await signIn(email.trim(), password, captchaToken ?? undefined);
-      router.replace('/(tabs)/dashboard');
+      const rawReturnTo = Array.isArray(returnTo) ? returnTo[0] : returnTo;
+      router.replace(
+        invitationRouteFromReturnTo(rawReturnTo) ?? mobileRoutes.dashboard,
+      );
     } catch (caught) {
       setError(authErrorMessage(caught));
       setSubmitting(false);

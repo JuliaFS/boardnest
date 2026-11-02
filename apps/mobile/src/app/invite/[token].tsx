@@ -1,28 +1,83 @@
-import { useLocalSearchParams } from 'expo-router';
-import { Text } from 'react-native';
+import {
+  AcceptMobileWorkspaceInvitationDocument,
+  MobileWorkspacesDocument,
+} from '@boardnest/graphql-types';
+import { useMutation } from '@apollo/client/react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { View } from 'react-native';
 
-import { FoundationScreen } from '@/components/foundation-screen';
+import { AppBanner, AppButton, AppScreen } from '@/components/ui';
+import { mobileRoutes } from '@/navigation/routes';
 
 export default function InvitationDeepLinkScreen() {
+  const router = useRouter();
   const { token } = useLocalSearchParams<{ token?: string | string[] }>();
   const invitationToken = Array.isArray(token) ? token[0] : token;
+  const validToken = Boolean(
+    invitationToken && /^[A-Za-z0-9_-]{43}$/.test(invitationToken),
+  );
+  const [acceptInvitation, state] = useMutation(
+    AcceptMobileWorkspaceInvitationDocument,
+    { refetchQueries: [MobileWorkspacesDocument] },
+  );
+  const accepted = state.data?.acceptInvitation;
+
+  async function accept() {
+    if (!invitationToken || !validToken) return;
+    try {
+      await acceptInvitation({ variables: { token: invitationToken } });
+    } catch {
+      // Apollo exposes the invitation error through state.
+    }
+  }
 
   return (
-    <FoundationScreen
-      description="The invitation deep link reached the authenticated mobile application. Invitation acceptance will reuse the shared GraphQL operation in the projects stage."
-      eyebrow="Invitation"
-      items={[
-        'Protected deep link',
-        'Session restored',
-        'Token captured safely',
-      ]}
-      title="Workspace invitation"
+    <AppScreen
+      description="Invitation acceptance is protected by your authenticated email address."
+      eyebrow="INVITATION"
+      title={accepted ? 'Invitation accepted' : 'Workspace invitation'}
     >
-      <Text selectable>
-        {invitationToken
-          ? 'Invitation ready to accept.'
-          : 'Invalid invitation link.'}
-      </Text>
-    </FoundationScreen>
+      {accepted ? (
+        <>
+          <AppBanner
+            message={`You joined the workspace as ${accepted.role.toLowerCase()}.`}
+            title="Welcome to the workspace"
+            tone="success"
+          />
+          <AppButton
+            label="Open workspace"
+            onPress={() =>
+              router.replace(mobileRoutes.workspace(accepted.workspaceId))
+            }
+          />
+        </>
+      ) : !validToken ? (
+        <AppBanner
+          message="The invitation token is missing or malformed. Ask the workspace administrator for a new invitation."
+          title="Invalid invitation link"
+          tone="error"
+        />
+      ) : (
+        <View>
+          <AppButton
+            label="Accept invitation"
+            loading={state.loading}
+            onPress={() => void accept()}
+          />
+        </View>
+      )}
+      {state.error ? (
+        <AppBanner
+          message={state.error.message}
+          title="Invitation could not be accepted"
+          tone="error"
+        />
+      ) : null}
+      <AppButton
+        label="Return to dashboard"
+        onPress={() => router.replace(mobileRoutes.dashboard)}
+        variant="ghost"
+      />
+    </AppScreen>
   );
 }
