@@ -31,7 +31,12 @@ export const AppTextField = forwardRef<
         aria-invalid={Boolean(error)}
         placeholderTextColor={theme.colors.textMuted}
         ref={ref}
-        style={[styles.input, error ? styles.inputError : null, style]}
+        style={[
+          styles.input,
+          inputProps.multiline ? styles.multiline : null,
+          error ? styles.inputError : null,
+          style,
+        ]}
       />
       {description ? (
         <Text
@@ -61,4 +66,9 @@ const styles = StyleSheet.create({
   },
   inputError: { borderColor: theme.colors.danger },
   label: { color: theme.colors.text, fontSize: 14, fontWeight: '700' },
+  multiline: {
+    paddingBottom: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    textAlignVertical: 'top',
+  },
 });
