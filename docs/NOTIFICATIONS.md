@@ -169,6 +169,12 @@ are rejected. The client then derives a destination from the deepest valid
 structured context: task, project, then workspace. A notification without any
 valid destination exposes an explicit `Mark as read` action instead.
 
+The native client applies a stricter platform-specific rule: it does not query
+or inspect `payload.route` at all. It validates the structured workspace,
+project, and task identifiers, considers the dotted event type, and constructs
+its own Expo Router destination. This prevents a web path or external payload
+value from becoming a native deep link.
+
 Opening an unread entry first applies an optimistic read state and calls
 `markNotificationAsRead`; an already-read entry navigates without repeating the
 mutation. The mutation derives the recipient from the authenticated session and

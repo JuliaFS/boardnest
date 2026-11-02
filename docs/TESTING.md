@@ -85,6 +85,10 @@ Mobile realtime tests verify background retry gating, foreground recovery,
 bounded duplicate suppression, stable task event identities, and immutable
 subscription-driven board updates. API event-bus and workflow tests verify
 scoped comment and membership publication across in-memory and Redis transports.
+Mobile notification model tests verify structured native route construction,
+invalid identifier rejection, unread badge boundaries, delivery channel
+validation, and workspace-plan interval enforcement. Shared contract tests
+verify that notification documents remain generated from the API schema.
 The notification event model smoke test verifies idempotent in-app and outbox
 creation, per-event email opt-out, email-only delivery, and the Guest plan email
 restriction. GraphQL tests cover catalog, effective plan capability, preference

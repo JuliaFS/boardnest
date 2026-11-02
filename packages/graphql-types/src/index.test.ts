@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   MobileConnectionDocument,
   MobileBoardDocument,
+  MobileNotificationsDocument,
   MobileProjectDetailsDocument,
   MobileProjectsDocument,
   MobileWorkspaceDetailsDocument,
@@ -41,6 +42,11 @@ describe('shared GraphQL contracts', () => {
     ['MobileProjects', MobileProjectsDocument, OperationTypeNode.QUERY],
     ['MobileBoard', MobileBoardDocument, OperationTypeNode.QUERY],
     ['MobileTaskDetails', MobileTaskDetailsDocument, OperationTypeNode.QUERY],
+    [
+      'MobileNotifications',
+      MobileNotificationsDocument,
+      OperationTypeNode.QUERY,
+    ],
     [
       'MobileTaskUpdated',
       MobileTaskUpdatedDocument,
