@@ -9,6 +9,7 @@ import {
   MobileWorkspaceDetailsDocument,
   MobileWorkspacesDocument,
   MobileTaskDetailsDocument,
+  MobileTaskUpdatedDocument,
   UpdateMobileWorkspaceDocument,
 } from './index';
 
@@ -40,6 +41,11 @@ describe('shared GraphQL contracts', () => {
     ['MobileProjects', MobileProjectsDocument, OperationTypeNode.QUERY],
     ['MobileBoard', MobileBoardDocument, OperationTypeNode.QUERY],
     ['MobileTaskDetails', MobileTaskDetailsDocument, OperationTypeNode.QUERY],
+    [
+      'MobileTaskUpdated',
+      MobileTaskUpdatedDocument,
+      OperationTypeNode.SUBSCRIPTION,
+    ],
     [
       'MobileProjectDetails',
       MobileProjectDetailsDocument,

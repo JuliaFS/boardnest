@@ -11,7 +11,11 @@ import {
   type PropsWithChildren,
 } from 'react';
 
-import { mobileApolloClient } from '@/lib/apollo';
+import {
+  mobileApolloClient,
+  reconnectMobileRealtime,
+  setMobileRealtimeActive,
+} from '@/lib/apollo';
 import { mobileEnvironment } from '@/lib/environment';
 import { mobileSupabase } from '@/lib/supabase';
 
@@ -64,11 +68,14 @@ export function MobileAuthProvider({ children }: PropsWithChildren) {
       if (active) {
         setSession(next);
         setIsLoading(false);
+        reconnectMobileRealtime();
       }
     });
 
     function handleAppState(nextState: AppStateStatus) {
-      if (nextState === 'active') void mobileSupabase.auth.startAutoRefresh();
+      const isActive = nextState === 'active';
+      setMobileRealtimeActive(isActive);
+      if (isActive) void mobileSupabase.auth.startAutoRefresh();
       else void mobileSupabase.auth.stopAutoRefresh();
     }
 
@@ -83,6 +90,7 @@ export function MobileAuthProvider({ children }: PropsWithChildren) {
       appStateSubscription.remove();
       data.subscription.unsubscribe();
       void mobileSupabase.auth.stopAutoRefresh();
+      setMobileRealtimeActive(false);
     };
   }, []);
 

@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   groupTasksByStatus,
   moveTaskOptimistically,
+  removeTaskFromColumns,
   restoreTaskColumns,
+  upsertTaskInColumns,
 } from './task-board';
 
 const statuses = [
@@ -35,6 +37,20 @@ describe('mobile task board state', () => {
     expect(next.todo?.map((task) => task.id)).toEqual(['second']);
     expect(next.done?.map((task) => task.id)).toEqual(['first']);
     expect(restoreTaskColumns(before)).toEqual(columns);
+    expect(columns.todo?.map((task) => task.id)).toEqual(['first', 'second']);
+  });
+
+  it('upserts and removes realtime tasks without mutating current columns', () => {
+    const columns = groupTasksByStatus(statuses, tasks);
+    const updated = upsertTaskInColumns(columns, {
+      id: 'first',
+      position: 500,
+      statusId: 'done',
+    });
+
+    expect(updated.todo?.map((task) => task.id)).toEqual(['second']);
+    expect(updated.done?.map((task) => task.id)).toEqual(['first']);
+    expect(removeTaskFromColumns(updated, 'first').done).toEqual([]);
     expect(columns.todo?.map((task) => task.id)).toEqual(['first', 'second']);
   });
 });

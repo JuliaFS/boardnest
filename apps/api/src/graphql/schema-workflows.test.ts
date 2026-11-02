@@ -184,7 +184,9 @@ const queries = resolvers.Query as unknown as Record<string, MutationResolver>;
 function createEvents() {
   return {
     close: vi.fn().mockResolvedValue(undefined),
+    publishSync: vi.fn().mockResolvedValue(undefined),
     publishTask: vi.fn().mockResolvedValue(undefined),
+    subscribeToSync: vi.fn(),
     subscribeToTasks: vi.fn(),
   } satisfies RealtimeEventBus;
 }
@@ -269,15 +271,22 @@ describe('GraphQL project and task workflow resolvers', () => {
       workspace_id: workspaceId,
     };
     const acceptInvitation = vi.fn().mockResolvedValue(membership);
+    const events = createEvents();
 
     await expect(
       runMutation(
         'acceptInvitation',
         { token },
-        context(createDataService({ acceptInvitation })),
+        context(createDataService({ acceptInvitation }), events),
       ),
     ).resolves.toEqual(membership);
     expect(acceptInvitation).toHaveBeenCalledWith(token);
+    expect(events.publishSync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'workspace_membership',
+        workspaceId,
+      }),
+    );
   });
 
   it('delivers a workspace invitation and hides the raw token after email success', async () => {
@@ -331,9 +340,12 @@ describe('GraphQL project and task workflow resolvers', () => {
   it('lists members and invitations and validates workspace member management', async () => {
     const workspaceMembers = vi.fn().mockResolvedValue({ nodes: [] });
     const workspaceInvitations = vi.fn().mockResolvedValue({ nodes: [] });
-    const updateWorkspaceMemberRole = vi.fn().mockResolvedValue({});
+    const updateWorkspaceMemberRole = vi
+      .fn()
+      .mockResolvedValue({ workspace_id: workspaceId });
     const removeWorkspaceMember = vi.fn().mockResolvedValue(assigneeId);
     const revokeInvitation = vi.fn().mockResolvedValue({});
+    const events = createEvents();
     const value = context(
       createDataService({
         removeWorkspaceMember,
@@ -342,6 +354,7 @@ describe('GraphQL project and task workflow resolvers', () => {
         workspaceInvitations,
         workspaceMembers,
       }),
+      events,
     );
 
     await runQuery('workspaceMembers', { workspaceId }, value);
@@ -381,20 +394,26 @@ describe('GraphQL project and task workflow resolvers', () => {
     );
     expect(removeWorkspaceMember).toHaveBeenCalledWith(workspaceId, assigneeId);
     expect(revokeInvitation).toHaveBeenCalledWith(reminderId);
+    expect(events.publishSync).toHaveBeenCalledTimes(2);
   });
 
   it('lists and manages project members with validated roles', async () => {
     const projectMembers = vi.fn().mockResolvedValue({ nodes: [] });
-    const addProjectMember = vi.fn().mockResolvedValue({});
-    const updateProjectMemberRole = vi.fn().mockResolvedValue({});
+    const member = { project_id: projectId, workspace_id: workspaceId };
+    const addProjectMember = vi.fn().mockResolvedValue(member);
+    const updateProjectMemberRole = vi.fn().mockResolvedValue(member);
     const removeProjectMember = vi.fn().mockResolvedValue(assigneeId);
+    const findProject = vi.fn().mockResolvedValue(project);
+    const events = createEvents();
     const value = context(
       createDataService({
         addProjectMember,
+        project: findProject,
         projectMembers,
         removeProjectMember,
         updateProjectMemberRole,
       }),
+      events,
     );
 
     await runQuery('projectMembers', { projectId }, value);
@@ -437,6 +456,7 @@ describe('GraphQL project and task workflow resolvers', () => {
       'project_lead',
     );
     expect(removeProjectMember).toHaveBeenCalledWith(projectId, assigneeId);
+    expect(events.publishSync).toHaveBeenCalledTimes(3);
   });
 
   it('creates a private project with normalized input and the authenticated creator', async () => {
@@ -616,6 +636,38 @@ describe('GraphQL project and task workflow resolvers', () => {
       offset: 5,
     });
     expect(unassignTask).toHaveBeenCalledWith(taskId, assigneeId);
+  });
+
+  it('publishes a scoped sync event after adding a task comment', async () => {
+    const comment: TaskComment = {
+      author_id: user.id,
+      body: 'Ready for review.',
+      created_at: timestamp,
+      edited_at: null,
+      id: notificationId,
+      task_id: taskId,
+      updated_at: timestamp,
+    };
+    const addComment = vi.fn().mockResolvedValue(comment);
+    const findTask = vi.fn().mockResolvedValue(task);
+    const events = createEvents();
+
+    await expect(
+      runMutation(
+        'addComment',
+        { body: ' Ready for review. ', taskId },
+        context(createDataService({ addComment, task: findTask }), events),
+      ),
+    ).resolves.toEqual(comment);
+
+    expect(addComment).toHaveBeenCalledWith(taskId, comment.body, user.id);
+    expect(events.publishSync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'task_comment',
+        projectId,
+        taskId,
+      }),
+    );
   });
 
   it('rejects protected mutations before the data layer without authentication', async () => {

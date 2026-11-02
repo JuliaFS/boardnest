@@ -6,7 +6,7 @@ import {
 } from '@boardnest/graphql-types';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import {
@@ -21,6 +21,7 @@ import {
 } from '@/components/ui';
 import { ProjectFormSheet } from '@/features/projects/ProjectFormSheet';
 import { ProjectMembersSection } from '@/features/projects/ProjectMembersSection';
+import { useProjectRealtime } from '@/features/realtime/useProjectRealtime';
 import {
   canManageProject,
   projectStatusLabel,
@@ -55,6 +56,14 @@ export default function ProjectDetailsScreen() {
   )?.role;
   const canManage = canManageProject(workspaceRole, projectRole);
   const canDelete = workspaceRole === 'OWNER' || workspaceRole === 'ADMIN';
+  const refreshMembership = useCallback(() => {
+    void Promise.all([details.refetch(), workspaceMembers.refetch()]);
+  }, [details, workspaceMembers]);
+  useProjectRealtime({
+    onMembershipChanged: refreshMembership,
+    projectId: projectId ?? '',
+    skip: !details.data,
+  });
 
   async function confirmDelete() {
     if (!project) return;

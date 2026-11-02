@@ -9,7 +9,7 @@ import {
 } from '@boardnest/graphql-types';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import {
@@ -24,6 +24,7 @@ import {
   useFeedback,
 } from '@/components/ui';
 import { TaskFormSheet } from '@/features/tasks/TaskFormSheet';
+import { useProjectRealtime } from '@/features/realtime/useProjectRealtime';
 import { canEditTasks } from '@/features/tasks/task-model';
 import { mobileRoutes } from '@/navigation/routes';
 import { theme } from '@/theme';
@@ -86,6 +87,32 @@ export default function TaskDetailsScreen() {
             projectMember.role !== 'VIEWER',
         )),
   );
+  const refreshTaskData = useCallback(() => {
+    void Promise.all([details.refetch(), workspaceMembers.refetch()]);
+  }, [details, workspaceMembers]);
+  const handleTaskUpdated = useCallback(
+    (updatedTask: { id: string }) => {
+      if (updatedTask.id === taskId) void details.refetch();
+    },
+    [details, taskId],
+  );
+  const handleTaskDeleted = useCallback(
+    (deletedTaskId: string) => {
+      if (deletedTaskId === taskId && projectId) {
+        router.replace(mobileRoutes.board(projectId));
+      }
+    },
+    [projectId, router, taskId],
+  );
+
+  useProjectRealtime({
+    onCommentChanged: refreshTaskData,
+    onMembershipChanged: refreshTaskData,
+    onTaskDeleted: handleTaskDeleted,
+    onTaskUpdated: handleTaskUpdated,
+    projectId: projectId ?? '',
+    skip: !details.data,
+  });
 
   async function refresh() {
     await Promise.all([details.refetch(), workspaceMembers.refetch()]);

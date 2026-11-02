@@ -207,8 +207,8 @@ See [`apps/mobile/README.md`](../apps/mobile/README.md) for device setup, local 
 
 1. Completed: workspace and project/member flows.
 2. Completed: task CRUD, comments, assignments, and menu-based board movement.
-3. Native drag and drop with gestures and animations after usability validation.
-4. GraphQL subscription reconnection and cache synchronization.
+3. Completed: authenticated GraphQL subscription reconnection and cache synchronization.
+4. Native drag and drop with gestures and animations after usability validation.
 5. Notification inbox, reminders, and preferences.
 6. Push delivery, mobile hardening, testing, and Google Play release preparation.
 
@@ -226,3 +226,20 @@ dates, and comments. Candidate assignees must be workspace members with project
 contributor access. The API and PostgreSQL RLS remain authoritative for all
 permissions. The phase adds no database migration because the existing task,
 assignee, comment, status, and policy tables already cover the workflow.
+
+## Realtime synchronization
+
+Mobile GraphQL HTTP and WebSocket requests share the same restored Supabase
+session. HTTP operations use an authorization header, while WebSocket
+`connectionParams` resolve the latest bearer token before each connection. A
+capped retry delay handles network loss. The app pauses retry work while it is
+in the background, terminates the stale socket, reconnects on foreground, and
+refetches active queries after a recovered connection.
+
+Project-scoped task subscriptions apply immutable board updates for create,
+update, movement, and deletion. Comment and project-membership subscriptions
+refetch only their relevant project views. Workspace membership events refetch
+the open workspace. Stable task fingerprints and server event IDs feed a
+bounded deduplicator, preventing Redis or reconnect redelivery from applying an
+event twice. Subscription resolvers authorize every scope before attaching to
+the event bus, and PostgreSQL RLS remains authoritative for subsequent reads.

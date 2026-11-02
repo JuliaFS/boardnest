@@ -6,7 +6,7 @@ import {
 } from '@boardnest/graphql-types';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import {
@@ -21,6 +21,7 @@ import {
 } from '@/components/ui';
 import { WorkspaceFormSheet } from '@/features/workspaces/WorkspaceFormSheet';
 import { WorkspaceInvitationsSection } from '@/features/workspaces/WorkspaceInvitationsSection';
+import { useWorkspaceRealtime } from '@/features/realtime/useWorkspaceRealtime';
 import {
   canManageWorkspace,
   workspaceRoleDescription,
@@ -52,6 +53,10 @@ export default function WorkspaceDetailsScreen() {
     (member) => member.userId === data?.currentUser?.id,
   );
   const canManage = canManageWorkspace(currentMembership?.role);
+  const refreshMembership = useCallback(() => {
+    void refetch();
+  }, [refetch]);
+  useWorkspaceRealtime(workspaceId ?? '', refreshMembership);
 
   async function changeRole(role: WorkspaceRole) {
     if (!selectedMember || !workspaceId) return;

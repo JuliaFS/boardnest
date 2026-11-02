@@ -61,4 +61,32 @@ describe('in-memory real-time event bus', () => {
 
     await expect(pending).resolves.toEqual({ done: true, value: undefined });
   });
+
+  it('delivers comment sync events only to the matching project scope', async () => {
+    const events = createInMemoryEventBus();
+    const subscription = (
+      await events.subscribeToSync(task.project_id, 'task_comment')
+    )[Symbol.asyncIterator]();
+    const event = {
+      id: '2df85234-1a26-42b6-b10f-622e89d6e7ca',
+      kind: 'task_comment',
+      occurredAt: new Date(0).toISOString(),
+      projectId: task.project_id,
+      taskId: task.id,
+      workspaceId: null,
+    } as const;
+
+    await events.publishSync({
+      ...event,
+      id: '3654dd85-b0a9-495b-842e-405f48257ef6',
+      projectId: 'b6067e89-1702-49b6-92f7-d2f2ccbc4685',
+    });
+    await events.publishSync(event);
+
+    await expect(subscription.next()).resolves.toEqual({
+      done: false,
+      value: event,
+    });
+    await subscription.return?.();
+  });
 });

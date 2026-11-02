@@ -55,6 +55,27 @@ export function restoreTaskColumns<TTask extends BoardTask>(
   return cloneColumns(snapshot);
 }
 
+export function upsertTaskInColumns<TTask extends BoardTask>(
+  columns: TaskColumns<TTask>,
+  task: TTask,
+): TaskColumns<TTask> {
+  const next = removeTaskFromColumns(columns, task.id);
+  (next[task.statusId] ??= []).push({ ...task });
+  next[task.statusId]?.sort((left, right) => left.position - right.position);
+  return next;
+}
+
+export function removeTaskFromColumns<TTask extends BoardTask>(
+  columns: TaskColumns<TTask>,
+  taskId: string,
+): TaskColumns<TTask> {
+  const next = cloneColumns(columns);
+  for (const statusId of Object.keys(next)) {
+    next[statusId] = next[statusId]?.filter((task) => task.id !== taskId) ?? [];
+  }
+  return next;
+}
+
 function cloneColumns<TTask extends BoardTask>(columns: TaskColumns<TTask>) {
   return Object.fromEntries(
     Object.entries(columns).map(([statusId, tasks]) => [

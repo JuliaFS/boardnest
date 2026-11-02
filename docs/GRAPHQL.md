@@ -52,6 +52,13 @@ Native WebSocket clients may instead provide the same Bearer value in GraphQL
 `connectionParams.authorization`. Cookie and bearer transports resolve to the
 same authorization context.
 
+Mobile subscribes to project task changes and scoped comment or membership
+signals. Task payloads synchronize the open board directly. Comment and
+membership signals trigger focused refetches because their screens require the
+complete authorized aggregate. Redis channels distribute events across API
+replicas, and stable event identities allow clients to ignore duplicate
+deliveries after reconnects.
+
 Workspace and project creation use separate insert and read requests. Their
 membership rows are created by `AFTER INSERT` triggers, while their select
 policies require that membership. Reading only after the insert transaction has

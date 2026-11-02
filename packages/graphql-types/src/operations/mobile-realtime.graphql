@@ -1,0 +1,68 @@
+subscription MobileTaskCreated($projectId: ID!) {
+  taskCreated(projectId: $projectId) {
+    id
+    projectId
+    statusId
+    title
+    description
+    priority
+    position
+    dueAt
+    createdAt
+    updatedAt
+  }
+}
+
+subscription MobileTaskUpdated($projectId: ID!) {
+  taskUpdated(projectId: $projectId) {
+    id
+    projectId
+    statusId
+    title
+    description
+    priority
+    position
+    dueAt
+    createdAt
+    updatedAt
+  }
+}
+
+subscription MobileTaskDeleted($projectId: ID!) {
+  taskDeleted(projectId: $projectId) {
+    id
+  }
+}
+
+subscription MobileTaskCommentChanged($projectId: ID!) {
+  taskCommentChanged(projectId: $projectId) {
+    id
+    kind
+    occurredAt
+    workspaceId
+    projectId
+    taskId
+  }
+}
+
+subscription MobileProjectMembershipChanged($projectId: ID!) {
+  projectMembershipChanged(projectId: $projectId) {
+    id
+    kind
+    occurredAt
+    workspaceId
+    projectId
+    taskId
+  }
+}
+
+subscription MobileWorkspaceMembershipChanged($workspaceId: ID!) {
+  workspaceMembershipChanged(workspaceId: $workspaceId) {
+    id
+    kind
+    occurredAt
+    workspaceId
+    projectId
+    taskId
+  }
+}
