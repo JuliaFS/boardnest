@@ -31,9 +31,9 @@ clears workspace-scoped task assignments, reminders, pending deliveries, and
 notifications. Auth credentials and memberships in other workspaces are not
 affected.
 
-## Current browser workflow
+## Current client workflow
 
-The protected `/members` route provides:
+The protected browser `/members` route and native workspace details provide:
 
 - workspace selection;
 - a roster with profile name, avatar, role, and join date;
@@ -42,6 +42,11 @@ The protected `/members` route provides:
 - an accessible invitation dialog with email and role validation;
 - `/invite/:token` acceptance that survives login, registration, and email confirmation;
 - clear loading, empty, error, confirmation, and permission states.
+
+Native invitation emails use the same public `/invite/:token` web URL. A
+verified Android App Link opens that URL in the installed application; without
+the application or domain association, the existing web acceptance page is the
+fallback. The token is preserved through native login before acceptance.
 
 Only the current user's own membership is used by the browser to decide whether
 to render management actions. This is a usability decision, not an

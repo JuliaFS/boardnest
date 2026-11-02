@@ -68,8 +68,7 @@ The configured deep links are:
 - `boardnest://auth/reset-password`;
 - `boardnest://invite/:token`.
 
-Add the two auth URLs to the Supabase Auth redirect allow list. Android App Links
-will be added after the native release pipeline is established.
+Add the two auth URLs to the Supabase Auth redirect allow list.
 
 `Linking.createURL` produces these custom-scheme URLs in a development or store
 build. Expo Go produces an `exp://.../--/auth/...` development URL instead; add
@@ -94,8 +93,7 @@ project, and task details:
 - `/projects/:projectId/tasks/:taskId`.
 
 Route builders in `apps/mobile/src/navigation/routes.ts` encode identifiers
-before navigation. The Projects tab includes a temporary route preview until
-the native workspace and project queries are connected.
+before navigation.
 
 ## Mobile workspaces
 
@@ -115,6 +113,59 @@ mobile control is never the authorization mechanism.
 Mobile and web use the same GraphQL API and Supabase PostgreSQL rows. A workspace
 created or edited on either client is therefore visible on the other after its
 query is refreshed.
+
+## Mobile projects and members
+
+The Projects tab loads the workspaces visible to the current user and scopes
+the project list to the selected workspace. Project forms cover name,
+description, visibility, lifecycle status, start date, and due date. API and
+database validation remain shared with web. Guest project and invitation quota
+errors are presented as actionable plan messages rather than generic failures.
+
+Project details derive management permissions from the combined workspace and
+project roles. Workspace owners and admins, plus a workspace member holding the
+project-lead role, may edit project metadata and manage the explicit project
+roster. Only workspace owners and admins may permanently delete a project.
+Private project discovery continues to depend on explicit membership; project
+roles never elevate a workspace viewer.
+
+Workspace details expose invitation creation, pending invitation history, and
+revocation to owners and admins. The protected `/invite/:token` route validates
+the token format, retains the route through login, and calls the same atomic
+acceptance operation used by web. Email links use the public web URL so they
+continue to open the browser when the native application is unavailable.
+
+## Android App Links
+
+`apps/mobile/app.json` declares an Android App Link for:
+
+```text
+https://boardnest-web-omega.vercel.app/invite/*
+```
+
+After creating the signed Android build, copy the SHA-256 fingerprint of the
+Google Play App Signing certificate and publish this JSON without redirects or
+authentication at
+`https://boardnest-web-omega.vercel.app/.well-known/assetlinks.json`:
+
+```json
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.juliafs.boardnest",
+      "sha256_cert_fingerprints": ["YOUR:PLAY:SIGNING:SHA256:FINGERPRINT"]
+    }
+  }
+]
+```
+
+Use the development-build certificate fingerprint when testing outside Google
+Play. Expo Go cannot verify this association because it uses Expo's package and
+signing certificate. Once the association is verified, Android opens an
+installed Boardnest application for the email URL and otherwise falls back to
+the existing Vercel invitation page.
 
 ## Native design system
 

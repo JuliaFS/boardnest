@@ -19,6 +19,7 @@ query MobileWorkspaces($limit: Int = 50, $offset: Int = 0) {
 query MobileWorkspaceDetails($id: ID!, $memberLimit: Int = 100) {
   currentUser {
     id
+    isAnonymous
   }
   workspace(id: $id) {
     id

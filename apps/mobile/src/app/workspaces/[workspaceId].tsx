@@ -20,6 +20,7 @@ import {
   useFeedback,
 } from '@/components/ui';
 import { WorkspaceFormSheet } from '@/features/workspaces/WorkspaceFormSheet';
+import { WorkspaceInvitationsSection } from '@/features/workspaces/WorkspaceInvitationsSection';
 import {
   canManageWorkspace,
   workspaceRoleDescription,
@@ -161,6 +162,12 @@ export default function WorkspaceDetailsScreen() {
           );
         })}
       </View>
+      {canManage ? (
+        <WorkspaceInvitationsSection
+          isAnonymous={Boolean(data?.currentUser?.isAnonymous)}
+          workspaceId={workspace.id}
+        />
+      ) : null}
       <WorkspaceFormSheet
         initialWorkspace={workspace}
         onClose={() => setShowEditWorkspace(false)}
