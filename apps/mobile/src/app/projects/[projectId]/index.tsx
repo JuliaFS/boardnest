@@ -115,6 +115,10 @@ export default function ProjectDetailsScreen() {
     >
       <View style={styles.actions}>
         <AppButton label="Back" onPress={() => router.back()} variant="ghost" />
+        <AppButton
+          label="Open task board"
+          onPress={() => router.push(mobileRoutes.board(project.id))}
+        />
         {canManage ? (
           <AppButton
             label="Edit project"

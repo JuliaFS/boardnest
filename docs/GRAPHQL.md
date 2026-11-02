@@ -181,6 +181,13 @@ typed create, update, delete, project-member, invitation, and invitation-
 acceptance mutations. These documents deliberately reuse the same API surface
 as web; there is no mobile-only persistence or authorization path.
 
+Mobile task collaboration uses the shared `MobileBoard` and
+`MobileTaskDetails` documents. `taskAssignees` and paginated `taskComments`
+return data authorized by the caller's bearer session. `assignTask`,
+`unassignTask`, and `addComment` reuse PostgreSQL RLS and the same task mutation
+surface as web. Status movement continues to publish the existing task event,
+so adding a native interaction does not create a second real-time contract.
+
 ### Reminder scheduling
 
 `createTaskReminder` accepts one-time, weekly, monthly, quarterly, and yearly

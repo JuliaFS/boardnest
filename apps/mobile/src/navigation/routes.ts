@@ -8,6 +8,9 @@ export const mobileRoutes = {
   project(projectId: string) {
     return `/projects/${encodeURIComponent(projectId)}` as const;
   },
+  board(projectId: string) {
+    return `/projects/${encodeURIComponent(projectId)}/board` as const;
+  },
   projects: '/(tabs)/projects',
   settings: '/(tabs)/settings',
   task(projectId: string, taskId: string) {

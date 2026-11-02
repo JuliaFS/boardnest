@@ -16,6 +16,7 @@ The mobile foundation currently provides:
 - protected workspace, project, and task route destinations;
 - workspace listing, details, creation, editing, member roles, and permissions;
 - project listing, details, lifecycle fields, membership, and deletion;
+- task board columns, task CRUD, status changes, assignments, and comments;
 - workspace invitations and protected native invitation acceptance;
 - Android, iOS, and web development targets;
 - monorepo lint and type-check integration.
@@ -101,6 +102,15 @@ The Android manifest declares a verified App Link for
 requires the matching Digital Asset Links file on the Vercel domain; Expo Go
 does not verify Android App Links. See `docs/MOBILE.md` for the production
 certificate step.
+
+Project details link to a native task board. The first board version uses
+accessible column tabs and an explicit status selector instead of gesture-only
+drag and drop. Task creation and editing support priority and optional due
+dates. Task details provide assignments, comments, and deletion according to
+workspace/project permissions. Status changes update optimistically and restore
+the previous column state if the API rejects the mutation. Native gestures and
+animations are intentionally deferred until the menu-based workflow has been
+validated on small screens.
 
 All `EXPO_PUBLIC_*` values are embedded in the application bundle and must be treated as public. Never place a Supabase service-role key, SMTP password, Redis URL, Railway token, or any other secret in the mobile environment.
 

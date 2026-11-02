@@ -96,6 +96,7 @@ function SessionGate() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="workspaces/[workspaceId]" />
       <Stack.Screen name="projects/[projectId]/index" />
+      <Stack.Screen name="projects/[projectId]/board" />
       <Stack.Screen name="projects/[projectId]/tasks/[taskId]" />
       <Stack.Screen name="auth/callback" />
       <Stack.Screen name="auth/reset-password" />

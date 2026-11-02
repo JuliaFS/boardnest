@@ -399,6 +399,11 @@ export interface BoardnestDataService {
     taskId: string | null,
   ) => Promise<ScheduledNotification[]>;
   task: (id: string) => Promise<Task | null>;
+  taskAssignees: (taskId: string) => Promise<TaskAssignee[]>;
+  taskComments: (
+    taskId: string,
+    pagination: Pagination,
+  ) => Promise<Connection<TaskComment>>;
   taskReminder: (id: string) => Promise<TaskReminder | null>;
   taskReminders: (taskId: string) => Promise<TaskReminder[]>;
   taskStatuses: (projectId: string) => Promise<TaskStatus[]>;
@@ -427,6 +432,7 @@ export interface BoardnestDataService {
     input: UpdateNotificationEventPreferenceData,
   ) => Promise<NotificationEventPreference>;
   updateTask: (id: string, input: UpdateTaskData) => Promise<Task>;
+  unassignTask: (taskId: string, assigneeId: string) => Promise<string>;
   updateTaskReminder: (
     id: string,
     input: UpdateTaskReminderData,
@@ -781,6 +787,30 @@ class SupabaseBoardnestDataService implements BoardnestDataService {
       .eq('id', id)
       .maybeSingle();
     return optional(taskSchema, response);
+  }
+
+  async taskAssignees(taskId: string): Promise<TaskAssignee[]> {
+    const response = await this.client
+      .from('task_assignees')
+      .select('*')
+      .eq('task_id', taskId)
+      .order('assigned_at', { ascending: true });
+    throwForError(response.error);
+    return z.array(taskAssigneeSchema).parse(response.data);
+  }
+
+  async taskComments(
+    taskId: string,
+    pagination: Pagination,
+  ): Promise<Connection<TaskComment>> {
+    const response = await this.client
+      .from('task_comments')
+      .select('*')
+      .eq('task_id', taskId)
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
+      .range(pagination.offset, pagination.offset + pagination.limit);
+    return connection(taskCommentSchema, response, pagination);
   }
 
   async taskStatuses(projectId: string): Promise<TaskStatus[]> {
@@ -1156,6 +1186,18 @@ class SupabaseBoardnestDataService implements BoardnestDataService {
       .select('*')
       .single();
     return required(taskAssigneeSchema, response);
+  }
+
+  async unassignTask(taskId: string, assigneeId: string): Promise<string> {
+    const response = await this.client
+      .from('task_assignees')
+      .delete()
+      .eq('task_id', taskId)
+      .eq('user_id', assigneeId)
+      .select('user_id')
+      .single();
+    throwForError(response.error);
+    return z.object({ user_id: z.uuid() }).parse(response.data).user_id;
   }
 
   async addComment(

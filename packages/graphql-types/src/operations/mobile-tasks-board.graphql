@@ -1,0 +1,176 @@
+query MobileBoard($projectId: ID!) {
+  project(id: $projectId) {
+    id
+    workspaceId
+    name
+    visibility
+  }
+  taskStatuses(projectId: $projectId) {
+    id
+    projectId
+    name
+    category
+    color
+    position
+  }
+  tasks(projectId: $projectId, limit: 100) {
+    nodes {
+      id
+      projectId
+      statusId
+      title
+      description
+      priority
+      position
+      dueAt
+      createdAt
+      updatedAt
+    }
+    pageInfo {
+      hasNextPage
+      limit
+      offset
+    }
+  }
+}
+
+query MobileTaskDetails($id: ID!, $projectId: ID!) {
+  currentUser {
+    id
+  }
+  project(id: $projectId) {
+    id
+    workspaceId
+    name
+    visibility
+  }
+  task(id: $id) {
+    id
+    projectId
+    statusId
+    title
+    description
+    priority
+    position
+    dueAt
+    createdAt
+    updatedAt
+  }
+  taskStatuses(projectId: $projectId) {
+    id
+    name
+    color
+    position
+  }
+  projectMembers(projectId: $projectId, limit: 100) {
+    nodes {
+      userId
+      role
+    }
+    pageInfo {
+      hasNextPage
+      limit
+      offset
+    }
+  }
+  taskAssignees(taskId: $id) {
+    taskId
+    userId
+    assignedBy
+    assignedAt
+  }
+  taskComments(taskId: $id, limit: 100) {
+    nodes {
+      id
+      taskId
+      authorId
+      body
+      editedAt
+      createdAt
+      updatedAt
+    }
+    pageInfo {
+      hasNextPage
+      limit
+      offset
+    }
+  }
+}
+
+mutation CreateMobileTask($input: CreateTaskInput!) {
+  createTask(input: $input) {
+    id
+    projectId
+    statusId
+    title
+    description
+    priority
+    position
+    dueAt
+    createdAt
+    updatedAt
+  }
+}
+
+mutation UpdateMobileTask($id: ID!, $input: UpdateTaskInput!) {
+  updateTask(id: $id, input: $input) {
+    id
+    projectId
+    statusId
+    title
+    description
+    priority
+    position
+    dueAt
+    createdAt
+    updatedAt
+  }
+}
+
+mutation DeleteMobileTask($id: ID!) {
+  deleteTask(id: $id) {
+    id
+  }
+}
+
+mutation MoveMobileTask($id: ID!, $input: MoveTaskInput!) {
+  moveTask(id: $id, input: $input) {
+    id
+    projectId
+    statusId
+    title
+    description
+    priority
+    position
+    dueAt
+    createdAt
+    updatedAt
+  }
+}
+
+mutation AssignMobileTask($taskId: ID!, $assigneeId: ID!) {
+  assignTask(taskId: $taskId, assigneeId: $assigneeId) {
+    taskId
+    userId
+    assignedBy
+    assignedAt
+  }
+}
+
+mutation UnassignMobileTask($taskId: ID!, $assigneeId: ID!) {
+  unassignTask(taskId: $taskId, assigneeId: $assigneeId) {
+    id
+  }
+}
+
+mutation AddMobileTaskComment($taskId: ID!, $body: String!) {
+  addComment(taskId: $taskId, body: $body) {
+    id
+    taskId
+    authorId
+    body
+    editedAt
+    createdAt
+    updatedAt
+  }
+}

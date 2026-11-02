@@ -205,8 +205,24 @@ See [`apps/mobile/README.md`](../apps/mobile/README.md) for device setup, local 
 
 ## Planned phases
 
-1. Native project flows on top of the completed workspace foundation.
-2. Tasks, comments, and mobile board interactions.
-3. GraphQL subscription reconnection and cache synchronization.
-4. Notification inbox, reminders, and preferences.
-5. Push delivery, mobile hardening, testing, and Google Play release preparation.
+1. Completed: workspace and project/member flows.
+2. Completed: task CRUD, comments, assignments, and menu-based board movement.
+3. Native drag and drop with gestures and animations after usability validation.
+4. GraphQL subscription reconnection and cache synchronization.
+5. Notification inbox, reminders, and preferences.
+6. Push delivery, mobile hardening, testing, and Google Play release preparation.
+
+## Task board
+
+The mobile board is available from project details. It groups the shared task
+records by `task_statuses`, presents columns as horizontally scrollable tabs,
+and uses an explicit status menu that remains usable with touch and screen
+readers. Status movement applies a pure optimistic state transition and keeps an
+immutable rollback snapshot; an API failure restores the snapshot and refetches
+the authoritative board.
+
+Task details support editing, deletion, assignee management, priority, due
+dates, and comments. Candidate assignees must be workspace members with project
+contributor access. The API and PostgreSQL RLS remain authoritative for all
+permissions. The phase adds no database migration because the existing task,
+assignee, comment, status, and policy tables already cover the workflow.

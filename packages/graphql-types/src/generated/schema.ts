@@ -163,6 +163,7 @@ export type Mutation = {
   resumeScheduledNotification: ScheduledNotification;
   resumeTaskReminder: TaskReminder;
   revokeInvitation: Invitation;
+  unassignTask: DeletePayload;
   updateNotificationEventPreference: NotificationEventPreference;
   updateNotificationPreferences: NotificationPreferences;
   updateProject: Project;
@@ -305,6 +306,12 @@ export type MutationResumeTaskReminderArgs = {
 
 export type MutationRevokeInvitationArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type MutationUnassignTaskArgs = {
+  assigneeId: Scalars['ID']['input'];
+  taskId: Scalars['ID']['input'];
 };
 
 
@@ -543,6 +550,8 @@ export type Query = {
   scheduledNotification?: Maybe<ScheduledNotification>;
   scheduledNotifications: Array<ScheduledNotification>;
   task?: Maybe<Task>;
+  taskAssignees: Array<TaskAssignee>;
+  taskComments: TaskCommentConnection;
   taskReminder?: Maybe<TaskReminder>;
   taskReminders: Array<TaskReminder>;
   taskStatuses: Array<TaskStatus>;
@@ -616,6 +625,18 @@ export type QueryScheduledNotificationsArgs = {
 
 export type QueryTaskArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type QueryTaskAssigneesArgs = {
+  taskId: Scalars['ID']['input'];
+};
+
+
+export type QueryTaskCommentsArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  taskId: Scalars['ID']['input'];
 };
 
 
@@ -796,6 +817,12 @@ export type TaskComment = {
   id: Scalars['ID']['output'];
   taskId: Scalars['ID']['output'];
   updatedAt: Scalars['String']['output'];
+};
+
+export type TaskCommentConnection = {
+  __typename?: 'TaskCommentConnection';
+  nodes: Array<TaskComment>;
+  pageInfo: PageInfo;
 };
 
 export type TaskConnection = {

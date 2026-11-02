@@ -78,6 +78,9 @@ email ownership matching, lifecycle finalization, and idempotent reuse by the
 same authenticated recipient.
 The project membership component and GraphQL resolver tests verify roster
 loading, role validation, and adding an existing workspace member to a project.
+The mobile task model tests verify column ordering, immutable optimistic moves,
+rollback snapshots, due-date parsing, and task editing permissions. API workflow
+tests verify task assignee/comment reads and composite assignment removal.
 The notification event model smoke test verifies idempotent in-app and outbox
 creation, per-event email opt-out, email-only delivery, and the Guest plan email
 restriction. GraphQL tests cover catalog, effective plan capability, preference
