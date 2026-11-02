@@ -1,0 +1,198 @@
+query MobileNotifications($unreadOnly: Boolean = false, $limit: Int = 50) {
+  notifications(unreadOnly: $unreadOnly, limit: $limit) {
+    nodes {
+      __typename
+      id
+      type
+      title
+      body
+      workspaceId
+      projectId
+      taskId
+      reminderId
+      scheduledFor
+      readAt
+      createdAt
+    }
+    pageInfo {
+      hasNextPage
+      limit
+      offset
+    }
+  }
+}
+
+query MobileUnreadNotificationCount {
+  unreadNotificationCount
+}
+
+mutation MarkMobileNotificationAsRead($id: ID!) {
+  markNotificationAsRead(id: $id) {
+    __typename
+    id
+    readAt
+  }
+}
+
+query MobileScheduledNotifications($workspaceId: ID!) {
+  scheduledNotifications(workspaceId: $workspaceId) {
+    id
+    workspaceId
+    projectId
+    taskId
+    createdBy
+    title
+    body
+    scheduleKind
+    intervalValue
+    intervalUnit
+    timezone
+    nextRunAt
+    endsAt
+    lastRunAt
+    inAppEnabled
+    emailEnabled
+    status
+    createdAt
+    updatedAt
+  }
+}
+
+query MobileNotificationSettings($workspaceId: ID!) {
+  notificationPreferences {
+    inAppEnabled
+    emailEnabled
+  }
+  notificationEventTypes {
+    code
+    displayName
+    description
+    category
+    defaultInAppEnabled
+    defaultEmailEnabled
+  }
+  notificationEventPreferences {
+    eventType
+    inAppEnabled
+    emailEnabled
+  }
+  notificationPlanEvents(workspaceId: $workspaceId) {
+    planCode
+    eventType
+    inAppEnabled
+    emailEnabled
+  }
+  workspaceSubscription(workspaceId: $workspaceId) {
+    effectivePlanCode
+    plan {
+      code
+      displayName
+      maxScheduledNotifications
+      minScheduleIntervalMinutes
+      monthlyEmailLimit
+      emailEnabled
+    }
+  }
+}
+
+query MobileNotificationDeliveries($workspaceId: ID!, $limit: Int = 25) {
+  notificationDeliveries(workspaceId: $workspaceId, limit: $limit) {
+    nodes {
+      id
+      workspaceId
+      reminderId
+      notificationId
+      channel
+      status
+      scheduledFor
+      nextAttemptAt
+      attemptCount
+      maxAttempts
+      deliveredAt
+      errorCode
+      errorMessage
+      createdAt
+    }
+    pageInfo {
+      hasNextPage
+      limit
+      offset
+    }
+  }
+}
+
+fragment MobileScheduledNotificationFields on ScheduledNotification {
+  id
+  workspaceId
+  projectId
+  taskId
+  createdBy
+  title
+  body
+  scheduleKind
+  intervalValue
+  intervalUnit
+  timezone
+  nextRunAt
+  endsAt
+  lastRunAt
+  inAppEnabled
+  emailEnabled
+  status
+  createdAt
+  updatedAt
+}
+
+mutation CreateMobileScheduledNotification(
+  $input: CreateScheduledNotificationInput!
+) {
+  createScheduledNotification(input: $input) {
+    ...MobileScheduledNotificationFields
+  }
+}
+
+mutation UpdateMobileScheduledNotification(
+  $id: ID!
+  $input: UpdateScheduledNotificationInput!
+) {
+  updateScheduledNotification(id: $id, input: $input) {
+    ...MobileScheduledNotificationFields
+  }
+}
+
+mutation PauseMobileScheduledNotification($id: ID!) {
+  pauseScheduledNotification(id: $id) {
+    ...MobileScheduledNotificationFields
+  }
+}
+
+mutation ResumeMobileScheduledNotification($id: ID!) {
+  resumeScheduledNotification(id: $id) {
+    ...MobileScheduledNotificationFields
+  }
+}
+
+mutation DeleteMobileScheduledNotification($id: ID!) {
+  deleteScheduledNotification(id: $id) {
+    id
+  }
+}
+
+mutation UpdateMobileNotificationPreferences(
+  $input: UpdateNotificationPreferencesInput!
+) {
+  updateNotificationPreferences(input: $input) {
+    inAppEnabled
+    emailEnabled
+  }
+}
+
+mutation UpdateMobileNotificationEventPreference(
+  $input: UpdateNotificationEventPreferenceInput!
+) {
+  updateNotificationEventPreference(input: $input) {
+    eventType
+    inAppEnabled
+    emailEnabled
+  }
+}

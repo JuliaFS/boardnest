@@ -209,7 +209,7 @@ See [`apps/mobile/README.md`](../apps/mobile/README.md) for device setup, local 
 2. Completed: task CRUD, comments, assignments, and menu-based board movement.
 3. Completed: authenticated GraphQL subscription reconnection and cache synchronization.
 4. Native drag and drop with gestures and animations after usability validation.
-5. Notification inbox, reminders, and preferences.
+5. Completed: notification inbox, schedules, reminders, preferences, and delivery history.
 6. Push delivery, mobile hardening, testing, and Google Play release preparation.
 
 ## Task board
@@ -243,3 +243,21 @@ the open workspace. Stable task fingerprints and server event IDs feed a
 bounded deduplicator, preventing Redis or reconnect redelivery from applying an
 event twice. Subscription resolvers authorize every scope before attaching to
 the event bus, and PostgreSQL RLS remains authoritative for subsequent reads.
+
+## Notifications and reminders
+
+The Notifications tab provides the recipient-scoped inbox, unread badge,
+global and per-event channel preferences, workspace-scoped custom schedules,
+schedule pause/resume/delete controls, plan quota messaging, and email delivery
+history. Custom schedules support optional project and task context, one-time
+or calendar-aware recurring delivery, IANA timezones, and in-app or email
+channels. The API and database remain authoritative for entitlement and quota
+checks.
+
+Mobile navigation never executes `payload.route`. The inbox GraphQL document
+does not request notification payloads. Instead, a pure route builder validates
+the structured workspace, project, and task UUIDs and considers the event type
+before constructing an Expo Router destination. Invalid context stays in the
+inbox and can only be marked as read. Marking an unread item uses an optimistic
+mutation and decrements the cached unread count; an API failure rolls back the
+optimistic layer and refetches both inbox and count.

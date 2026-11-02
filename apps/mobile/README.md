@@ -18,6 +18,7 @@ The mobile foundation currently provides:
 - project listing, details, lifecycle fields, membership, and deletion;
 - task board columns, task CRUD, status changes, assignments, and comments;
 - authenticated GraphQL WebSocket synchronization for tasks, comments, and memberships;
+- notification inbox, unread badge, preferences, custom schedules, and email delivery history;
 - workspace invitations and protected native invitation acceptance;
 - Android, iOS, and web development targets;
 - monorepo lint and type-check integration.
@@ -114,6 +115,14 @@ workspace/project permissions. Status changes update optimistically and restore
 the previous column state if the API rejects the mutation. Native gestures and
 animations are intentionally deferred until the menu-based workflow has been
 validated on small screens.
+
+The Notifications tab uses the same recipient-scoped inbox, preferences,
+workspace plan limits, personal schedules, and delivery history as the web
+client. Native destinations are built only from structured workspace, project,
+and task identifiers plus the notification event type. The mobile client does
+not read or execute a web route from notification JSON payloads. Unread entries
+are marked optimistically, and the tab badge updates immediately with a visual
+cap of `99+`.
 
 The native Apollo transport opens authenticated `graphql-transport-ws`
 connections with the current Supabase bearer token. It reconnects after network

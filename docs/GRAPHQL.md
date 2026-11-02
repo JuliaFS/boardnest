@@ -52,6 +52,13 @@ Native WebSocket clients may instead provide the same Bearer value in GraphQL
 `connectionParams.authorization`. Cookie and bearer transports resolve to the
 same authorization context.
 
+Mobile notification operations reuse the recipient-scoped inbox and unread
+count, global and event preference mutations, workspace plan capabilities,
+personal schedule lifecycle mutations, and delivery history. The native inbox
+document deliberately omits the JSON payload: navigation is derived from typed
+workspace, project, task, and event-type fields instead of executing a web
+route supplied by notification metadata.
+
 Mobile subscribes to project task changes and scoped comment or membership
 signals. Task payloads synchronize the open board directly. Comment and
 membership signals trigger focused refetches because their screens require the
