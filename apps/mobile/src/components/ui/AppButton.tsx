@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 
 import { MIN_TOUCH_TARGET, theme } from '@/theme';
@@ -7,7 +8,7 @@ type AppButtonProps = {
   disabled?: boolean;
   label: string;
   loading?: boolean;
-  onPress: () => void;
+  onPress: () => Promise<void> | void;
   variant?: 'danger' | 'ghost' | 'primary' | 'secondary';
 };
 
@@ -20,6 +21,29 @@ export function AppButton({
   variant = 'primary',
 }: AppButtonProps) {
   const unavailable = disabled || loading;
+  const pressLocked = useRef(false);
+  const unlockTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (unlockTimer.current) clearTimeout(unlockTimer.current);
+    },
+    [],
+  );
+
+  function handlePress(): void {
+    if (pressLocked.current || unavailable) return;
+    pressLocked.current = true;
+    const result = onPress();
+    unlockTimer.current = setTimeout(() => {
+      pressLocked.current = false;
+    }, 750);
+    if (result instanceof Promise) {
+      void result.finally(() => {
+        pressLocked.current = false;
+      });
+    }
+  }
 
   return (
     <Pressable
@@ -27,7 +51,7 @@ export function AppButton({
       accessibilityRole="button"
       accessibilityState={{ busy: loading, disabled: unavailable }}
       disabled={unavailable}
-      onPress={onPress}
+      onPress={handlePress}
       style={({ pressed }) => [
         styles.base,
         styles[variant],

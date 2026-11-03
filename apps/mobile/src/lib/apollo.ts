@@ -1,14 +1,30 @@
-import { ApolloClient, HttpLink, InMemoryCache, split } from '@apollo/client';
+import {
+  ApolloClient,
+  ApolloLink,
+  HttpLink,
+  InMemoryCache,
+  split,
+} from '@apollo/client';
 import { SetContextLink } from '@apollo/client/link/context';
+import { RetryLink } from '@apollo/client/link/retry';
 import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
-import { getMainDefinition } from '@apollo/client/utilities';
-import { Kind, OperationTypeNode } from 'graphql';
+import type { getMainDefinition } from '@apollo/client/utilities';
+import { OperationTypeNode } from 'graphql';
 import {
   createClient as createGraphQLWsClient,
   type Client as GraphQLWsClient,
 } from 'graphql-ws';
+import { Observable } from 'rxjs';
 
+import {
+  createTimeoutFetch,
+  OfflineMutationError,
+  operationType,
+  shouldBlockOfflineMutation,
+  shouldRetryNetworkOperation,
+} from './apollo-policy';
 import { mobileEnvironment } from './environment';
+import { getMobileNetworkState } from './network-state';
 import { createActivityGate } from './realtime-events';
 import { mobileSupabase } from './supabase';
 
@@ -35,6 +51,19 @@ export function createMobileApolloClient({
     : undefined,
   websocketUri = mobileEnvironment.websocketUrl,
 }: MobileApolloOptions = {}) {
+  const offlineMutationLink = new ApolloLink((operation, forward) => {
+    if (
+      shouldBlockOfflineMutation(
+        operation.query,
+        getMobileNetworkState().isOnline,
+      )
+    ) {
+      return new Observable((subscriber) => {
+        subscriber.error(new OfflineMutationError());
+      });
+    }
+    return forward(operation);
+  });
   const authenticationLink = new SetContextLink(async (previousContext) => {
     const { data } = await mobileSupabase.auth.getSession();
     const accessToken = data.session?.access_token;
@@ -47,9 +76,27 @@ export function createMobileApolloClient({
       },
     };
   });
-  const httpLink = authenticationLink.concat(
-    new HttpLink({ credentials: 'omit', fetch: fetchImplementation, uri }),
-  );
+  const retryLink = new RetryLink({
+    attempts: {
+      max: 3,
+      retryIf: (_error, operation) =>
+        shouldRetryNetworkOperation(
+          operation.query,
+          getMobileNetworkState().isOnline,
+        ),
+    },
+    delay: { initial: 500, jitter: true, max: 3_000 },
+  });
+  const httpLink = offlineMutationLink
+    .concat(authenticationLink)
+    .concat(retryLink)
+    .concat(
+      new HttpLink({
+        credentials: 'omit',
+        fetch: createTimeoutFetch(fetchImplementation),
+        uri,
+      }),
+    );
 
   let realtime: RealtimeController | null = null;
   let link = httpLink;
@@ -117,12 +164,9 @@ function createRealtimeController(
 }
 
 function isSubscriptionOperation({ query }: { query: unknown }): boolean {
-  const definition = getMainDefinition(
-    query as Parameters<typeof getMainDefinition>[0],
-  );
   return (
-    definition.kind === Kind.OPERATION_DEFINITION &&
-    definition.operation === OperationTypeNode.SUBSCRIPTION
+    operationType(query as Parameters<typeof getMainDefinition>[0]) ===
+    OperationTypeNode.SUBSCRIPTION
   );
 }
 

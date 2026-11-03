@@ -138,6 +138,21 @@ events missed while disconnected. Task events update the board immediately;
 comment and membership events refetch their scoped detail data. A bounded event
 deduplicator prevents repeated deliveries from being applied twice.
 
+The mobile lifecycle layer monitors device reachability and application state.
+When the device is offline, an accessible banner explains that previously
+loaded Apollo cache data remains available while GraphQL mutations are blocked.
+Queries use bounded retry with jitter and a 15-second request timeout; mutations
+are never retried automatically because the server may already have committed a
+timed-out request. Returning online or bringing the application to the
+foreground reconnects subscriptions and refetches active queries. Notification
+badge polling pauses in the background and while offline. Logout clears the
+private Apollo cache. This first version deliberately does not persist an
+offline mutation queue or attempt conflict resolution.
+
+`@react-native-community/netinfo` is a native dependency. Rebuild the EAS
+development client after pulling this phase; restarting Metro alone cannot add
+the native module to an already installed binary.
+
 All `EXPO_PUBLIC_*` values are embedded in the application bundle and must be treated as public. Never place a Supabase service-role key, SMTP password, Redis URL, Railway token, or any other secret in the mobile environment.
 
 ## Quality checks
@@ -162,4 +177,5 @@ The root `pnpm lint` and `pnpm typecheck` commands also validate mobile source c
 - Browser DOM components, web Tailwind classes, React Router code, and cookie handling must not be imported into the mobile application.
 - Shared GraphQL documents and generated types must be imported from `@boardnest/graphql-types`; Apollo transport and authentication stay inside the mobile application.
 - Native behavior must be configured through Expo config and plugins. Generated `android` and `ios` folders are not committed.
+- Offline mutations must fail explicitly. Do not add a mutation queue without a documented idempotency and conflict-resolution strategy.
 - The local Metro configuration redirects `tslib` to its portable ESM build because the server renderer cannot interoperate with the Node-specific wrapper selected by GraphQL dependencies. Revisit this compatibility setting during Expo SDK upgrades.

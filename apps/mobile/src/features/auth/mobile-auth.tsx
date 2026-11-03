@@ -1,7 +1,6 @@
 import type { Session, User } from '@supabase/supabase-js';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
-import { AppState, type AppStateStatus } from 'react-native';
 import {
   createContext,
   useContext,
@@ -11,11 +10,7 @@ import {
   type PropsWithChildren,
 } from 'react';
 
-import {
-  mobileApolloClient,
-  reconnectMobileRealtime,
-  setMobileRealtimeActive,
-} from '@/lib/apollo';
+import { mobileApolloClient, reconnectMobileRealtime } from '@/lib/apollo';
 import { mobileEnvironment } from '@/lib/environment';
 import { mobileSupabase } from '@/lib/supabase';
 import { disablePushNotifications } from '@/features/notifications/push-notifications';
@@ -73,25 +68,9 @@ export function MobileAuthProvider({ children }: PropsWithChildren) {
       }
     });
 
-    function handleAppState(nextState: AppStateStatus) {
-      const isActive = nextState === 'active';
-      setMobileRealtimeActive(isActive);
-      if (isActive) void mobileSupabase.auth.startAutoRefresh();
-      else void mobileSupabase.auth.stopAutoRefresh();
-    }
-
-    const appStateSubscription = AppState.addEventListener(
-      'change',
-      handleAppState,
-    );
-    void mobileSupabase.auth.startAutoRefresh();
-
     return () => {
       active = false;
-      appStateSubscription.remove();
       data.subscription.unsubscribe();
-      void mobileSupabase.auth.stopAutoRefresh();
-      setMobileRealtimeActive(false);
     };
   }, []);
 
