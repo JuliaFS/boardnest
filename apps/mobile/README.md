@@ -19,6 +19,7 @@ The mobile foundation currently provides:
 - task board columns, task CRUD, status changes, assignments, and comments;
 - authenticated GraphQL WebSocket synchronization for tasks, comments, and memberships;
 - notification inbox, unread badge, preferences, custom schedules, and email delivery history;
+- Expo push permission, device registration, preferences, and safe notification routing;
 - workspace invitations and protected native invitation acceptance;
 - Android, iOS, and web development targets;
 - monorepo lint and type-check integration.
@@ -46,6 +47,12 @@ pnpm dev:mobile
 Scan the terminal QR code with Expo Go, or press `a` to open an available Android emulator. Press `w` to verify the universal web target.
 
 During the Expo SDK 58 transition, the public Expo Go store application may temporarily target the previous SDK. If it cannot open this project, use an Android emulator or create a development build instead of downgrading the repository.
+
+Remote push notifications require a physical device and the checked-in EAS
+development client profile; they cannot be fully tested in Expo Go. Add the EAS
+project UUID as `EXPO_PUBLIC_EAS_PROJECT_ID`, build from `apps/mobile` with
+`pnpm dlx eas-cli@latest build --profile development --platform android`, and
+install the generated APK before enabling push in Notification preferences.
 
 ## Local API addresses
 

@@ -51,6 +51,23 @@ const environmentSchema = z
       .enum(['development', 'test', 'production'])
       .default('development'),
     PORT: z.coerce.number().int().min(1).max(65_535).default(4000),
+    EXPO_ACCESS_TOKEN: optionalNonEmptyString(),
+    PUSH_NOTIFICATION_WORKER_BATCH_SIZE: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .default(50),
+    PUSH_NOTIFICATION_WORKER_ENABLED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+    PUSH_NOTIFICATION_WORKER_INTERVAL_MS: z.coerce
+      .number()
+      .int()
+      .min(5_000)
+      .max(300_000)
+      .default(15_000),
     REDIS_URL: z.url(),
     RESEND_API_KEY: z.preprocess(
       (value) => (value === '' ? undefined : value),
@@ -205,6 +222,17 @@ const environmentSchema = z
         message:
           'EMAIL_PROVIDER=smtp is required when the email delivery worker is enabled.',
         path: ['EMAIL_PROVIDER'],
+      });
+    }
+    if (
+      environment.PUSH_NOTIFICATION_WORKER_ENABLED &&
+      !environment.SUPABASE_SERVICE_ROLE_KEY
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message:
+          'SUPABASE_SERVICE_ROLE_KEY is required when the push notification worker is enabled.',
+        path: ['SUPABASE_SERVICE_ROLE_KEY'],
       });
     }
   });

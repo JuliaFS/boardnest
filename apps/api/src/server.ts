@@ -17,6 +17,10 @@ import {
   createSupabaseNotificationDeliveryWorker,
   type NotificationDeliveryWorker,
 } from './notifications/notification-delivery-worker.js';
+import {
+  createSupabasePushNotificationWorker,
+  type PushNotificationWorker,
+} from './notifications/push-notification-worker.js';
 import { createRedisEventBus } from './realtime/redis-event-bus.js';
 import {
   createSupabaseReminderScheduler,
@@ -83,6 +87,7 @@ const guestAdmission = await createRedisGuestAdmission(
 let reminderScheduler: ReminderScheduler | undefined;
 let customNotificationScheduler: CustomNotificationScheduler | undefined;
 let notificationDeliveryWorker: NotificationDeliveryWorker | undefined;
+let pushNotificationWorker: PushNotificationWorker | undefined;
 const accountDeletionService = environment.SUPABASE_SERVICE_ROLE_KEY
   ? createSupabaseAccountDeletionService({
       serviceRoleKey: environment.SUPABASE_SERVICE_ROLE_KEY,
@@ -133,6 +138,23 @@ if (environment.EMAIL_DELIVERY_WORKER_ENABLED) {
     transport: smtpTransport,
   });
 }
+if (environment.PUSH_NOTIFICATION_WORKER_ENABLED) {
+  const serviceRoleKey = environment.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceRoleKey) {
+    throw new Error(
+      'SUPABASE_SERVICE_ROLE_KEY is required when the push notification worker is enabled.',
+    );
+  }
+  pushNotificationWorker = createSupabasePushNotificationWorker({
+    ...(environment.EXPO_ACCESS_TOKEN
+      ? { accessToken: environment.EXPO_ACCESS_TOKEN }
+      : {}),
+    batchSize: environment.PUSH_NOTIFICATION_WORKER_BATCH_SIZE,
+    intervalMs: environment.PUSH_NOTIFICATION_WORKER_INTERVAL_MS,
+    serviceRoleKey,
+    supabaseUrl: environment.SUPABASE_URL,
+  });
+}
 
 const server = await createServer({
   ...(accountDeletionService ? { accountDeletionService } : {}),
@@ -151,6 +173,7 @@ const server = await createServer({
   introspection: environment.NODE_ENV !== 'production',
   ...(invitationEmail ? { invitationEmail } : {}),
   ...(notificationDeliveryWorker ? { notificationDeliveryWorker } : {}),
+  ...(pushNotificationWorker ? { pushNotificationWorker } : {}),
   ...(reminderScheduler ? { reminderScheduler } : {}),
   cookieSameSite: environment.COOKIE_SAME_SITE === 'none' ? 'None' : 'Lax',
   secureCookies: environment.NODE_ENV === 'production',
@@ -162,6 +185,7 @@ const server = await createServer({
     guestAdmission.close(),
     reminderScheduler?.close(),
     notificationDeliveryWorker?.close(),
+    pushNotificationWorker?.close(),
     Promise.resolve(smtpTransport?.close?.()),
   ]);
   throw error;
@@ -171,6 +195,7 @@ server.listen(environment.PORT, () => {
   customNotificationScheduler?.start();
   reminderScheduler?.start();
   notificationDeliveryWorker?.start();
+  pushNotificationWorker?.start();
   console.info(
     `Boardnest API listening on port ${environment.PORT} (HTTP + WebSocket /graphql)`,
   );

@@ -249,3 +249,23 @@ message immediately before the database becomes unavailable.
 
 Production metrics, alert thresholds, and recovery steps are documented in
 [Notification operations](NOTIFICATION_OPERATIONS.md).
+
+## Expo push channel
+
+`user_devices` stores one active Expo token per physical installation and user.
+Tokens are registered and revoked through authenticated GraphQL operations;
+clients cannot list or change another user's devices. Global, event-specific,
+and plan preferences independently gate the push channel.
+
+Eligible canonical notification events create one idempotent push outbox row
+per active device. The API worker atomically claims rows with `FOR UPDATE SKIP
+LOCKED`, submits structured messages to Expo, stores push ticket IDs, and later
+checks receipts. Transient provider and network failures use bounded retry
+backoff. A `DeviceNotRegistered` receipt revokes the token and cancels its
+remaining queued deliveries. Delivery history uses the same recipient-scoped
+GraphQL view as email while immutable attempts identify `expo` as the provider.
+
+Set `PUSH_NOTIFICATION_WORKER_ENABLED=true` only after migration 420 is applied.
+Railway also requires `SUPABASE_SERVICE_ROLE_KEY`; `EXPO_ACCESS_TOKEN` is needed
+only when enhanced push security is enabled in Expo. Logs must never contain
+push tokens or complete provider payloads.

@@ -13,6 +13,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { FeedbackProvider } from '@/components/ui';
 import { MobileAuthProvider, useMobileAuth } from '@/features/auth/mobile-auth';
+import { PushNotificationBridge } from '@/features/notifications/push-notifications';
 import { mobileApolloClient } from '@/lib/apollo';
 import { invitationRouteFromReturnTo, mobileRoutes } from '@/navigation/routes';
 import { theme } from '@/theme';
@@ -36,6 +37,7 @@ export default function RootLayout() {
         <ThemeProvider value={boardnestNavigationTheme}>
           <StatusBar style="light" />
           <FeedbackProvider>
+            <PushNotificationBridge />
             <SessionGate />
           </FeedbackProvider>
         </ThemeProvider>

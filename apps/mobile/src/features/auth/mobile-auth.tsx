@@ -18,6 +18,7 @@ import {
 } from '@/lib/apollo';
 import { mobileEnvironment } from '@/lib/environment';
 import { mobileSupabase } from '@/lib/supabase';
+import { disablePushNotifications } from '@/features/notifications/push-notifications';
 
 export const AUTH_CALLBACK_URL = Linking.createURL('auth/callback');
 export const PASSWORD_RESET_URL = Linking.createURL('auth/reset-password');
@@ -126,6 +127,7 @@ export function MobileAuthProvider({ children }: PropsWithChildren) {
       },
       signOut: async () => {
         try {
+          await disablePushNotifications().catch(() => undefined);
           await mobileSupabase.auth.signOut({ scope: 'local' });
         } finally {
           await mobileApolloClient.clearStore();

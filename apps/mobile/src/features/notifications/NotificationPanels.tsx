@@ -17,6 +17,7 @@ import {
 } from '@boardnest/graphql-types';
 import { useApolloClient, useMutation } from '@apollo/client/react';
 import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import {
@@ -32,6 +33,11 @@ import {
   mobileNotificationRoute,
   notificationErrorMessage,
 } from './notification-model';
+import {
+  disablePushNotifications,
+  enablePushNotifications,
+  hasLocalPushRegistration,
+} from './push-notifications';
 
 type PanelState<T> = {
   data?: T;
@@ -322,6 +328,12 @@ export function PreferencesPanel({
     UpdateMobileNotificationEventPreferenceDocument,
     { refetchQueries },
   );
+  const [pushRegistered, setPushRegistered] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushError, setPushError] = useState<string | null>(null);
+  useEffect(() => {
+    void hasLocalPushRegistration().then(setPushRegistered);
+  }, []);
   if (loading && !data) return <LoadingState title="Loading preferences" />;
   if (error || !data) {
     return (
@@ -343,6 +355,22 @@ export function PreferencesPanel({
   );
   const mutationError = globalState.error ?? eventState.error;
 
+  async function toggleDevicePush() {
+    setPushBusy(true);
+    setPushError(null);
+    try {
+      if (pushRegistered) await disablePushNotifications();
+      else await enablePushNotifications();
+      setPushRegistered(!pushRegistered);
+    } catch (error) {
+      setPushError(
+        error instanceof Error ? error.message : 'Push setup failed.',
+      );
+    } finally {
+      setPushBusy(false);
+    }
+  }
+
   return (
     <View style={styles.list}>
       {mutationError ? (
@@ -351,28 +379,50 @@ export function PreferencesPanel({
           tone="error"
         />
       ) : null}
+      {pushError ? <AppBanner message={pushError} tone="error" /> : null}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>This device</Text>
+        <Text style={styles.body}>
+          Push delivery requires permission and an EAS development or production
+          build. Expo Go is not supported.
+        </Text>
+        <AppButton
+          label={
+            pushRegistered
+              ? 'Disable push on this device'
+              : 'Enable push on this device'
+          }
+          loading={pushBusy}
+          onPress={() => void toggleDevicePush()}
+          variant={pushRegistered ? 'secondary' : 'primary'}
+        />
+      </View>
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Global channels</Text>
         <Text style={styles.body}>
           A disabled global channel overrides every event-specific preference.
         </Text>
-        {(['inAppEnabled', 'emailEnabled'] as const).map((channel) => (
-          <AppButton
-            key={channel}
-            label={`${channel === 'inAppEnabled' ? 'In-app' : 'Email'}: ${data.notificationPreferences[channel] ? 'On' : 'Off'}`}
-            loading={globalState.loading}
-            onPress={() =>
-              void saveGlobal({
-                variables: {
-                  input: { [channel]: !data.notificationPreferences[channel] },
-                },
-              })
-            }
-            variant={
-              data.notificationPreferences[channel] ? 'primary' : 'secondary'
-            }
-          />
-        ))}
+        {(['inAppEnabled', 'emailEnabled', 'pushEnabled'] as const).map(
+          (channel) => (
+            <AppButton
+              key={channel}
+              label={`${channelLabel(channel)}: ${data.notificationPreferences[channel] ? 'On' : 'Off'}`}
+              loading={globalState.loading}
+              onPress={() =>
+                void saveGlobal({
+                  variables: {
+                    input: {
+                      [channel]: !data.notificationPreferences[channel],
+                    },
+                  },
+                })
+              }
+              variant={
+                data.notificationPreferences[channel] ? 'primary' : 'secondary'
+              }
+            />
+          ),
+        )}
       </View>
       {data.notificationEventTypes.map((eventType) => {
         const override = overrides.get(eventType.code);
@@ -380,40 +430,49 @@ export function PreferencesPanel({
         const current = {
           emailEnabled: override?.emailEnabled ?? eventType.defaultEmailEnabled,
           inAppEnabled: override?.inAppEnabled ?? eventType.defaultInAppEnabled,
+          pushEnabled: override?.pushEnabled ?? eventType.defaultPushEnabled,
         };
         return (
           <View key={eventType.code} style={styles.card}>
             <Text style={styles.cardTitle}>{eventType.displayName}</Text>
             <Text style={styles.body}>{eventType.description}</Text>
-            {(['inAppEnabled', 'emailEnabled'] as const).map((channel) => {
-              const entitled = Boolean(entitlement?.[channel]);
-              return (
-                <AppButton
-                  disabled={!entitled}
-                  key={channel}
-                  label={`${channel === 'inAppEnabled' ? 'In-app' : 'Email'}: ${entitled && current[channel] ? 'On' : 'Off'}`}
-                  loading={eventState.loading}
-                  onPress={() =>
-                    void saveEvent({
-                      variables: {
-                        input: {
-                          emailEnabled: current.emailEnabled,
-                          eventType: eventType.code,
-                          inAppEnabled: current.inAppEnabled,
-                          [channel]: !current[channel],
+            {(['inAppEnabled', 'emailEnabled', 'pushEnabled'] as const).map(
+              (channel) => {
+                const entitled = Boolean(entitlement?.[channel]);
+                return (
+                  <AppButton
+                    disabled={!entitled}
+                    key={channel}
+                    label={`${channelLabel(channel)}: ${entitled && current[channel] ? 'On' : 'Off'}`}
+                    loading={eventState.loading}
+                    onPress={() =>
+                      void saveEvent({
+                        variables: {
+                          input: {
+                            emailEnabled: current.emailEnabled,
+                            eventType: eventType.code,
+                            inAppEnabled: current.inAppEnabled,
+                            pushEnabled: current.pushEnabled,
+                            [channel]: !current[channel],
+                          },
                         },
-                      },
-                    })
-                  }
-                  variant={
-                    entitled && current[channel] ? 'primary' : 'secondary'
-                  }
-                />
-              );
-            })}
+                      })
+                    }
+                    variant={
+                      entitled && current[channel] ? 'primary' : 'secondary'
+                    }
+                  />
+                );
+              },
+            )}
             {!entitlement?.emailEnabled ? (
               <Text style={styles.quotaHint}>
                 Email is not included for this event on the current plan.
+              </Text>
+            ) : null}
+            {!entitlement?.pushEnabled ? (
+              <Text style={styles.quotaHint}>
+                Push is not included for this event on the current plan.
               </Text>
             ) : null}
           </View>
@@ -445,8 +504,8 @@ export function DeliveriesPanel({
   if (!deliveries.length) {
     return (
       <EmptyState
-        description="Email attempts for reminders and notification events will appear here."
-        title="No email deliveries yet"
+        description="Email and push attempts for reminders and notification events will appear here."
+        title="No deliveries yet"
       />
     );
   }
@@ -457,8 +516,8 @@ export function DeliveriesPanel({
           <View style={styles.headingRow}>
             <Text style={styles.cardTitle}>
               {delivery.reminderId
-                ? 'Task reminder email'
-                : 'Notification email'}
+                ? `Task reminder ${delivery.channel}`
+                : `Notification ${delivery.channel}`}
             </Text>
             <StatusLabel status={delivery.status} />
           </View>
@@ -489,6 +548,14 @@ function formatDate(value: string): string {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(value));
+}
+
+function channelLabel(
+  channel: 'emailEnabled' | 'inAppEnabled' | 'pushEnabled',
+): string {
+  if (channel === 'inAppEnabled') return 'In-app';
+  if (channel === 'emailEnabled') return 'Email';
+  return 'Push';
 }
 
 const styles = StyleSheet.create({

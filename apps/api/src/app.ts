@@ -39,6 +39,7 @@ import { createMaxDepthRule } from './graphql/security.js';
 import type { InvitationEmailService } from './invitations/invitation-email.js';
 import type { CustomNotificationScheduler } from './notifications/custom-notification-scheduler.js';
 import type { NotificationDeliveryWorker } from './notifications/notification-delivery-worker.js';
+import type { PushNotificationWorker } from './notifications/push-notification-worker.js';
 import {
   createInMemoryEventBus,
   type RealtimeEventBus,
@@ -83,6 +84,7 @@ export interface ServerOptions {
   introspection?: boolean;
   invitationEmail?: InvitationEmailService;
   notificationDeliveryWorker?: NotificationDeliveryWorker;
+  pushNotificationWorker?: PushNotificationWorker;
   reminderScheduler?: ReminderScheduler;
   secureCookies: boolean;
   trustProxyHops?: number;
@@ -168,6 +170,7 @@ export async function createServer(
                 options.guestAdmission.close(),
                 options.notificationDeliveryWorker?.close() ??
                   Promise.resolve(),
+                options.pushNotificationWorker?.close() ?? Promise.resolve(),
                 options.reminderScheduler?.close() ?? Promise.resolve(),
               ]);
             },

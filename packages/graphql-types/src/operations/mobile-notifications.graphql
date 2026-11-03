@@ -62,6 +62,7 @@ query MobileNotificationSettings($workspaceId: ID!) {
   notificationPreferences {
     inAppEnabled
     emailEnabled
+    pushEnabled
   }
   notificationEventTypes {
     code
@@ -70,17 +71,20 @@ query MobileNotificationSettings($workspaceId: ID!) {
     category
     defaultInAppEnabled
     defaultEmailEnabled
+    defaultPushEnabled
   }
   notificationEventPreferences {
     eventType
     inAppEnabled
     emailEnabled
+    pushEnabled
   }
   notificationPlanEvents(workspaceId: $workspaceId) {
     planCode
     eventType
     inAppEnabled
     emailEnabled
+    pushEnabled
   }
   workspaceSubscription(workspaceId: $workspaceId) {
     effectivePlanCode
@@ -184,6 +188,7 @@ mutation UpdateMobileNotificationPreferences(
   updateNotificationPreferences(input: $input) {
     inAppEnabled
     emailEnabled
+    pushEnabled
   }
 }
 
@@ -194,5 +199,34 @@ mutation UpdateMobileNotificationEventPreference(
     eventType
     inAppEnabled
     emailEnabled
+    pushEnabled
+  }
+}
+
+query MobilePushDevices {
+  pushDevices {
+    id
+    platform
+    deviceName
+    enabled
+    lastSeenAt
+    revokedAt
+  }
+}
+
+mutation RegisterMobilePushDevice($input: RegisterPushDeviceInput!) {
+  registerPushDevice(input: $input) {
+    id
+    platform
+    deviceName
+    enabled
+    lastSeenAt
+    revokedAt
+  }
+}
+
+mutation RevokeMobilePushDevice($id: ID!) {
+  revokePushDevice(id: $id) {
+    id
   }
 }

@@ -113,6 +113,7 @@ export interface NotificationEventType {
   created_at: string;
   default_email_enabled: boolean;
   default_in_app_enabled: boolean;
+  default_push_enabled: boolean;
   description: string;
   display_name: string;
   is_active: boolean;
@@ -124,6 +125,7 @@ export interface NotificationEventPreference {
   email_enabled: boolean;
   event_type: string;
   in_app_enabled: boolean;
+  push_enabled: boolean;
   updated_at: string;
   user_id: string;
 }
@@ -133,6 +135,7 @@ export interface NotificationPlanEvent {
   email_enabled: boolean;
   event_type: string;
   in_app_enabled: boolean;
+  push_enabled: boolean;
   plan_code: string;
   updated_at: string;
 }
@@ -160,10 +163,23 @@ export interface NotificationPreferences {
   created_at: string;
   email_enabled: boolean;
   in_app_enabled: boolean;
+  push_enabled: boolean;
   reminder_enabled: boolean;
   task_assigned_enabled: boolean;
   task_created_enabled: boolean;
   updated_at: string;
+  user_id: string;
+}
+
+export interface UserDevice {
+  created_at: string;
+  device_name: string | null;
+  enabled: boolean;
+  id: string;
+  last_seen_at: string;
+  platform: string;
+  push_token: string;
+  revoked_at: string | null;
   user_id: string;
 }
 
@@ -386,6 +402,7 @@ export interface UpdateTaskReminderData {
 export interface UpdateNotificationPreferencesData {
   email_enabled?: boolean;
   in_app_enabled?: boolean;
+  push_enabled?: boolean;
   reminder_enabled?: boolean;
   task_assigned_enabled?: boolean;
   task_created_enabled?: boolean;
@@ -395,4 +412,5 @@ export interface UpdateNotificationEventPreferenceData {
   email_enabled: boolean;
   event_type: string;
   in_app_enabled: boolean;
+  push_enabled: boolean;
 }
