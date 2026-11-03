@@ -1,0 +1,20 @@
+appId: com.juliafs.boardnest
+name: registration
+tags:
+  - destructive
+---
+- launchApp:
+    clearState: true
+- tapOn: 'Create an account'
+- assertVisible: 'Create account'
+- tapOn: 'Display name'
+- inputText: '${E2E_DISPLAY_NAME}'
+- tapOn: 'Email'
+- inputText: '${E2E_NEW_EMAIL}'
+- tapOn: 'Password'
+- inputText: '${E2E_NEW_PASSWORD}'
+- hideKeyboard
+- tapOn: 'Create account'
+- extendedWaitUntil:
+    visible: 'Check your email|Your workspaces'
+    timeout: 20000

@@ -147,6 +147,7 @@ export default function SettingsScreen() {
 
         <Text style={styles.label}>Type DELETE to confirm</Text>
         <TextInput
+          accessibilityLabel="Type DELETE to confirm"
           autoCapitalize="characters"
           onChangeText={setConfirmation}
           style={styles.input}

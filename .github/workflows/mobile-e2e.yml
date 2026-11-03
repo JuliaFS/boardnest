@@ -1,0 +1,89 @@
+name: Mobile E2E
+
+on:
+  workflow_dispatch:
+    inputs:
+      apk_url:
+        description: Public or signed URL for the EAS Android APK
+        required: true
+        type: string
+      flow:
+        description: Maestro flow to run
+        required: true
+        default: authentication.yaml
+        type: choice
+        options:
+          - authentication.yaml
+          - core-workflow.yaml
+          - notifications.yaml
+          - registration.yaml
+          - account-deletion.yaml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-e2e-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  maestro:
+    name: Maestro Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      E2E_EMAIL: ${{ inputs.flow == 'account-deletion.yaml' && secrets.MOBILE_E2E_DELETION_EMAIL || secrets.MOBILE_E2E_EMAIL }}
+      E2E_PASSWORD: ${{ inputs.flow == 'account-deletion.yaml' && secrets.MOBILE_E2E_DELETION_PASSWORD || secrets.MOBILE_E2E_PASSWORD }}
+      E2E_WORKSPACE_NAME: Mobile E2E ${{ github.run_id }}
+      E2E_PROJECT_NAME: Mobile project ${{ github.run_id }}
+      E2E_TASK_NAME: Mobile task ${{ github.run_id }}
+      E2E_DISPLAY_NAME: Mobile E2E User
+      E2E_NEW_EMAIL: ${{ secrets.MOBILE_E2E_NEW_EMAIL }}
+      E2E_NEW_PASSWORD: ${{ secrets.MOBILE_E2E_NEW_PASSWORD }}
+      MOBILE_E2E_APK_URL: ${{ inputs.apk_url }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Require mobile test credentials
+        run: |
+          test -n "$E2E_EMAIL"
+          test -n "$E2E_PASSWORD"
+
+      - name: Download Android application
+        run: curl --fail --location --retry 3 "$MOBILE_E2E_APK_URL" --output boardnest-mobile.apk
+
+      - name: Install Maestro
+        run: curl -Ls https://get.maestro.mobile.dev | bash
+
+      - name: Run selected Maestro flow
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_6
+          script: |
+            adb install -r boardnest-mobile.apk
+            $HOME/.maestro/bin/maestro test \
+              --format junit \
+              --output maestro-report.xml \
+              -e E2E_EMAIL="$E2E_EMAIL" \
+              -e E2E_PASSWORD="$E2E_PASSWORD" \
+              -e E2E_WORKSPACE_NAME="$E2E_WORKSPACE_NAME" \
+              -e E2E_PROJECT_NAME="$E2E_PROJECT_NAME" \
+              -e E2E_TASK_NAME="$E2E_TASK_NAME" \
+              -e E2E_DISPLAY_NAME="$E2E_DISPLAY_NAME" \
+              -e E2E_NEW_EMAIL="$E2E_NEW_EMAIL" \
+              -e E2E_NEW_PASSWORD="$E2E_NEW_PASSWORD" \
+              ".maestro/flows/${{ inputs.flow }}"
+
+      - name: Upload Maestro report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: maestro-report-${{ github.run_attempt }}
+          path: maestro-report.xml
+          if-no-files-found: warn
+          retention-days: 14

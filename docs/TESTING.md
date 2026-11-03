@@ -11,6 +11,20 @@ Boardnest uses three complementary test layers:
 - Playwright browser tests cover authentication routing and the complete
   workspace → private project → task → edit → cross-column move workflow.
 
+The mobile application adds four native-focused layers:
+
+- Vitest covers pure validation, safe route mapping, plan limits, notification
+  helpers, task ordering and rollback snapshots, and date/timezone rules;
+- Jest with the Expo preset and React Native Testing Library covers accessible
+  login, workspace/project/task forms, standard query states, notification
+  inbox behavior, and typed Apollo mutations;
+- integration tests restore and refresh Supabase sessions, clear private Apollo
+  cache on logout, exercise mocked GraphQL success/error responses, and verify
+  realtime reconnect gates;
+- Maestro drives an installed Android APK through authentication, core entity
+  creation, task status movement, notification reading, logout, registration,
+  and disposable-account deletion flows.
+
 The browser suite uses a stateful network fixture. It runs the real React
 application in Chromium while replacing external Supabase/API dependencies
 with deterministic HTTP and GraphQL responses. API tests independently run the
@@ -34,6 +48,23 @@ pnpm test:e2e
 pnpm test:e2e:ui
 pnpm check
 ```
+
+Run only the mobile suites:
+
+```bash
+pnpm --filter @boardnest/mobile test:unit
+pnpm --filter @boardnest/mobile test:components
+pnpm --filter @boardnest/mobile test:components:coverage
+```
+
+React Native component tests use the `.native-test.tsx` suffix so they are
+executed by Jest and excluded from the Vitest unit pattern. The root
+`pnpm test:ci` command runs both mobile test layers in the CI Quality job.
+
+Device-level Maestro tests require an installed APK and dedicated test data.
+They run through the manually dispatched **Mobile E2E** GitHub Actions workflow
+because every build URL and backend target is explicit. See
+`.maestro/README.md` for secrets, test-data safety, and local commands.
 
 `pnpm check` includes unit/component tests, builds, and the Chromium E2E suite.
 Playwright starts an isolated Vite server on `127.0.0.1:4173`.

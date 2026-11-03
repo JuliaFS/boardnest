@@ -53,6 +53,7 @@ export default function LoginScreen() {
           <View style={authStyles.field}>
             <Text style={authStyles.label}>Email</Text>
             <TextInput
+              accessibilityLabel="Email"
               autoCapitalize="none"
               autoComplete="email"
               keyboardType="email-address"
@@ -64,6 +65,7 @@ export default function LoginScreen() {
           <View style={authStyles.field}>
             <Text style={authStyles.label}>Password</Text>
             <TextInput
+              accessibilityLabel="Password"
               autoCapitalize="none"
               autoComplete="current-password"
               onChangeText={setPassword}
@@ -73,7 +75,15 @@ export default function LoginScreen() {
             />
           </View>
           <TurnstileChallenge onToken={setCaptchaToken} />
-          {error ? <Text style={authStyles.error}>{error}</Text> : null}
+          {error ? (
+            <Text
+              accessibilityLiveRegion="assertive"
+              accessibilityRole="alert"
+              style={authStyles.error}
+            >
+              {error}
+            </Text>
+          ) : null}
           <Pressable
             accessibilityRole="button"
             disabled={

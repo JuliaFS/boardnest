@@ -26,7 +26,12 @@ export type ScheduleFormValues = {
 
 export type ScheduleFormErrors = Partial<
   Record<
-    'channels' | 'endsAt' | 'intervalValue' | 'nextRunAt' | 'title',
+    | 'channels'
+    | 'endsAt'
+    | 'intervalValue'
+    | 'nextRunAt'
+    | 'timezone'
+    | 'title',
     string
   >
 >;
@@ -63,6 +68,9 @@ export function validateScheduleForm(
 ): ScheduleFormErrors {
   const errors: ScheduleFormErrors = {};
   if (!values.title.trim()) errors.title = 'Enter a title.';
+  if (!isIanaTimezone(values.timezone)) {
+    errors.timezone = 'Enter a valid IANA timezone, for example Europe/Sofia.';
+  }
   if (!isDate(values.nextRunAt)) {
     errors.nextRunAt = 'Enter a valid ISO date and time.';
   }
@@ -111,6 +119,16 @@ export function notificationErrorMessage(error: unknown): string {
 
 function isDate(value: string): boolean {
   return value.trim().length > 0 && !Number.isNaN(new Date(value).getTime());
+}
+
+function isIanaTimezone(value: string): boolean {
+  if (!value.trim()) return false;
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: value }).format();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function isUuid(value: string | null | undefined): value is string {

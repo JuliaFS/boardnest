@@ -1,0 +1,14 @@
+appId: com.juliafs.boardnest
+name: authentication
+tags:
+  - smoke
+---
+- launchApp:
+    clearState: true
+- runFlow: ../subflows/login.yaml
+- tapOn: 'Settings'
+- assertVisible: 'Signed in as ${E2E_EMAIL}'
+- tapOn: 'Sign out'
+- extendedWaitUntil:
+    visible: 'Sign in'
+    timeout: 10000

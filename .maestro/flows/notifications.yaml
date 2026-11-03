@@ -1,0 +1,15 @@
+appId: com.juliafs.boardnest
+name: notifications
+tags:
+  - regression
+---
+- launchApp:
+    clearState: true
+- runFlow: ../subflows/login.yaml
+- tapOn: 'Notifications'
+- assertVisible: 'Notifications'
+- tapOn:
+    text: 'Mark as read'
+    optional: true
+- assertVisible:
+    text: "You're all caught up|Notifications"

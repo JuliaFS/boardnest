@@ -1,0 +1,17 @@
+appId: com.juliafs.boardnest
+name: account-deletion
+tags:
+  - destructive
+---
+- launchApp:
+    clearState: true
+- runFlow: ../subflows/login.yaml
+- tapOn: 'Settings'
+- assertVisible: 'Permanently delete account'
+- tapOn: 'Type DELETE to confirm'
+- inputText: 'DELETE'
+- hideKeyboard
+- tapOn: 'Delete account permanently'
+- extendedWaitUntil:
+    visible: 'Sign in'
+    timeout: 20000
