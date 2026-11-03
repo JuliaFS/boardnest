@@ -210,7 +210,8 @@ See [`apps/mobile/README.md`](../apps/mobile/README.md) for device setup, local 
 3. Completed: authenticated GraphQL subscription reconnection and cache synchronization.
 4. Native drag and drop with gestures and animations after usability validation.
 5. Completed: notification inbox, schedules, reminders, preferences, and delivery history.
-6. Push delivery, mobile hardening, testing, and Google Play release preparation.
+6. Completed: Expo push registration, delivery, receipts, and safe native routing.
+7. Mobile hardening, testing, and Google Play release preparation.
 
 ## Task board
 
@@ -261,3 +262,36 @@ before constructing an Expo Router destination. Invalid context stays in the
 inbox and can only be marked as read. Marking an unread item uses an optimistic
 mutation and decrements the cached unread count; an API failure rolls back the
 optimistic layer and refetches both inbox and count.
+
+## Push notifications
+
+Push is a separate delivery channel from in-app and email notifications. A
+signed-in user explicitly enables a physical Android or iOS device from the
+notification preferences screen. The app requests operating-system permission,
+obtains an Expo push token for `EXPO_PUBLIC_EAS_PROJECT_ID`, and registers the
+token through authenticated GraphQL. Sign-out revokes the local registration
+before clearing the session.
+
+Expo Go does not provide the complete production push environment. Test this
+flow with an EAS development build or an installed production build. Configure
+the native project with `eas project:init`, place its public project UUID in
+`apps/mobile/.env.local`, and rebuild after adding the `expo-notifications`
+config plugin.
+
+Create and install the Android development client from the mobile directory:
+
+```bash
+nvm use
+cd apps/mobile
+pnpm dlx eas-cli@latest login
+pnpm dlx eas-cli@latest init
+pnpm dlx eas-cli@latest build --profile development --platform android
+```
+
+After installing the generated APK, start Metro with `pnpm dev:mobile` and open
+the project in the Boardnest development client rather than Expo Go. For a
+production Google Play build, use the checked-in `production` EAS profile.
+
+Notification responses contain only structured event and entity identifiers.
+The mobile client validates those identifiers and builds its own workspace,
+project, or task destination. Provider payloads cannot supply an arbitrary URL.

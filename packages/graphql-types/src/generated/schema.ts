@@ -157,12 +157,14 @@ export type Mutation = {
   moveTask: Task;
   pauseScheduledNotification: ScheduledNotification;
   pauseTaskReminder: TaskReminder;
+  registerPushDevice: UserDevice;
   removeProjectMember: DeletePayload;
   removeWorkspaceMember: DeletePayload;
   replaceTaskReminderRecipients: TaskReminder;
   resumeScheduledNotification: ScheduledNotification;
   resumeTaskReminder: TaskReminder;
   revokeInvitation: Invitation;
+  revokePushDevice: DeletePayload;
   unassignTask: DeletePayload;
   updateNotificationEventPreference: NotificationEventPreference;
   updateNotificationPreferences: NotificationPreferences;
@@ -276,6 +278,11 @@ export type MutationPauseTaskReminderArgs = {
 };
 
 
+export type MutationRegisterPushDeviceArgs = {
+  input: RegisterPushDeviceInput;
+};
+
+
 export type MutationRemoveProjectMemberArgs = {
   projectId: Scalars['ID']['input'];
   userId: Scalars['ID']['input'];
@@ -305,6 +312,11 @@ export type MutationResumeTaskReminderArgs = {
 
 
 export type MutationRevokeInvitationArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type MutationRevokePushDeviceArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -424,7 +436,8 @@ export type NotificationDeliveryStatus =
   | 'DELIVERED'
   | 'FAILED'
   | 'PENDING'
-  | 'PROCESSING';
+  | 'PROCESSING'
+  | 'SENT';
 
 export type NotificationEventPreference = {
   __typename?: 'NotificationEventPreference';
@@ -432,6 +445,7 @@ export type NotificationEventPreference = {
   emailEnabled: Scalars['Boolean']['output'];
   eventType: Scalars['String']['output'];
   inAppEnabled: Scalars['Boolean']['output'];
+  pushEnabled: Scalars['Boolean']['output'];
   updatedAt: Scalars['String']['output'];
   userId: Scalars['ID']['output'];
 };
@@ -443,6 +457,7 @@ export type NotificationEventType = {
   createdAt: Scalars['String']['output'];
   defaultEmailEnabled: Scalars['Boolean']['output'];
   defaultInAppEnabled: Scalars['Boolean']['output'];
+  defaultPushEnabled: Scalars['Boolean']['output'];
   description: Scalars['String']['output'];
   displayName: Scalars['String']['output'];
   isActive: Scalars['Boolean']['output'];
@@ -456,6 +471,7 @@ export type NotificationPlanEvent = {
   eventType: Scalars['String']['output'];
   inAppEnabled: Scalars['Boolean']['output'];
   planCode: Scalars['String']['output'];
+  pushEnabled: Scalars['Boolean']['output'];
   updatedAt: Scalars['String']['output'];
 };
 
@@ -464,6 +480,7 @@ export type NotificationPreferences = {
   createdAt: Scalars['String']['output'];
   emailEnabled: Scalars['Boolean']['output'];
   inAppEnabled: Scalars['Boolean']['output'];
+  pushEnabled: Scalars['Boolean']['output'];
   reminderEnabled: Scalars['Boolean']['output'];
   taskAssignedEnabled: Scalars['Boolean']['output'];
   taskCreatedEnabled: Scalars['Boolean']['output'];
@@ -547,6 +564,7 @@ export type Query = {
   project?: Maybe<Project>;
   projectMembers: ProjectMemberConnection;
   projects: ProjectConnection;
+  pushDevices: Array<UserDevice>;
   scheduledNotification?: Maybe<ScheduledNotification>;
   scheduledNotifications: Array<ScheduledNotification>;
   task?: Maybe<Task>;
@@ -701,6 +719,12 @@ export type RealtimeSyncEvent = {
   projectId?: Maybe<Scalars['ID']['output']>;
   taskId?: Maybe<Scalars['ID']['output']>;
   workspaceId?: Maybe<Scalars['ID']['output']>;
+};
+
+export type RegisterPushDeviceInput = {
+  deviceName?: InputMaybe<Scalars['String']['input']>;
+  platform: Scalars['String']['input'];
+  pushToken: Scalars['String']['input'];
 };
 
 export type ReminderScheduleKind =
@@ -903,11 +927,13 @@ export type UpdateNotificationEventPreferenceInput = {
   emailEnabled: Scalars['Boolean']['input'];
   eventType: Scalars['String']['input'];
   inAppEnabled: Scalars['Boolean']['input'];
+  pushEnabled: Scalars['Boolean']['input'];
 };
 
 export type UpdateNotificationPreferencesInput = {
   emailEnabled?: InputMaybe<Scalars['Boolean']['input']>;
   inAppEnabled?: InputMaybe<Scalars['Boolean']['input']>;
+  pushEnabled?: InputMaybe<Scalars['Boolean']['input']>;
   reminderEnabled?: InputMaybe<Scalars['Boolean']['input']>;
   taskAssignedEnabled?: InputMaybe<Scalars['Boolean']['input']>;
   taskCreatedEnabled?: InputMaybe<Scalars['Boolean']['input']>;
@@ -968,6 +994,19 @@ export type User = {
   id: Scalars['ID']['output'];
   isAnonymous: Scalars['Boolean']['output'];
   role: Scalars['String']['output'];
+};
+
+export type UserDevice = {
+  __typename?: 'UserDevice';
+  createdAt: Scalars['String']['output'];
+  deviceName?: Maybe<Scalars['String']['output']>;
+  enabled: Scalars['Boolean']['output'];
+  id: Scalars['ID']['output'];
+  lastSeenAt: Scalars['String']['output'];
+  platform: Scalars['String']['output'];
+  pushToken: Scalars['String']['output'];
+  revokedAt?: Maybe<Scalars['String']['output']>;
+  userId: Scalars['ID']['output'];
 };
 
 export type Workspace = {

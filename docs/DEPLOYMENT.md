@@ -145,11 +145,18 @@ and verified sender, or select `smtp` with all SMTP values. Gmail SMTP is useful
 for initial testing but a transactional provider is recommended for production.
 Keep every provider credential in Railway only. The notification worker
 requires SMTP; Resend remains supported for invitation-only delivery. Apply
-migrations through `410_custom_notification_scheduler.sql` before deploying this
+migrations through `420_push_notifications.sql` before deploying this
 release. Enable the worker only after migration 370 is present. Start with one
 Railway API replica while validating Gmail delivery; database leases support
 multiple replicas when scaling later. Configure outbox monitoring and alerts
 from the [notification operations runbook](NOTIFICATION_OPERATIONS.md).
+
+Push delivery is independently enabled with
+`PUSH_NOTIFICATION_WORKER_ENABLED=true`. Configure its interval and batch size
+with the documented `PUSH_NOTIFICATION_WORKER_*` values. Add
+`EXPO_ACCESS_TOKEN` only when the Expo project requires authenticated push
+requests. The mobile `EXPO_PUBLIC_EAS_PROJECT_ID` value is public and belongs in
+the EAS build environment, not Railway.
 
 ## 5. Configure Vercel
 

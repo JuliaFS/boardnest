@@ -181,6 +181,7 @@ Copy [.env.example](.env.example) to `.env`. Never commit the populated file.
 | `EXPO_PUBLIC_SUPABASE_URL`                  | Public mobile        | Supabase project URL for native Auth          |
 | `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`      | Public mobile        | Supabase publishable key for native Auth      |
 | `EXPO_PUBLIC_TURNSTILE_SITE_KEY`            | Public mobile        | Mobile Cloudflare Turnstile site key          |
+| `EXPO_PUBLIC_EAS_PROJECT_ID`                | Public mobile        | Expo project ID used to issue push tokens     |
 | `API_URL`                                   | Server               | Public API origin used for Auth callback URLs |
 | `COOKIE_SAME_SITE`                          | Server               | `lax` or production-only `none` cookie mode   |
 | `SUPABASE_URL`                              | Server               | Supabase project URL                          |
@@ -188,6 +189,8 @@ Copy [.env.example](.env.example) to `.env`. Never commit the populated file.
 | `REDIS_URL`                                 | Secret in production | Redis/Upstash protocol URL                    |
 | `GUEST_RATE_LIMIT_SECRET`                   | Secret               | HMAC key for pseudonymous guest IP counters   |
 | `CUSTOM_NOTIFICATION_SCHEDULER_ENABLED`     | Server               | Enables custom schedule processing            |
+| `PUSH_NOTIFICATION_WORKER_ENABLED`          | Server               | Enables Expo push and receipt processing      |
+| `EXPO_ACCESS_TOKEN`                         | Secret, optional     | Expo enhanced push security credential        |
 | `CUSTOM_NOTIFICATION_SCHEDULER_INTERVAL_MS` | Server               | Custom schedule polling interval              |
 | `CUSTOM_NOTIFICATION_SCHEDULER_BATCH_SIZE`  | Server               | Maximum custom schedules claimed per poll     |
 | `REMINDER_SCHEDULER_ENABLED`                | Server               | Enables background due-reminder processing    |

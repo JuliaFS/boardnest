@@ -270,6 +270,7 @@ const updateNotificationPreferencesSchema = z
   .object({
     emailEnabled: z.boolean().optional(),
     inAppEnabled: z.boolean().optional(),
+    pushEnabled: z.boolean().optional(),
     reminderEnabled: z.boolean().optional(),
     taskAssignedEnabled: z.boolean().optional(),
     taskCreatedEnabled: z.boolean().optional(),
@@ -284,6 +285,14 @@ const updateNotificationEventPreferenceSchema = z.object({
   emailEnabled: z.boolean(),
   eventType: notificationEventTypeSchema,
   inAppEnabled: z.boolean(),
+  pushEnabled: z.boolean(),
+});
+const registerPushDeviceSchema = z.object({
+  deviceName: z.string().trim().min(1).max(120).nullable().optional(),
+  platform: z.enum(['android', 'ios']),
+  pushToken: z
+    .string()
+    .regex(/^(ExponentPushToken|ExpoPushToken)\[[A-Za-z0-9_-]+\]$/),
 });
 
 export const typeDefs = `#graphql
@@ -299,7 +308,7 @@ export const typeDefs = `#graphql
   enum ScheduledNotificationKind { ONCE INTERVAL }
   enum ScheduleIntervalUnit { MINUTE HOUR DAY WEEK MONTH YEAR }
   enum ScheduledNotificationStatus { ACTIVE PAUSED COMPLETED CANCELED }
-  enum NotificationDeliveryStatus { PENDING PROCESSING DELIVERED FAILED CANCELED }
+  enum NotificationDeliveryStatus { PENDING PROCESSING SENT DELIVERED FAILED CANCELED }
 
   type User {
     id: ID!
@@ -410,6 +419,7 @@ export const typeDefs = `#graphql
     category: String!
     defaultInAppEnabled: Boolean!
     defaultEmailEnabled: Boolean!
+    defaultPushEnabled: Boolean!
     isActive: Boolean!
     createdAt: String!
     updatedAt: String!
@@ -420,6 +430,7 @@ export const typeDefs = `#graphql
     eventType: String!
     inAppEnabled: Boolean!
     emailEnabled: Boolean!
+    pushEnabled: Boolean!
     createdAt: String!
     updatedAt: String!
   }
@@ -429,6 +440,7 @@ export const typeDefs = `#graphql
     eventType: String!
     inAppEnabled: Boolean!
     emailEnabled: Boolean!
+    pushEnabled: Boolean!
     createdAt: String!
     updatedAt: String!
   }
@@ -456,11 +468,24 @@ export const typeDefs = `#graphql
     userId: ID!
     inAppEnabled: Boolean!
     emailEnabled: Boolean!
+    pushEnabled: Boolean!
     taskCreatedEnabled: Boolean!
     taskAssignedEnabled: Boolean!
     reminderEnabled: Boolean!
     createdAt: String!
     updatedAt: String!
+  }
+
+  type UserDevice {
+    id: ID!
+    userId: ID!
+    platform: String!
+    pushToken: String!
+    deviceName: String
+    enabled: Boolean!
+    lastSeenAt: String!
+    createdAt: String!
+    revokedAt: String
   }
 
   type SubscriptionPlan {
@@ -694,6 +719,7 @@ export const typeDefs = `#graphql
   input UpdateNotificationPreferencesInput {
     inAppEnabled: Boolean
     emailEnabled: Boolean
+    pushEnabled: Boolean
     taskCreatedEnabled: Boolean
     taskAssignedEnabled: Boolean
     reminderEnabled: Boolean
@@ -702,6 +728,12 @@ export const typeDefs = `#graphql
     eventType: String!
     inAppEnabled: Boolean!
     emailEnabled: Boolean!
+    pushEnabled: Boolean!
+  }
+  input RegisterPushDeviceInput {
+    platform: String!
+    pushToken: String!
+    deviceName: String
   }
 
   type Query {
@@ -721,6 +753,7 @@ export const typeDefs = `#graphql
     notifications(unreadOnly: Boolean = false, limit: Int = 25, offset: Int = 0): NotificationConnection!
     unreadNotificationCount: Int!
     notificationPreferences: NotificationPreferences!
+    pushDevices: [UserDevice!]!
     notificationEventTypes: [NotificationEventType!]!
     notificationEventPreferences: [NotificationEventPreference!]!
     notificationPlanEvents(workspaceId: ID!): [NotificationPlanEvent!]!
@@ -769,6 +802,8 @@ export const typeDefs = `#graphql
     updateNotificationPreferences(input: UpdateNotificationPreferencesInput!): NotificationPreferences!
     updateNotificationEventPreference(input: UpdateNotificationEventPreferenceInput!): NotificationEventPreference!
     deleteNotificationEventPreference(eventType: String!): DeletePayload!
+    registerPushDevice(input: RegisterPushDeviceInput!): UserDevice!
+    revokePushDevice(id: ID!): DeletePayload!
   }
 
   type Subscription {
@@ -868,6 +903,7 @@ export const resolvers = {
     FAILED: 'failed',
     PENDING: 'pending',
     PROCESSING: 'processing',
+    SENT: 'sent',
   },
   Workspace: snakeCaseFields([
     'createdBy',
@@ -923,6 +959,7 @@ export const resolvers = {
     'displayName',
     'defaultInAppEnabled',
     'defaultEmailEnabled',
+    'defaultPushEnabled',
     'isActive',
     'createdAt',
     'updatedAt',
@@ -932,6 +969,7 @@ export const resolvers = {
     'eventType',
     'inAppEnabled',
     'emailEnabled',
+    'pushEnabled',
     'createdAt',
     'updatedAt',
   ]),
@@ -940,6 +978,7 @@ export const resolvers = {
     'eventType',
     'inAppEnabled',
     'emailEnabled',
+    'pushEnabled',
     'createdAt',
     'updatedAt',
   ]),
@@ -962,11 +1001,20 @@ export const resolvers = {
     'userId',
     'inAppEnabled',
     'emailEnabled',
+    'pushEnabled',
     'taskCreatedEnabled',
     'taskAssignedEnabled',
     'reminderEnabled',
     'createdAt',
     'updatedAt',
+  ]),
+  UserDevice: snakeCaseFields([
+    'userId',
+    'pushToken',
+    'deviceName',
+    'lastSeenAt',
+    'createdAt',
+    'revokedAt',
   ]),
   SubscriptionPlan: snakeCaseFields([
     'displayName',
@@ -1179,6 +1227,8 @@ export const resolvers = {
       const authenticated = requireAuth(context);
       return authenticated.data.notificationPreferences(authenticated.user.id);
     },
+    pushDevices: (_parent: unknown, _args: unknown, context: GraphQLContext) =>
+      requireAuth(context).data.pushDevices(),
     notificationEventTypes: async (
       _parent: unknown,
       _args: unknown,
@@ -1715,6 +1765,31 @@ export const resolvers = {
         ),
       };
     },
+    registerPushDevice: async (
+      _parent: unknown,
+      args: { input: unknown },
+      context: GraphQLContext,
+    ) => {
+      const input = parse(registerPushDeviceSchema, args.input);
+      return requireAuth(context).data.registerPushDevice(
+        input.platform,
+        input.pushToken,
+        input.deviceName ?? null,
+      );
+    },
+    revokePushDevice: async (
+      _parent: unknown,
+      args: { id: string },
+      context: GraphQLContext,
+    ) => {
+      const id = uuid(args.id);
+      if (!(await requireAuth(context).data.revokePushDevice(id))) {
+        throw new GraphQLError('Push device not found or access denied.', {
+          extensions: { code: 'NOT_FOUND' },
+        });
+      }
+      return { id };
+    },
   },
   Subscription: {
     projectMembershipChanged: syncSubscription(
@@ -2061,6 +2136,9 @@ function toUpdateNotificationPreferencesData(
     ...(input.inAppEnabled !== undefined
       ? { in_app_enabled: input.inAppEnabled }
       : {}),
+    ...(input.pushEnabled !== undefined
+      ? { push_enabled: input.pushEnabled }
+      : {}),
     ...(input.reminderEnabled !== undefined
       ? { reminder_enabled: input.reminderEnabled }
       : {}),
@@ -2080,6 +2158,7 @@ function toUpdateNotificationEventPreferenceData(
     email_enabled: input.emailEnabled,
     event_type: input.eventType,
     in_app_enabled: input.inAppEnabled,
+    push_enabled: input.pushEnabled,
   };
 }
 

@@ -29,6 +29,8 @@ const configuredSupabaseKey = readOptionalString(
 export const mobileEnvironment = {
   apiUrl: configuredApiUrl ?? DEFAULT_API_URL,
   graphqlUrl: configuredGraphqlUrl ?? DEFAULT_GRAPHQL_URL,
+  easProjectId:
+    readOptionalString(process.env.EXPO_PUBLIC_EAS_PROJECT_ID) ?? null,
   hasConfiguredGraphqlUrl: configuredGraphqlUrl !== undefined,
   hasSupabaseConfiguration:
     configuredSupabaseUrl !== undefined && configuredSupabaseKey !== undefined,

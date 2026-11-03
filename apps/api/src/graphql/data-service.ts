@@ -18,6 +18,7 @@ import type {
   NotificationDelivery,
   NotificationPlanEvent,
   NotificationPreferences,
+  UserDevice,
   Pagination,
   Project,
   ProjectMember,
@@ -141,6 +142,7 @@ const notificationEventTypeSchema = z.object({
   created_at: z.string(),
   default_email_enabled: z.boolean(),
   default_in_app_enabled: z.boolean(),
+  default_push_enabled: z.boolean(),
   description: z.string(),
   display_name: z.string(),
   is_active: z.boolean(),
@@ -151,6 +153,7 @@ const notificationEventPreferenceSchema = z.object({
   email_enabled: z.boolean(),
   event_type: z.string(),
   in_app_enabled: z.boolean(),
+  push_enabled: z.boolean(),
   updated_at: z.string(),
   user_id: z.uuid(),
 });
@@ -159,6 +162,7 @@ const notificationPlanEventSchema = z.object({
   email_enabled: z.boolean(),
   event_type: z.string(),
   in_app_enabled: z.boolean(),
+  push_enabled: z.boolean(),
   plan_code: z.string(),
   updated_at: z.string(),
 });
@@ -210,10 +214,22 @@ const notificationPreferencesSchema = z.object({
   created_at: z.string(),
   email_enabled: z.boolean(),
   in_app_enabled: z.boolean(),
+  push_enabled: z.boolean(),
   reminder_enabled: z.boolean(),
   task_assigned_enabled: z.boolean(),
   task_created_enabled: z.boolean(),
   updated_at: z.string(),
+  user_id: z.uuid(),
+});
+const userDeviceSchema = z.object({
+  created_at: z.string(),
+  device_name: z.string().nullable(),
+  enabled: z.boolean(),
+  id: z.uuid(),
+  last_seen_at: z.string(),
+  platform: z.enum(['android', 'ios']),
+  push_token: z.string(),
+  revoked_at: z.string().nullable(),
   user_id: z.uuid(),
 });
 const notificationDeliverySchema = z.object({
@@ -377,6 +393,13 @@ export interface BoardnestDataService {
     workspaceId: string,
   ) => Promise<NotificationPlanEvent[]>;
   notificationPreferences: (userId: string) => Promise<NotificationPreferences>;
+  pushDevices: () => Promise<UserDevice[]>;
+  registerPushDevice: (
+    platform: string,
+    pushToken: string,
+    deviceName: string | null,
+  ) => Promise<UserDevice>;
+  revokePushDevice: (id: string) => Promise<boolean>;
   unreadNotificationCount: (userId: string) => Promise<number>;
   notifications: (
     userId: string,
@@ -1011,6 +1034,35 @@ class SupabaseBoardnestDataService implements BoardnestDataService {
       .eq('user_id', userId)
       .single();
     return required(notificationPreferencesSchema, response);
+  }
+
+  async pushDevices(): Promise<UserDevice[]> {
+    const response = await this.client
+      .from('user_devices')
+      .select('*')
+      .order('last_seen_at', { ascending: false });
+    return list(userDeviceSchema, response);
+  }
+
+  async registerPushDevice(
+    platform: string,
+    pushToken: string,
+    deviceName: string | null,
+  ): Promise<UserDevice> {
+    const response = await this.client.rpc('register_push_device', {
+      p_device_name: deviceName,
+      p_platform: platform,
+      p_push_token: pushToken,
+    });
+    return required(userDeviceSchema, response);
+  }
+
+  async revokePushDevice(id: string): Promise<boolean> {
+    const response = await this.client.rpc('revoke_push_device', {
+      p_device_id: id,
+    });
+    if (response.error) throw response.error;
+    return response.data === true;
   }
 
   async notificationEventTypes(): Promise<NotificationEventType[]> {

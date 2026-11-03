@@ -113,6 +113,7 @@ const preferences: NotificationPreferences = {
   created_at: timestamp,
   email_enabled: true,
   in_app_enabled: true,
+  push_enabled: true,
   reminder_enabled: true,
   task_assigned_enabled: true,
   task_created_enabled: true,
@@ -126,6 +127,7 @@ const notificationEventType: NotificationEventType = {
   created_at: timestamp,
   default_email_enabled: true,
   default_in_app_enabled: true,
+  default_push_enabled: true,
   description: 'A task was assigned to the recipient.',
   display_name: 'Task assigned',
   is_active: true,
@@ -137,6 +139,7 @@ const notificationEventPreference: NotificationEventPreference = {
   email_enabled: true,
   event_type: notificationEventType.code,
   in_app_enabled: false,
+  push_enabled: true,
   updated_at: timestamp,
   user_id: user.id,
 };
@@ -146,6 +149,7 @@ const notificationPlanEvent: NotificationPlanEvent = {
   email_enabled: true,
   event_type: notificationEventType.code,
   in_app_enabled: true,
+  push_enabled: true,
   plan_code: 'free',
   updated_at: timestamp,
 };
@@ -953,6 +957,7 @@ describe('GraphQL reminder workflow resolvers', () => {
             emailEnabled: true,
             eventType: 'task.assigned',
             inAppEnabled: false,
+            pushEnabled: true,
           },
         },
         context(createDataService({ updateNotificationEventPreference })),
@@ -963,6 +968,7 @@ describe('GraphQL reminder workflow resolvers', () => {
       email_enabled: true,
       event_type: 'task.assigned',
       in_app_enabled: false,
+      push_enabled: true,
     });
   });
 
