@@ -211,7 +211,8 @@ See [`apps/mobile/README.md`](../apps/mobile/README.md) for device setup, local 
 4. Native drag and drop with gestures and animations after usability validation.
 5. Completed: notification inbox, schedules, reminders, preferences, and delivery history.
 6. Completed: Expo push registration, delivery, receipts, and safe native routing.
-7. Mobile hardening, testing, and Google Play release preparation.
+7. Completed: offline awareness, lifecycle recovery, bounded retries, and request protection.
+8. Mobile hardening, testing, and Google Play release preparation.
 
 ## Task board
 
@@ -295,3 +296,30 @@ production Google Play build, use the checked-in `production` EAS profile.
 Notification responses contain only structured event and entity identifiers.
 The mobile client validates those identifiers and builds its own workspace,
 project, or task destination. Provider payloads cannot supply an arbitrary URL.
+
+## Offline and application lifecycle
+
+The v1 mobile client is offline-aware but not offline-editable. Apollo's
+in-memory cache keeps previously loaded data visible during a temporary network
+loss. A global connectivity banner announces offline state, and the transport
+rejects mutations before they leave the device. This avoids silently queued
+changes, duplicate writes, and unresolved edit conflicts.
+
+GraphQL queries use at most three total attempts with exponential jitter and a
+15-second HTTP timeout. Automatic retry is restricted to queries. Mutations are
+not retried because a timeout cannot prove that the server did not commit the
+operation. Reusable buttons also suppress rapid duplicate presses while their
+normal loading state disables longer operations.
+
+When connectivity returns, the application reconnects the authenticated
+GraphQL WebSocket and refetches active queries. The same recovery runs when the
+application returns to the foreground, covering events missed while Android or
+iOS suspended network work. Realtime retry and notification polling pause while
+the application is backgrounded or offline. Supabase token auto-refresh follows
+the same foreground lifecycle.
+
+Logout revokes the local push registration when possible, clears the Supabase
+session, and clears Apollo's private cache. Disk-persisted business data,
+offline mutation queues, and conflict resolution are intentionally deferred.
+Adding them requires per-operation idempotency keys, ownership-aware encrypted
+storage, merge rules, and user-visible conflict handling.

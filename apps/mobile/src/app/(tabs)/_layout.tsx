@@ -3,12 +3,14 @@ import { useQuery } from '@apollo/client/react';
 import { Tabs } from 'expo-router';
 
 import { unreadBadgeLabel } from '@/features/notifications/notification-model';
+import { useMobileLifecycle } from '@/lib/mobile-lifecycle';
 import { theme } from '@/theme';
 
 export default function TabsLayout() {
+  const { appState, isOnline } = useMobileLifecycle();
   const unread = useQuery(MobileUnreadNotificationCountDocument, {
     fetchPolicy: 'cache-and-network',
-    pollInterval: 60_000,
+    pollInterval: isOnline && appState === 'active' ? 60_000 : 0,
   });
   const unreadCount = unread.data?.unreadNotificationCount ?? 0;
   const badge = unreadBadgeLabel(unreadCount);

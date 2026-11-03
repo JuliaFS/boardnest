@@ -15,6 +15,7 @@ import { FeedbackProvider } from '@/components/ui';
 import { MobileAuthProvider, useMobileAuth } from '@/features/auth/mobile-auth';
 import { PushNotificationBridge } from '@/features/notifications/push-notifications';
 import { mobileApolloClient } from '@/lib/apollo';
+import { MobileLifecycleProvider } from '@/lib/mobile-lifecycle';
 import { invitationRouteFromReturnTo, mobileRoutes } from '@/navigation/routes';
 import { theme } from '@/theme';
 
@@ -33,15 +34,17 @@ const boardnestNavigationTheme = {
 export default function RootLayout() {
   return (
     <ApolloProvider client={mobileApolloClient}>
-      <MobileAuthProvider>
-        <ThemeProvider value={boardnestNavigationTheme}>
-          <StatusBar style="light" />
-          <FeedbackProvider>
-            <PushNotificationBridge />
-            <SessionGate />
-          </FeedbackProvider>
-        </ThemeProvider>
-      </MobileAuthProvider>
+      <MobileLifecycleProvider>
+        <MobileAuthProvider>
+          <ThemeProvider value={boardnestNavigationTheme}>
+            <StatusBar style="light" />
+            <FeedbackProvider>
+              <PushNotificationBridge />
+              <SessionGate />
+            </FeedbackProvider>
+          </ThemeProvider>
+        </MobileAuthProvider>
+      </MobileLifecycleProvider>
     </ApolloProvider>
   );
 }
