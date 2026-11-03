@@ -1,0 +1,10 @@
+- assertVisible: 'Sign in'
+- tapOn: 'Email'
+- inputText: '${E2E_EMAIL}'
+- tapOn: 'Password'
+- inputText: '${E2E_PASSWORD}'
+- hideKeyboard
+- tapOn: 'Sign in'
+- extendedWaitUntil:
+    visible: 'Your workspaces'
+    timeout: 20000

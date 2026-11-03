@@ -78,8 +78,20 @@ export default function RegisterScreen() {
             password
           />
           <TurnstileChallenge onToken={setCaptchaToken} />
-          {error ? <Text style={authStyles.error}>{error}</Text> : null}
-          {status ? <Text style={authStyles.status}>{status}</Text> : null}
+          {error ? (
+            <Text
+              accessibilityLiveRegion="assertive"
+              accessibilityRole="alert"
+              style={authStyles.error}
+            >
+              {error}
+            </Text>
+          ) : null}
+          {status ? (
+            <Text accessibilityLiveRegion="polite" style={authStyles.status}>
+              {status}
+            </Text>
+          ) : null}
           <Pressable
             disabled={
               submitting ||
@@ -124,6 +136,7 @@ function AuthInput({
     <View style={authStyles.field}>
       <Text style={authStyles.label}>{label}</Text>
       <TextInput
+        accessibilityLabel={label}
         autoCapitalize={email || password ? 'none' : 'words'}
         autoComplete={email ? 'email' : password ? 'new-password' : 'name'}
         keyboardType={email ? 'email-address' : 'default'}

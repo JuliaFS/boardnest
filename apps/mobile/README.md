@@ -23,6 +23,8 @@ The mobile foundation currently provides:
 - workspace invitations and protected native invitation acceptance;
 - Android, iOS, and web development targets;
 - monorepo lint and type-check integration.
+- Vitest unit, Jest/React Native component and integration, and Maestro Android
+  test layers.
 
 The web and mobile clients use the same Supabase users. Web sessions remain in
 HTTP-only cookies, while native sessions use Expo SecureStore and bearer tokens.
@@ -161,11 +163,15 @@ All `EXPO_PUBLIC_*` values are embedded in the application bundle and must be tr
 pnpm --filter @boardnest/mobile lint
 pnpm --filter @boardnest/mobile typecheck
 pnpm --filter @boardnest/mobile test
+pnpm --filter @boardnest/mobile test:components:coverage
 pnpm --filter @boardnest/mobile doctor
 pnpm graphql:check
 ```
 
-The root `pnpm lint` and `pnpm typecheck` commands also validate mobile source code.
+The root `pnpm lint`, `pnpm typecheck`, and `pnpm test:ci` commands validate
+mobile source and run both mobile test runners in GitHub Actions. Device-level
+flows live in `.maestro`; see its README and the **Mobile E2E** workflow for the
+installed-APK test procedure.
 
 ## Project boundaries
 

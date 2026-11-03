@@ -212,7 +212,8 @@ See [`apps/mobile/README.md`](../apps/mobile/README.md) for device setup, local 
 5. Completed: notification inbox, schedules, reminders, preferences, and delivery history.
 6. Completed: Expo push registration, delivery, receipts, and safe native routing.
 7. Completed: offline awareness, lifecycle recovery, bounded retries, and request protection.
-8. Mobile hardening, testing, and Google Play release preparation.
+8. Completed: unit, component, integration, and Maestro Android test layers.
+9. Google Play release preparation.
 
 ## Task board
 

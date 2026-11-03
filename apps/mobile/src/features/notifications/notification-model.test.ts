@@ -81,4 +81,28 @@ describe('notification presentation', () => {
       intervalValue: 'Your plan requires an interval of at least 1 hour(s).',
     });
   });
+
+  it('rejects invalid timezone names and accepts DST-aware IANA zones', () => {
+    const values: ScheduleFormValues = {
+      body: '',
+      emailEnabled: false,
+      endsAt: '',
+      inAppEnabled: true,
+      intervalUnit: 'MONTH',
+      intervalValue: '1',
+      nextRunAt: '2026-03-29T01:30:00.000Z',
+      projectId: '',
+      scheduleKind: 'INTERVAL',
+      taskId: '',
+      timezone: 'Europe/Sofia',
+      title: 'Monthly review',
+    };
+
+    expect(validateScheduleForm(values, 60)).toEqual({});
+    expect(
+      validateScheduleForm({ ...values, timezone: 'Mars/Olympus' }, 60),
+    ).toEqual({
+      timezone: 'Enter a valid IANA timezone, for example Europe/Sofia.',
+    });
+  });
 });

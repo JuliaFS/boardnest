@@ -1,0 +1,37 @@
+appId: com.juliafs.boardnest
+name: core-workflow
+tags:
+  - regression
+---
+- launchApp:
+    clearState: true
+- runFlow: ../subflows/login.yaml
+- tapOn: 'Create workspace'
+- tapOn: 'Workspace name'
+- inputText: '${E2E_WORKSPACE_NAME}'
+- hideKeyboard
+- tapOn: 'Create workspace'
+- extendedWaitUntil:
+    visible: 'Your role: owner'
+    timeout: 15000
+- tapOn: 'Projects'
+- tapOn: 'Create project'
+- tapOn: 'Project name'
+- inputText: '${E2E_PROJECT_NAME}'
+- hideKeyboard
+- tapOn: 'Create project'
+- extendedWaitUntil:
+    visible: 'Open task board'
+    timeout: 15000
+- tapOn: 'Open task board'
+- tapOn: 'Create task'
+- tapOn: 'Task title'
+- inputText: '${E2E_TASK_NAME}'
+- hideKeyboard
+- tapOn: 'Create task'
+- extendedWaitUntil:
+    visible: '${E2E_TASK_NAME}'
+    timeout: 15000
+- tapOn: 'Change status'
+- tapOn: 'Done'
+- assertVisible: '${E2E_TASK_NAME}'

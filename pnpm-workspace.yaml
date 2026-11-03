@@ -4,6 +4,7 @@ packages:
 
 allowBuilds:
   '@apollo/protobufjs': false
+  '@parcel/watcher': true
   esbuild: true
 
 catalog:
