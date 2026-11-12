@@ -144,7 +144,7 @@ reviewable and leave the quality gate green.
 
 ## Current local endpoints
 
-- Web: `http://localhost:5174`
+- Web: `http://localhost:5173`
 - API health: `http://localhost:4000/health`
 - API session check: `http://localhost:4000/auth/me`
 - API authentication callback: `http://localhost:4000/auth/callback`

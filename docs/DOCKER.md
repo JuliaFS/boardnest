@@ -121,7 +121,7 @@ pnpm redis:up
 pnpm dev
 ```
 
-This uses Vite hot reload at `http://localhost:5174 ` and the API watcher.
+This uses Vite hot reload at `http://localhost:5173 ` and the API watcher.
 
 ### Container verification
 

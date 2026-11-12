@@ -4,7 +4,7 @@ import { parseEnvironment } from './env.js';
 
 const required = {
   API_URL: 'http://localhost:4000',
-  CORS_ORIGIN: 'http://localhost:5174',
+  CORS_ORIGIN: 'http://localhost:5173',
   GUEST_RATE_LIMIT_SECRET: 'x'.repeat(32),
   REDIS_URL: 'redis://localhost:6379',
   SUPABASE_PUBLISHABLE_KEY: 'test-key',

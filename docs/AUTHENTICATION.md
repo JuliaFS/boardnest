@@ -34,7 +34,7 @@ no-store` so a proxy must not cache `Set-Cookie` headers.
 
 Under **Authentication → URL Configuration** set:
 
-- Site URL: `http://localhost:5174`
+- Site URL: `http://localhost:5173`
 - Redirect URLs: add `http://localhost:4000/auth/callback`
 
 The callback URL points to the API, not the React application. The API exchanges
@@ -82,7 +82,7 @@ API_URL=http://localhost:4000
 COOKIE_SAME_SITE=lax
 SUPABASE_URL=https://your-project-ref.supabase.co
 SUPABASE_PUBLISHABLE_KEY=sb_publishable_your-public-key
-CORS_ORIGIN=http://localhost:5174
+CORS_ORIGIN=http://localhost:5173
 NODE_ENV=development
 ```
 
@@ -120,7 +120,7 @@ tasks.
 
 ## Manual verification
 
-1. Run `pnpm dev` and open `http://localhost:5174/register`.
+1. Run `pnpm dev` and open `http://localhost:5173/register`.
 2. Register and, when enabled, follow the email confirmation link.
 3. Confirm the dashboard reports an API-verified cookie session.
 4. In DevTools → Application → Local storage, confirm no `sb-...-auth-token` exists.

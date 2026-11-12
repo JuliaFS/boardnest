@@ -17,7 +17,7 @@ import {
   type RealtimeEventBus,
 } from './realtime/event-bus.js';
 
-const origin = 'http://localhost:5174';
+const origin = 'http://localhost:5173';
 const user: PublicAuthUser = {
   displayName: 'Test User',
   email: 'person@example.com',

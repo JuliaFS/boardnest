@@ -148,7 +148,7 @@ pnpm dev
 
 Open:
 
-- web: <http://localhost:5174>
+- web: <http://localhost:5173>
 - API health: <http://localhost:4000/health>
 - GraphQL HTTP: <http://localhost:4000/graphql>
 - GraphQL WebSocket: `ws://localhost:4000/graphql`
