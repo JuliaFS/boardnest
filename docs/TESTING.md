@@ -2,7 +2,7 @@
 
 ## Test layers
 
-Boardnest uses three complementary test layers:
+The web/API workflow uses three complementary test layers:
 
 - Vitest unit tests cover validation, task ordering and grouping, environment
   parsing, cookie behavior, and Redis event serialization.
@@ -64,7 +64,7 @@ executed by Jest and excluded from the Vitest unit pattern. The root
 Device-level Maestro tests require an installed APK and dedicated test data.
 They run through the manually dispatched **Mobile E2E** GitHub Actions workflow
 because every build URL and backend target is explicit. See
-`.maestro/README.md` for secrets, test-data safety, and local commands.
+[`.maestro/README.md`](../.maestro/README.md) for secrets, test-data safety, and local commands.
 
 `pnpm check` includes unit/component tests, builds, and the Chromium E2E suite.
 Playwright starts an isolated Vite server on `127.0.0.1:4173`.
@@ -91,7 +91,7 @@ REDIS_INTEGRATION_URL=redis://127.0.0.1:6379 \
 
 Database RLS and trigger behavior is verified by the SQL files under
 `database/tests`. Run them only against an isolated, disposable database as
-documented in `docs/SUPABASE.md`; they are destructive and must not be executed
+documented in [Supabase setup](SUPABASE.md); they are destructive and must not be executed
 against the hosted project. The notification model smoke test also verifies
 automatic plan assignment, preference creation, the three-task guest reminder
 limit, quota release after pausing, rejection of guest email reminders,
@@ -186,3 +186,27 @@ a failed poll, and shutdown.
   creator anonymization, and cookie cleanup.
 - queued-email unsubscribe enforcement, duplicate-delivery protection, quota
   boundaries, SMTP failure isolation, and service-role production metrics.
+
+## Invitation and cache regression checks
+
+- `014_in_app_workspace_invitations.sql` checks recipient-only notification
+  visibility before membership, preference opt-out, no duplicate email/push,
+  ID acceptance, token compatibility, revocation, expiry, and private grants.
+- `015_change_invitation_email.sql` checks registered-admin authorization,
+  same-email rejection, duplicate-address rollback, role preservation, old-link
+  invalidation, replacement notification creation, and new-token acceptance.
+- Web tests cover the prefilled Change email dialog, cancellation, normalized
+  submission, conflict feedback, and invitation-ID acceptance without an email
+  token. Native component tests cover the equivalent edit sheet and acceptance.
+- Board cache tests cover mutation/subscription upserts without duplicate cards,
+  movement/edit preservation, deletion, and an initially absent cached board.
+- Mobile realtime tests check that comment events for another task do not invoke
+  the open task's refresh callback.
+
+The SQL suites are not run by `pnpm test`, `pnpm check`, or CI. Files 001–012 and
+014–015 use transactional assertions; `013_push_notifications.sql` additionally
+requires pgTAP (`plan`, schema assertions, and `finish`). Use a disposable
+Supabase-compatible database with the expected Auth schema, roles, JWT helper
+functions, and grants. A plain PostgreSQL database with partial Auth stubs is not
+an equivalent environment. Do not interpret a source-level documentation audit
+or a test's presence as proof that all SQL suites pass on the hosted schema.

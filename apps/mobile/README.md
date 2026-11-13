@@ -105,10 +105,13 @@ owners and admins receive the destructive project deletion control. PostgreSQL
 RLS remains authoritative for every operation.
 
 Workspace owners and admins can create and revoke invitations from workspace
-details. Email delivery uses the API's configured provider. If delivery is not
+details. Registered managers can use Change email to replace a pending,
+unexpired invitation atomically while preserving its role. Email delivery uses the API's configured provider. If delivery is not
 available, the one-time web acceptance URL is displayed as a development
-fallback. The `/invite/:token` mobile route validates the token, preserves it
-through login, and accepts it only when the authenticated email matches.
+fallback. The `/invite/:token` mobile route accepts an email token or an invitation UUID,
+preserves it through login, and accepts only when the authenticated email
+matches. In-app invitations are created for already-registered recipients
+whose in-app preferences allow them; they contain no raw email token.
 
 The Android manifest declares a verified App Link for
 `https://boardnest-web-omega.vercel.app/invite/*`. A store or development build
@@ -127,8 +130,9 @@ validated on small screens.
 
 The Notifications tab uses the same recipient-scoped inbox, preferences,
 workspace plan limits, personal schedules, and delivery history as the web
-client. Native destinations are built only from structured workspace, project,
-and task identifiers plus the notification event type. The mobile client does
+client. Ordinary native destinations use structured workspace, project, and task
+identifiers plus event type. Workspace invitations instead validate the UUID
+in `payload.invitationId` and open the acceptance screen. The mobile client does
 not read or execute a web route from notification JSON payloads. Unread entries
 are marked optimistically, and the tab badge updates immediately with a visual
 cap of `99+`.

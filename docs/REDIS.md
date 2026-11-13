@@ -17,8 +17,10 @@ API instance A: successful task mutation
   -> WebSocket client
 ```
 
-Channels are scoped by project and by `created`, `updated`, or `deleted` event
-kind. The `v1` segment permits a future payload migration without mixing
+Task channels are scoped by project and by `created`, `updated`, or `deleted`
+event kind. Sync signals use `boardnest:v1:sync:<kind>:<scope-id>` for task
+comments, project membership, and workspace membership. They carry IDs and
+request a focused refetch rather than storing the aggregate in Redis. The `v1` segment permits a future payload migration without mixing
 incompatible consumers.
 
 ## Local development
@@ -44,19 +46,22 @@ Compose topology also builds and runs the API and static web services.
 
 ## Connections and lifecycle
 
-The official `node-redis` client maintains two connections:
+The real-time event bus uses two `node-redis` connections:
 
 - a normal connection for `PUBLISH`;
 - a duplicated, subscribe-only connection for `SUBSCRIBE` and `UNSUBSCRIBE`.
 
 The API connects before listening for HTTP traffic and fails fast if Redis is
 unavailable. On shutdown it completes local async iterators, unsubscribes their
-listeners, and closes both connections.
+listeners, and closes both event-bus connections. Guest admission has its own
+third normal Redis connection, which is closed separately.
 
 If publishing fails after PostgreSQL has committed a mutation, the error is
 logged without changing the successful mutation result. Reporting the mutation
 as failed would encourage a duplicate retry even though the task was already
-stored. Connected clients can reconcile from PostgreSQL after reconnecting.
+stored. Mobile refetches active queries after reconnect. Web clients must refresh the
+page or explicitly refetch to reconcile; socket reconnection alone does not
+recover missed events.
 
 ## Delivery semantics
 

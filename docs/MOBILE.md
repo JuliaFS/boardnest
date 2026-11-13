@@ -16,14 +16,16 @@ Mobile client ────┘              │
                                  └── notification workers
 ```
 
-Both clients will use the same API, users, workspaces, projects, tasks, and notification data. Mobile business operations must go through the GraphQL API rather than querying business tables directly. This preserves API validation, authorization, plan limits, event publication, and PostgreSQL RLS behavior.
+Both clients use the same API, users, workspaces, projects, tasks, and notification data. Mobile business operations must go through the GraphQL API rather than querying business tables directly. This preserves API validation, authorization, plan limits, event publication, and PostgreSQL RLS behavior.
 
 Platform-specific UI stays inside each application. Framework-independent validation, GraphQL documents, generated types, constants, and pure domain functions may move into workspace packages only when both clients need them.
 
 ## Shared GraphQL contracts
 
 `packages/graphql-types` is generated from the API schema and owns the typed
-documents shared by web and mobile. The first shared operation is
+mobile documents targeting the same schema as web. Web business operations
+currently remain handwritten in `apps/web/src/features/core/graphql.ts`. The
+shared transport-test operation is
 `MobileConnection`, a public `currentUser` query used to prove that both clients
 compile against the same contract. A missing session is a valid public result.
 
@@ -129,10 +131,13 @@ roster. Only workspace owners and admins may permanently delete a project.
 Private project discovery continues to depend on explicit membership; project
 roles never elevate a workspace viewer.
 
-Workspace details expose invitation creation, pending invitation history, and
-revocation to owners and admins. The protected `/invite/:token` route validates
-the token format, retains the route through login, and calls the same atomic
-acceptance operation used by web. Email links use the public web URL so they
+Workspace details expose invitation creation, pending invitation history,
+revocation, and Change email to registered owners/admins. Email correction
+replaces an unexpired pending invitation atomically while preserving its role. The protected `/invite/:token` route validates
+an email token or invitation UUID, retains the route through login, and calls
+the same email-matched atomic acceptance operations used by web. In-app
+invitations target accounts registered before sending, subject to preferences;
+they carry an invitation ID rather than a raw email token. Email links use the public web URL so they
 continue to open the browser when the native application is unavailable.
 
 ## Android App Links
@@ -209,7 +214,8 @@ See [`apps/mobile/README.md`](../apps/mobile/README.md) for device setup, local 
 2. Completed: task CRUD, comments, assignments, and menu-based board movement.
 3. Completed: authenticated GraphQL subscription reconnection and cache synchronization.
 4. Native drag and drop with gestures and animations after usability validation.
-5. Completed: notification inbox, schedules, reminders, preferences, and delivery history.
+5. Completed: notification inbox, custom schedules, preferences, and delivery
+   history. Dedicated task-reminder CRUD remains API-only.
 6. Completed: Expo push registration, delivery, receipts, and safe native routing.
 7. Completed: offline awareness, lifecycle recovery, bounded retries, and request protection.
 8. Completed: unit, component, integration, and Maestro Android test layers.
@@ -241,7 +247,8 @@ refetches active queries after a recovered connection.
 
 Project-scoped task subscriptions apply immutable board updates for create,
 update, movement, and deletion. Comment and project-membership subscriptions
-refetch only their relevant project views. Workspace membership events refetch
+refetch their relevant views. Task-detail comment events are additionally
+filtered by task ID and refetch only task details, not workspace members. Workspace membership events refetch
 the open workspace. Stable task fingerprints and server event IDs feed a
 bounded deduplicator, preventing Redis or reconnect redelivery from applying an
 event twice. Subscription resolvers authorize every scope before attaching to
@@ -257,13 +264,18 @@ or calendar-aware recurring delivery, IANA timezones, and in-app or email
 channels. The API and database remain authoritative for entitlement and quota
 checks.
 
-Mobile navigation never executes `payload.route`. The inbox GraphQL document
-does not request notification payloads. Instead, a pure route builder validates
-the structured workspace, project, and task UUIDs and considers the event type
-before constructing an Expo Router destination. Invalid context stays in the
+Mobile navigation never executes `payload.route`. The inbox GraphQL document requests `payload` so workspace invitations can use
+a runtime-validated `invitationId`. Other events use structured workspace,
+project, and task UUIDs plus event type. A pure route builder constructs an
+allowlisted Expo Router destination; it never executes the payload's web route. Invalid context stays in the
 inbox and can only be marked as read. Marking an unread item uses an optimistic
 mutation and decrements the cached unread count; an API failure rolls back the
 optimistic layer and refetches both inbox and count.
+
+Dedicated `task_reminders` have a GraphQL lifecycle and backend scheduler but
+no create/edit form in either current client. The mobile Notifications tab
+creates personal custom schedules, including schedules scoped to a task; those
+are separate `scheduled_notifications` rows.
 
 ## Push notifications
 

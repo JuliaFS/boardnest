@@ -41,8 +41,8 @@ See [Authentication](AUTHENTICATION.md) for the complete flow.
 Cookie authentication requires explicit cross-site request controls:
 
 - CORS allows credentials only from the single configured `CORS_ORIGIN`;
-- authentication mutations reject requests whose `Origin` is not that exact
-  origin;
+- authentication mutations reject an explicitly supplied `Origin` when it does
+  not match; absent Origin headers remain supported for non-browser clients;
 - Apollo CSRF prevention protects GraphQL HTTP requests;
 - WebSocket connection setup independently checks the exact browser origin;
 - `SameSite` cookies provide an additional browser-level boundary but are not
@@ -60,9 +60,8 @@ exactly, including scheme and port.
 - Private projects require explicit project membership, except that workspace
   owners and admins retain administrative access.
 - GraphQL resolvers require authentication and use a Supabase client carrying
-  the current user's JWT. Normal requests never use the service-role key. Only
-  the background schedulers and authenticated account-deletion service use it
-  to call their dedicated RPCs.
+  the current user's JWT. Normal requests never use the service-role key. The schedulers, email/push workers, and authenticated account-deletion
+  service use it only for their dedicated trusted operations.
 - RLS helpers live in a non-exposed `private` schema with controlled execution
   grants and fully qualified relation names.
 - Database triggers protect cross-tenant relationships and invariants such as
@@ -83,13 +82,21 @@ exactly, including scheme and port.
 
 The detailed permission matrix is in [Database](DATABASE.md).
 
+Invitation operations are narrow security-definer exceptions to ordinary table
+writes. ID acceptance verifies the authenticated registered email, not just
+knowledge of a UUID. Change email authorizes a registered workspace manager,
+locks the source row, and atomically replaces only an unexpired pending
+invitation. Notifications contain an invitation ID, never its raw token. These
+operations use the caller's JWT, not the Supabase service-role key.
+
 ## Input and query safety
 
 - Zod validates authentication bodies, GraphQL UUIDs, strings, dates,
   pagination, and update payloads at the API boundary.
 - GraphQL validates operation shape and enum values before resolver execution.
-- Request JSON bodies are capped at 100 KB.
-- Operation depth is capped at 10 and list sizes at 100.
+- GraphQL JSON bodies are capped at 100 KB; `/auth` JSON bodies at 16 KB.
+- Operation depth is capped at 10 and paginated-query limits at 100; scoped
+  array queries do not all expose pagination.
 - Production GraphQL introspection and stack traces are disabled.
 - Supabase/PostgREST query builders parameterize filters; application code does
   not concatenate user input into SQL.
@@ -105,9 +112,11 @@ harmless: injected code could still issue same-origin actions as the user.
 Avoid `dangerouslySetInnerHTML`, validate future rich-text formats, and keep
 third-party dependencies current.
 
-The production frontend serves hashed static assets. A stricter Content
-Security Policy should be added before introducing third-party scripts,
-analytics, user-generated HTML, or embedded content.
+The production frontend serves hashed static assets and already loads the
+third-party Cloudflare Turnstile widget. No application CSP header is configured
+in `apps/web/vercel.json` or the local Nginx file. An explicit CSP compatible
+with Turnstile and the API/WS endpoints remains hardening work; a Cloudflare
+iframe's own CSP is separate from the application's policy.
 
 ## Secrets and configuration
 
@@ -139,9 +148,12 @@ containing credentials.
 
 Before a production release:
 
-1. confirm no token appears in Local Storage, Session Storage, HTML, or JSON;
+1. confirm browser access/refresh tokens never appear in browser storage, HTML,
+   or JSON; raw invitation tokens may appear only in the explicit secure-sharing
+   fallback, and native sessions use their separate secure-storage flow;
 2. inspect cookies for `HttpOnly`, `Secure`, and the intended `SameSite` value;
-3. verify an anonymous request is rejected;
+3. verify an unauthenticated request is rejected; a Supabase anonymous guest
+   is an authenticated user with additional demo limits;
 4. verify a second user cannot read or mutate a private project;
 5. verify a workspace viewer cannot perform contributor mutations;
 6. verify an untrusted HTTP or WebSocket `Origin` is rejected;
@@ -154,7 +166,8 @@ Before a production release:
 The current controls are appropriate for a portfolio release, but an
 internet-facing service with untrusted traffic should additionally add:
 
-- IP/account-aware rate limiting for authentication and GraphQL;
+- IP/account-aware rate limiting for general authentication and GraphQL
+  (Redis guest-admission limits already exist);
 - weighted GraphQL query-cost analysis in addition to depth limits;
 - automated dependency and secret scanning;
 - Content Security Policy and other explicit browser security headers at the

@@ -21,7 +21,7 @@ create the same RLS-aware GraphQL context.
 
 - `apps/web` owns browser rendering, routing, forms, accessibility, and Apollo client state.
 - `apps/mobile` owns native rendering, Expo Router navigation, device lifecycle,
-  and platform-specific interaction. It will use the same GraphQL business API
+  and platform-specific interaction. It uses the same GraphQL business API
   without importing browser presentation code.
 - `apps/api` owns GraphQL, authentication context, authorization, validation, transactions, and event publication.
 - `packages/shared` contains framework-independent values and utilities that genuinely apply on both sides. It must not depend on either application.
@@ -60,7 +60,7 @@ not used for normal GraphQL operations because it bypasses RLS.
 
 ### Data ownership
 
-PostgreSQL is the source of truth. Redis carries ephemeral events and may later support rate limits or short-lived caches, but losing Redis must not lose persisted Boardnest data.
+PostgreSQL is the source of truth. Redis carries ephemeral events and guest-admission rate-limit counters. It has no durable event history or task cache; losing Redis does not delete persisted Boardnest data.
 
 ### Real-time delivery
 
@@ -216,9 +216,10 @@ states. See `docs/FRONTEND.md`.
 ## Project and task workflow decisions
 
 React Hook Form and Zod own client-side form mechanics and validation while the
-API repeats authoritative validation at the trust boundary. Apollo mutations
-refetch affected collection queries after create/delete operations and merge
-entity updates through normalized IDs.
+API repeats authoritative validation at the trust boundary. Collection mutations use targeted refetches where needed. Web task creation,
+editing, and movement instead update the cached board directly, and task
+subscriptions update that same list by ID. Grouped component state provides
+the optimistic drag view and rollback snapshot.
 
 The Kanban board uses the current `@dnd-kit/react` API with its pointer and
 keyboard sensors. Dragging updates local grouped task state immediately, then
@@ -249,12 +250,13 @@ event kind, preventing every API instance from receiving unrelated tenant
 traffic. JSON payloads are validated at both serialization and consumption
 boundaries before reaching a WebSocket subscriber.
 
-Redis Pub/Sub is deliberately ephemeral and at-most-once. A missed event is
-recovered from PostgreSQL by the board query after reconnect; Redis never owns
+Redis Pub/Sub is deliberately ephemeral and at-most-once. A missed event requires a fresh PostgreSQL-backed query. Mobile automatically
+refetches active queries after reconnect; the web client currently reconnects
+the socket without a board refetch and needs a page refresh or explicit refetch; Redis never owns
 task state. The API fails fast when its initial Redis connection cannot be
 established. A later publish failure is logged but does not report a persisted
 database mutation as failed. Graceful shutdown unsubscribes active iterators and
-closes both Redis connections.
+closes both event-bus connections and the separate guest-limiter connection.
 
 ## Testing decisions
 
@@ -272,9 +274,11 @@ RLS checks and live Redis checks remain explicit opt-in integration suites.
 ## Container decisions
 
 One root multi-stage Dockerfile produces two independent runtime targets.
-The API target contains compiled JavaScript and production-only dependencies;
-the web target contains only static Vite assets served by an unprivileged Nginx
-process. Build tools and source files do not enter either runtime image.
+The API target copies the package prepared by `pnpm deploy --prod`, including
+compiled JavaScript and production dependencies. The API package has no `files`
+allowlist or `.npmignore`, so this is not a dist-only packaging guarantee: source
+and package configuration may also be included. The web target explicitly
+copies only static Vite assets into an unprivileged Nginx image.
 
 Compose models readiness rather than only process order: Redis must become
 healthy before the API starts, and the API must become healthy before the web

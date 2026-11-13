@@ -19,7 +19,8 @@ The application provides:
 - live task create/update/delete synchronization through subscriptions;
 - notification inbox, personal custom schedule create/edit/pause/resume/delete,
   event-specific delivery preferences, and email delivery history;
-- workspace member rosters, role management, and pending invitations;
+- workspace member rosters, role management, pending invitations, in-app
+  invitation acceptance, and atomic Change email for registered administrators;
 - project rosters with add, role-change, and removal controls;
 - reusable loading, retryable error, empty, and not-found states.
 
@@ -42,13 +43,15 @@ task subscription → GraphQLWsLink → ws(s)://API/graphql
   → verified HttpOnly cookie + exact Origin
   → project authorization through RLS
   → Redis-distributed task event
-  → immutable Kanban group update
+  → cached board-list update → grouped optimistic Kanban view
 ```
 
-Created and updated tasks are upserted by ID, so an initiating client does not
-show duplicates when it receives its own event. Deleted tasks are removed from
-all local columns. A disconnected subscription shows a warning; a normal board
-query recovers durable state.
+Mutation responses and subscription payloads both update the cached board list
+by task ID. Creation, editing, and movement do not issue a full board refetch;
+receiving the initiating client's event does not duplicate its card. Deleted
+tasks are removed from the cached list and therefore from grouped columns. Subscription errors show a warning. Web socket retry does not automatically
+refetch the board: a page refresh or explicit query refetch is needed to recover
+missed events. Mobile has a separate automatic recovery mechanism.
 
 ## State ownership
 
@@ -67,7 +70,11 @@ cannot appear for the next user in the same browser.
 
 ## Kanban behavior
 
-The board groups tasks by status and orders each group by fractional position.
+The board initially loads at most 100 tasks, groups them by status, and orders
+each group by fractional position. Search checks the loaded titles and
+descriptions locally; priority filtering is local too. There is no board
+load-more control. Columns come from project-seeded statuses; there is no
+column-configuration editor in the current web client.
 Dragging changes local grouped state first and then persists the new status and
 position. If the mutation fails, the board restores its pre-drag snapshot.
 
@@ -82,29 +89,34 @@ workflow.
 
 ## Routes
 
-| Route                                | Behavior                                                   |
-| ------------------------------------ | ---------------------------------------------------------- |
-| `/login`                             | Public login form                                          |
-| `/register`                          | Public registration and confirmation flow                  |
-| `/dashboard`                         | Workspace count and recent projects                        |
-| `/workspaces/:workspaceId`           | Workspace details and accessible projects                  |
-| `/projects`                          | Workspace selection, workspace creation, and project list  |
-| `/projects/:projectId`               | Project details and management                             |
-| `/projects/:projectId/board`         | Interactive real-time Kanban board                         |
-| `/projects/:projectId/tasks/:taskId` | Task details and editing                                   |
-| `/notifications`                     | Actionable notification inbox and schedule management      |
-| `/members`                           | Workspace roster, roles, and pending invitation management |
-| `/invite/:token`                     | Authenticated, email-matched invitation acceptance         |
-| `/settings`                          | Reserved UI extension point for preferences                |
+| Route                                | Behavior                                                         |
+| ------------------------------------ | ---------------------------------------------------------------- |
+| `/login`                             | Public login form                                                |
+| `/register`                          | Public registration and confirmation flow                        |
+| `/dashboard`                         | Workspace count and recent projects                              |
+| `/workspaces/:workspaceId`           | Workspace details and accessible projects                        |
+| `/projects`                          | Workspace selection, workspace creation, and project list        |
+| `/projects/:projectId`               | Project details and management                                   |
+| `/projects/:projectId/board`         | Interactive real-time Kanban board                               |
+| `/projects/:projectId/tasks/:taskId` | Task details and editing                                         |
+| `/notifications`                     | Actionable notification inbox and schedule management            |
+| `/members`                           | Workspace roster, roles, and pending invitation management       |
+| `/invite/:token`                     | Email-token or invitation-ID acceptance for the matching account |
+| `/settings`                          | Account-deletion impact preview and ownership decisions          |
 
-All application routes are protected. Anonymous visitors are redirected to
-`/login`; authenticated users are redirected away from login and registration.
+Resource and account routes are protected. Signed-out visitors are redirected
+to `/login`; authenticated users are redirected away from login and
+registration. `/login` and `/register` remain public routes.
 
 Project membership is managed from the project details page. See
 [Members and invitations](MEMBERS.md) for the workspace invitation flow,
 project roles, and access model.
 
-Inbox entries are keyboard-accessible and open their related workspace,
+Invitation notifications validate `payload.invitationId` as a UUID and open the
+acceptance page; they do not navigate to a workspace the recipient has not yet
+joined. The inbox is available even without a workspace membership.
+
+Other inbox entries are keyboard-accessible and open their related workspace,
 project, or task after being marked as read. Payload routes are runtime
 validated against an allowlist and must match the notification's structured
 workspace, project, and task identifiers. Missing or rejected payload routes
@@ -125,6 +137,11 @@ Polling stops for hidden tabs, the query is skipped while offline, and returning
 to a visible tab triggers an immediate refresh. All synchronization paths reuse
 the authenticated exact-count GraphQL query.
 
+The web task-details screen currently has no assignment/comment editor or
+dedicated task-reminder form. Assignments/comments have GraphQL and native UI
+flows; dedicated task reminders have API/worker support only. Personal custom
+notification schedules are managed under Notifications.
+
 ## Environment
 
 The frontend requires three public build-time URLs:
@@ -132,6 +149,9 @@ The frontend requires three public build-time URLs:
 - `VITE_API_URL` — authentication REST origin;
 - `VITE_GRAPHQL_URL` — GraphQL HTTP endpoint;
 - `VITE_WS_URL` — GraphQL WebSocket endpoint.
+
+`VITE_TURNSTILE_SITE_KEY` is also public build-time configuration for the auth
+widget. A production build must use the intended widget key.
 
 Vite embeds these values into the static JavaScript bundle. They must contain
 real URLs rather than masked dashboard values. A production Vercel/Railway

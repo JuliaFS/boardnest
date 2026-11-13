@@ -14,32 +14,32 @@ pnpm install
 
 ## Commands
 
-| Command                   | Purpose                                  |
-| ------------------------- | ---------------------------------------- |
-| `pnpm dev`                | Run web and API development processes    |
-| `pnpm dev:mobile`         | Run the Expo mobile development server   |
-| `pnpm dev:mobile:android` | Start Expo and open Android              |
-| `pnpm docker:build`       | Build the API and web container images   |
-| `pnpm docker:config`      | Validate resolved Compose configuration  |
-| `pnpm docker:up`          | Build and start the full Docker stack    |
-| `pnpm docker:logs`        | Follow web, API, and Redis logs          |
-| `pnpm docker:down`        | Remove the local Docker stack            |
-| `pnpm format`             | Format supported repository files        |
-| `pnpm format:check`       | Verify formatting without edits          |
-| `pnpm graphql:generate`   | Regenerate shared GraphQL contracts      |
-| `pnpm graphql:check`      | Reject stale generated GraphQL contracts |
-| `pnpm lint`               | Run ESLint with zero warnings allowed    |
-| `pnpm redis:up`           | Start and health-check local Redis       |
-| `pnpm redis:logs`         | Follow local Redis container logs        |
-| `pnpm redis:down`         | Stop the local Redis container           |
-| `pnpm typecheck`          | Type-check every applicable workspace    |
-| `pnpm test`               | Run workspace tests once                 |
-| `pnpm test:ci`            | Run shared tests and API/web coverage    |
-| `pnpm test:coverage`      | Run API/web tests with coverage gates    |
-| `pnpm test:e2e`           | Run Playwright tests in Chromium         |
-| `pnpm test:e2e:ui`        | Open the interactive Playwright runner   |
-| `pnpm build`              | Produce application and package builds   |
-| `pnpm check`              | Run the complete local quality gate      |
+| Command                   | Purpose                                      |
+| ------------------------- | -------------------------------------------- |
+| `pnpm dev`                | Run web and API development processes        |
+| `pnpm dev:mobile`         | Run the Expo mobile development server       |
+| `pnpm dev:mobile:android` | Start Expo and open Android                  |
+| `pnpm docker:build`       | Build the API and web container images       |
+| `pnpm docker:config`      | Validate resolved Compose configuration      |
+| `pnpm docker:up`          | Build and start the full Docker stack        |
+| `pnpm docker:logs`        | Follow web, API, and Redis logs              |
+| `pnpm docker:down`        | Remove the local Docker stack                |
+| `pnpm format`             | Format supported repository files            |
+| `pnpm format:check`       | Verify formatting without edits              |
+| `pnpm graphql:generate`   | Regenerate shared GraphQL contracts          |
+| `pnpm graphql:check`      | Reject stale generated GraphQL contracts     |
+| `pnpm lint`               | Run ESLint with zero warnings allowed        |
+| `pnpm redis:up`           | Start and health-check local Redis           |
+| `pnpm redis:logs`         | Follow local Redis container logs            |
+| `pnpm redis:down`         | Stop the local Redis container               |
+| `pnpm typecheck`          | Type-check every applicable workspace        |
+| `pnpm test`               | Run workspace tests once                     |
+| `pnpm test:ci`            | Run shared/mobile tests and API/web coverage |
+| `pnpm test:coverage`      | Run API/web tests with coverage gates        |
+| `pnpm test:e2e`           | Run Playwright tests in Chromium             |
+| `pnpm test:e2e:ui`        | Open the interactive Playwright runner       |
+| `pnpm build`              | Produce application and package builds       |
+| `pnpm check`              | Run the complete local quality gate          |
 
 Run `pnpm check` before opening a pull request.
 
@@ -74,6 +74,7 @@ Every `VITE_*` variable is bundled into frontend code and must be treated as pub
 - `VITE_API_URL`
 - `VITE_GRAPHQL_URL`
 - `VITE_WS_URL`
+- `VITE_TURNSTILE_SITE_KEY`
 
 The frontend has no Supabase key and no JavaScript access to authentication tokens.
 
@@ -88,6 +89,8 @@ These values are read only by the API process:
 - `REDIS_URL`
 - `PORT`
 - `CORS_ORIGIN`
+- `GUEST_RATE_LIMIT_SECRET` (required, at least 32 characters)
+- `TRUST_PROXY_HOPS` (defaults to `0`)
 - `EMAIL_PROVIDER` (optional: `resend` or `smtp`)
 - `RESEND_API_KEY` (optional, secret)
 - `INVITATION_EMAIL_FROM` (required when email delivery is enabled)
@@ -102,13 +105,18 @@ These values are read only by the API process:
 - `EMAIL_DELIVERY_WORKER_ENABLED`
 - `EMAIL_DELIVERY_WORKER_INTERVAL_MS`
 - `EMAIL_DELIVERY_WORKER_BATCH_SIZE`
+- `PUSH_NOTIFICATION_WORKER_ENABLED`
+- `PUSH_NOTIFICATION_WORKER_INTERVAL_MS`
+- `PUSH_NOTIFICATION_WORKER_BATCH_SIZE`
+- `EXPO_ACCESS_TOKEN` (optional server secret for enhanced Expo push security)
+- `SUPABASE_SERVICE_ROLE_KEY` (required by enabled trusted features)
 - `NODE_ENV`
 
 `SUPABASE_PUBLISHABLE_KEY` is deliberately public and is also used by the API
 client to support every Supabase signing-key mode. The service-role key and
 direct database URL shown in `.env.example` are secrets. The service-role key is
 required for account deletion, when either scheduler is enabled, and when
-`EMAIL_DELIVERY_WORKER_ENABLED=true`.
+`EMAIL_DELIVERY_WORKER_ENABLED=true` or `PUSH_NOTIFICATION_WORKER_ENABLED=true`.
 Without it, ordinary local UI development still works but the deletion endpoint
 returns 503. Never prefix secrets with `VITE_`, log them, commit them, or send
 them to a browser.
@@ -120,12 +128,25 @@ Resend values without `EMAIL_PROVIDER` remain supported. To test with Gmail,
 set `EMAIL_PROVIDER=smtp`, use `smtp.gmail.com`, port `587` with
 `SMTP_SECURE=false` (STARTTLS), the Gmail address as `SMTP_USER`, and a Google
 App Password as `SMTP_PASSWORD`. Port `465` with `SMTP_SECURE=true` is also
-supported. Set `EMAIL_DELIVERY_WORKER_ENABLED=true` only after migration 370 is
-applied; the worker uses the same SMTP transport and sender as invitations.
+supported. Set `EMAIL_DELIVERY_WORKER_ENABLED=true` only after all current migrations are
+applied (the worker RPCs originated in migration 370); the worker uses the same SMTP transport and sender as invitations.
 Never use the normal Gmail password or expose SMTP credentials to the browser.
-Set `CUSTOM_NOTIFICATION_SCHEDULER_ENABLED=true` only after migration 410 is
-applied. Its interval and batch settings have the same bounds as the task
+Set `CUSTOM_NOTIFICATION_SCHEDULER_ENABLED=true` only after all current
+migrations through 440 are applied (the scheduler RPC originated in 410). Its interval and batch settings have the same bounds as the task
 reminder scheduler.
+
+### Matching local origins
+
+`CORS_ORIGIN` must equal the actual frontend origin, including scheme and port.
+If Vite falls back from occupied port 5173 to 5174, either free port 5173 or
+update the API origin deliberately; restart the API after editing `.env`.
+Docker's web origin defaults to port 8080 through `DOCKER_WEB_ORIGIN` instead.
+Invitation URLs use the API's configured frontend origin, so local links must
+use `http://` unless local TLS has explicitly been configured.
+
+Apply only missing migrations in filename order. In-app invitations require
+430 and Change email requires 440; restarting `pnpm dev` does not apply SQL.
+See [Supabase setup](SUPABASE.md) for the reviewed migration workflow.
 
 ## Workspace conventions
 
@@ -146,7 +167,7 @@ reviewable and leave the quality gate green.
 
 - Web: `http://localhost:5173`
 - API health: `http://localhost:4000/health`
-- API session check: `http://localhost:4000/auth/me`
+- API session check: `http://localhost:4000/auth/session` (`/auth/me` is an alias)
 - API authentication callback: `http://localhost:4000/auth/callback`
 - GraphQL HTTP endpoint: `http://localhost:4000/graphql`
 - GraphQL WebSocket endpoint: `ws://localhost:4000/graphql`

@@ -13,7 +13,7 @@ Browser
 Railway runs the final `api-runtime` stage in the root `Dockerfile`. Vercel
 builds `apps/web` and uses `apps/web/vercel.json` to route React Router URLs to
 `index.html`. Supabase remains the source of truth; Redis carries ephemeral
-real-time events only.
+real-time events and temporary guest-admission counters.
 
 The repository contains no production credentials. Keep the deployment switch
 off until every provider and GitHub value below is configured.
@@ -54,7 +54,8 @@ Use the existing Boardnest Supabase project and schema.
 
 Normal queries use the authenticated user's access token and remain protected
 by Row Level Security. The enabled reminder scheduler separately requires the
-service-role key for its single narrowly granted RPC; the API does not require
+service-role key for its narrowly granted RPC; the custom scheduler,
+email/push workers, and account-deletion service also require that key; the API does not require
 a direct database URL.
 
 ### Existing database migration baseline
@@ -108,33 +109,35 @@ selected by the `rediss://` scheme.
    Dockerfile's local default.
 7. Add these service variables:
 
-| Variable                                    | Production value                                  |
-| ------------------------------------------- | ------------------------------------------------- |
-| `API_URL`                                   | Exact public API origin, without a trailing slash |
-| `COOKIE_SAME_SITE`                          | `lax` for same-site subdomains; otherwise `none`  |
-| `CORS_ORIGIN`                               | Exact Vercel/custom web origin                    |
-| `EMAIL_PROVIDER`                            | `resend` for production or `smtp` for SMTP        |
-| `INVITATION_EMAIL_FROM`                     | Provider-authorized sender address                |
-| `NODE_ENV`                                  | `production`                                      |
-| `REDIS_URL`                                 | Private Upstash `rediss://...` connection string  |
-| `RESEND_API_KEY`                            | Server-only Resend sending key                    |
-| `SMTP_HOST`                                 | SMTP host; `smtp.gmail.com` for Gmail             |
-| `SMTP_PASSWORD`                             | SMTP secret; Google App Password for Gmail        |
-| `SMTP_PORT`                                 | `587` for Gmail STARTTLS                          |
-| `SMTP_SECURE`                               | `false` for Gmail on port 587                     |
-| `SMTP_USER`                                 | Authenticated SMTP/Gmail address                  |
-| `CUSTOM_NOTIFICATION_SCHEDULER_ENABLED`     | `true`                                            |
-| `CUSTOM_NOTIFICATION_SCHEDULER_INTERVAL_MS` | `30000`                                           |
-| `CUSTOM_NOTIFICATION_SCHEDULER_BATCH_SIZE`  | `100`                                             |
-| `REMINDER_SCHEDULER_ENABLED`                | `true`                                            |
-| `REMINDER_SCHEDULER_INTERVAL_MS`            | `30000`                                           |
-| `REMINDER_SCHEDULER_BATCH_SIZE`             | `100`                                             |
-| `EMAIL_DELIVERY_WORKER_ENABLED`             | `true`                                            |
-| `EMAIL_DELIVERY_WORKER_INTERVAL_MS`         | `15000`                                           |
-| `EMAIL_DELIVERY_WORKER_BATCH_SIZE`          | `25`                                              |
-| `SUPABASE_PUBLISHABLE_KEY`                  | Supabase public publishable key                   |
-| `SUPABASE_SERVICE_ROLE_KEY`                 | Supabase secret service-role key                  |
-| `SUPABASE_URL`                              | Supabase project URL                              |
+| Variable                                    | Production value                                         |
+| ------------------------------------------- | -------------------------------------------------------- |
+| `API_URL`                                   | Exact public API origin, without a trailing slash        |
+| `COOKIE_SAME_SITE`                          | `lax` for same-site subdomains; otherwise `none`         |
+| `CORS_ORIGIN`                               | Exact Vercel/custom web origin                           |
+| `EMAIL_PROVIDER`                            | `resend` for production or `smtp` for SMTP               |
+| `INVITATION_EMAIL_FROM`                     | Provider-authorized sender address                       |
+| `NODE_ENV`                                  | `production`                                             |
+| `REDIS_URL`                                 | Private Upstash `rediss://...` connection string         |
+| `GUEST_RATE_LIMIT_SECRET`                   | Random server secret of at least 32 characters           |
+| `TRUST_PROXY_HOPS`                          | Exact verified reverse-proxy count; local default is `0` |
+| `RESEND_API_KEY`                            | Server-only Resend sending key                           |
+| `SMTP_HOST`                                 | SMTP host; `smtp.gmail.com` for Gmail                    |
+| `SMTP_PASSWORD`                             | SMTP secret; Google App Password for Gmail               |
+| `SMTP_PORT`                                 | `587` for Gmail STARTTLS                                 |
+| `SMTP_SECURE`                               | `false` for Gmail on port 587                            |
+| `SMTP_USER`                                 | Authenticated SMTP/Gmail address                         |
+| `CUSTOM_NOTIFICATION_SCHEDULER_ENABLED`     | `true`                                                   |
+| `CUSTOM_NOTIFICATION_SCHEDULER_INTERVAL_MS` | `30000`                                                  |
+| `CUSTOM_NOTIFICATION_SCHEDULER_BATCH_SIZE`  | `100`                                                    |
+| `REMINDER_SCHEDULER_ENABLED`                | `true`                                                   |
+| `REMINDER_SCHEDULER_INTERVAL_MS`            | `30000`                                                  |
+| `REMINDER_SCHEDULER_BATCH_SIZE`             | `100`                                                    |
+| `EMAIL_DELIVERY_WORKER_ENABLED`             | `true`                                                   |
+| `EMAIL_DELIVERY_WORKER_INTERVAL_MS`         | `15000`                                                  |
+| `EMAIL_DELIVERY_WORKER_BATCH_SIZE`          | `25`                                                     |
+| `SUPABASE_PUBLISHABLE_KEY`                  | Supabase public publishable key                          |
+| `SUPABASE_SERVICE_ROLE_KEY`                 | Supabase secret service-role key                         |
+| `SUPABASE_URL`                              | Supabase project URL                                     |
 
 The API serves HTTP, GraphQL, and WebSockets from the same process. Railway
 must not be configured as a short-lived serverless function.
@@ -145,7 +148,7 @@ and verified sender, or select `smtp` with all SMTP values. Gmail SMTP is useful
 for initial testing but a transactional provider is recommended for production.
 Keep every provider credential in Railway only. The notification worker
 requires SMTP; Resend remains supported for invitation-only delivery. Apply
-migrations through `420_push_notifications.sql` before deploying this
+all missing migrations through `440_change_invitation_email.sql` before deploying this
 release. Enable the worker only after migration 370 is present. Start with one
 Railway API replica while validating Gmail delivery; database leases support
 multiple replicas when scaling later. Configure outbox monitoring and alerts
@@ -180,11 +183,12 @@ repository's dependency policy.
 
 Add these variables to the Vercel **Production** environment before building:
 
-| Variable           | Production value                  |
-| ------------------ | --------------------------------- |
-| `VITE_API_URL`     | `https://api.example.com`         |
-| `VITE_GRAPHQL_URL` | `https://api.example.com/graphql` |
-| `VITE_WS_URL`      | `wss://api.example.com/graphql`   |
+| Variable                  | Production value                               |
+| ------------------------- | ---------------------------------------------- |
+| `VITE_API_URL`            | `https://api.example.com`                      |
+| `VITE_GRAPHQL_URL`        | `https://api.example.com/graphql`              |
+| `VITE_WS_URL`             | `wss://api.example.com/graphql`                |
+| `VITE_TURNSTILE_SITE_KEY` | Public key for the configured Turnstile widget |
 
 `VITE_*` values are public build-time configuration. Never put Supabase secret
 keys, Redis credentials, deployment tokens, or database passwords in them.
@@ -264,7 +268,9 @@ Use a new test account and verify all of the following:
    `Secure`; their `SameSite` value matches the selected domain strategy.
 3. No access or refresh token appears in Local Storage, Session Storage, the
    page source, or a JSON response.
-4. Workspace, private/public project, status, and task CRUD work.
+4. Workspace/project/task creation and supported editing/deletion work, seeded
+   task columns load, and project lifecycle status changes work. Task-status
+   configuration has no current GraphQL/UI CRUD.
 5. Two signed-in browsers see task changes in real time over
    `wss://.../graphql`.
 6. A second user cannot read or mutate a private project without membership.
@@ -276,7 +282,7 @@ Use a new test account and verify all of the following:
 ### Vercel loads only the background
 
 Open the browser console. If it reports invalid public environment variables,
-verify all three `VITE_*` production values contain full URLs rather than
+verify the three URL-valued `VITE_*` production settings contain full URLs rather than
 masked characters. Because Vite embeds them at build time, saving a variable
 is not enough: run a new production deployment and hard-refresh the browser.
 

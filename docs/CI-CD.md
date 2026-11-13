@@ -8,11 +8,13 @@ passed CI to a controlled environment. CI answers whether a revision is safe to
 merge; CD answers which verified revision is released, where, and under whose
 approval.
 
-Boardnest uses two GitHub Actions workflows:
+Boardnest has two main application CI/CD workflows plus a manual mobile E2E workflow:
 
 - `.github/workflows/ci.yml` validates pull requests and pushes to `main`;
 - `.github/workflows/deploy.yml` gates production deployment after a successful
-  `main` CI run.
+  `main` CI run;
+- `.github/workflows/mobile-e2e.yml` manually runs a selected Maestro Android
+  flow against an explicitly supplied APK and dedicated test credentials.
 
 ## GitHub Actions concepts
 
@@ -43,10 +45,12 @@ The `Quality` job performs these steps in order:
 2. installs the pinned pnpm and Node.js versions;
 3. installs the frozen lockfile;
 4. checks Prettier formatting;
-5. runs ESLint with zero warnings;
-6. type-checks every workspace;
-7. runs shared tests plus API/web coverage gates;
-8. builds all applications and packages.
+5. verifies generated GraphQL contracts;
+6. runs ESLint with zero warnings;
+7. type-checks every workspace;
+8. runs shared/generated-contract tests, mobile Vitest/Jest suites, and API/web
+   coverage gates;
+9. builds all applications and packages.
 
 The job fails immediately if formatting, linting, TypeScript, a test, a coverage
 threshold, dependency installation, or a build fails.

@@ -3,7 +3,7 @@
 ## Purpose
 
 This runbook covers the production email outbox, reminder scheduler, failure
-triage, and safe recovery. It never requires recipient addresses, payloads, or
+triage, push delivery, and safe recovery. It never requires recipient addresses, payloads, or
 provider credentials to appear in logs or monitoring output.
 
 ## Runtime signals
@@ -16,7 +16,8 @@ The API emits these aggregate messages:
 - `Processed ... due task reminder(s)` after reminder scheduling work;
 - `Reminder scheduler error` when the scheduler RPC fails;
 - `Processed ... due custom notification schedule(s)` after custom schedule work;
-- `Custom notification scheduler error` when its RPC fails.
+- `Custom notification scheduler error` when its RPC fails;
+- `Push notification worker error` when push submission/receipt processing fails.
 
 Railway should retain these logs and alert on repeated worker or scheduler
 errors. Do not alert on one retryable SMTP failure alone; the outbox records it
@@ -36,7 +37,10 @@ through a trusted monitoring process:
 select * from public.notification_delivery_health();
 ```
 
-The result contains only aggregate counts and the oldest due timestamp:
+The result contains aggregate counts and the oldest due timestamp. Its query
+has no channel filter, so after migration 420 email and push rows contribute to
+the matching states. It has no dedicated counter for push rows in `sent` state
+awaiting receipts; inspect those rows through trusted operations separately:
 
 - `pending_due`: ready for immediate claim;
 - `pending_scheduled`: intentionally waiting for a future time;
@@ -115,7 +119,8 @@ use the new preference.
 
 ## Verification after deployment
 
-1. Apply migrations through `410_custom_notification_scheduler.sql`.
+1. Apply only missing migrations through `440_change_invitation_email.sql` in
+   filename order; never replay already-applied files.
 2. Run `database/tests/011_notification_hardening.sql` and
    `database/tests/012_custom_notification_scheduler.sql` only against a
    disposable Supabase-compatible database.
@@ -126,3 +131,22 @@ use the new preference.
    or unexpected terminal failures.
 6. Scale to two replicas if required and confirm batches continue without
    duplicate outbox completion.
+
+## Push and invitation triage
+
+Push requires migration 420, an enabled `PUSH_NOTIFICATION_WORKER_ENABLED`, a
+registered physical device, and effective global/event/plan push preferences.
+The worker's batch size defaults to 50 and polling interval to 15 seconds.
+A ticket moves a row to `sent`; a receipt later marks it delivered or failed.
+Check device revocation and receipt status separately from SMTP delivery.
+`EXPO_ACCESS_TOKEN` is required only for enhanced Expo push security. No push
+worker variables are forwarded by the current Compose file unless an override
+adds them; the host API reads them directly from its environment.
+
+Invitation email does not pass through the worker or outbox. For a missing
+in-app invitation, verify migration 430's trigger, the exact normalized email,
+that the recipient was registered before sending, and its in-app preferences.
+The inbox and unread count are separate queries: count polling does not refresh
+the inbox list. Historical invitations are not backfilled. For a typo, use
+Change email after migration 440 or revoke and create a fresh invitation.
+Neither path accepts the invitation automatically on behalf of the recipient.

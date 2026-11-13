@@ -39,14 +39,18 @@ The protected browser `/members` route and native workspace details provide:
 - a roster with profile name, avatar, role, and join date;
 - role changes and removal for manageable non-owner members;
 - pending invitation listing and revocation;
+- **Change email** for registered workspace owners/admins: a prefilled address
+  form preserves the role and atomically replaces the pending invitation;
+- recipient-only in-app invitations for existing registered accounts;
 - an accessible invitation dialog with email and role validation;
-- `/invite/:token` acceptance that survives login, registration, and email confirmation;
+- `/invite/:token` acceptance for email tokens or invitation IDs that survives
+  login, registration, and email confirmation;
 - clear loading, empty, error, confirmation, and permission states.
 
 Native invitation emails use the same public `/invite/:token` web URL. A
 verified Android App Link opens that URL in the installed application; without
 the application or domain association, the existing web acceptance page is the
-fallback. The token is preserved through native login before acceptance.
+fallback. The token or invitation ID is preserved through native login before acceptance.
 
 Only the current user's own membership is used by the browser to decide whether
 to render management actions. This is a usability decision, not an
@@ -68,7 +72,31 @@ The raw token is then omitted from the GraphQL response. If delivery is not
 configured or fails, the creation dialog exposes a one-time acceptance link as
 a local development fallback; the pending invitation remains valid.
 
-`acceptInvitation` sends the raw token only in a credentialed GraphQL request.
+Migration 430 creates a `workspace.invited` inbox row only if the normalized
+address already belongs to a registered Supabase account at invitation creation
+and global, event-specific, and plan in-app preferences allow it. Opening a
+mailbox is not account registration. New registrations and old invitations are
+not backfilled. Receiving an invitation does not create membership. This event
+queues no extra email or push; the invitation email remains the synchronous API
+flow. The unread badge polls every 60 seconds while visible and online; the
+inbox itself uses Apollo's normal query/cache behavior, so refresh it when
+checking a newly received invitation.
+
+In-app links use `/invite/:invitationId` and `acceptInvitationById(id:)`.
+That RPC shares email, state, expiry, and idempotency checks with email-token
+acceptance. No raw email token is stored in the notification.
+
+**Change email** calls `changeInvitationEmail(id:, email:)` and migration 440's
+registered-admin RPC. In one transaction it locks and revokes the unexpired
+pending invitation and inserts a replacement with the same workspace/role, a
+fresh token, and a fresh seven-day expiry. The old link stops working. A conflict
+or failed replacement rolls back the revocation. Accepted, revoked, and expired
+invitations cannot be changed; guests retain their single-invitation limit and
+have no Change email action. The new address receives email or the existing
+manual-link fallback, plus in-app delivery when eligible. Old notification rows
+remain history; opening an old invitation reports its revoked state.
+
+`acceptInvitation` sends the raw token only in an authenticated GraphQL request.
 The `accept_workspace_invitation` database function hashes it, locks the
 matching invitation, verifies its state and expiry, and compares the normalized
 invitation email with the authenticated JWT email. Membership creation and the
@@ -100,9 +128,10 @@ invitation and acceptance flow first, then add them from the project page.
 
 Use at least two registered accounts and one workspace:
 
-1. Apply migrations through `350_invitation_acceptance.sql`.
+1. Apply all missing migrations through `440_change_invitation_email.sql` in
+   order. Do not rerun already-applied migrations.
 2. As an owner, open `/members`, create an invitation, and confirm it appears
-   under Pending invitations and is delivered when Resend is configured.
+   under Pending invitations and is delivered when Resend or SMTP is configured.
 3. Open the email link in a signed-out browser, sign in or register with the
    invited email, and confirm the browser returns to `/invite/:token`.
 4. Accept and confirm the workspace appears immediately.

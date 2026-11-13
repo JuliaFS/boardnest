@@ -36,7 +36,9 @@ The root `Dockerfile` exposes two final targets:
 1. Pins Node.js 24.21.0 and pnpm 12.4.2.
 2. Installs dependencies from the frozen lockfile.
 3. Compiles the TypeScript API.
-4. Deploys only production dependencies and API output.
+4. Copies the package produced by `pnpm deploy --prod`, including API output
+   and production dependencies. The package has no explicit files allowlist, so
+   source/configuration may also be included; it is not guaranteed dist-only.
 5. Runs as the existing non-root `node` user.
 6. Exposes port `4000` and checks `/health`.
 
@@ -121,7 +123,7 @@ pnpm redis:up
 pnpm dev
 ```
 
-This uses Vite hot reload at `http://localhost:5173 ` and the API watcher.
+This uses Vite hot reload at `http://localhost:5173` and the API watcher.
 
 ### Container verification
 
@@ -154,14 +156,24 @@ Server runtime variables:
 - `PORT`
 - `NODE_ENV`
 
+The list above is the core connection configuration. Compose also forwards
+`GUEST_RATE_LIMIT_SECRET`, `TRUST_PROXY_HOPS`, cookie settings, invitation
+Resend/SMTP values, and reminder/custom/email-worker options. See
+`compose.yaml` for the exact allowlist. Unlike the host API, the checked-in
+Compose API service does not forward `PUSH_NOTIFICATION_WORKER_*` or
+`EXPO_ACCESS_TOKEN`; its push worker stays disabled. Supply an explicit Compose
+override if testing that worker inside Docker.
+
 Browser variables are build arguments because Vite embeds them in static
 JavaScript:
 
 - `VITE_API_URL`
 - `VITE_GRAPHQL_URL`
 - `VITE_WS_URL`
+- `VITE_TURNSTILE_SITE_KEY`
 
-The `DOCKER_PUBLIC_*` values in `.env` feed those build arguments. They must
+The `DOCKER_PUBLIC_*` URL values and `VITE_TURNSTILE_SITE_KEY` in `.env` feed
+those build arguments. They must
 never contain secrets. Changing them requires rebuilding the web image.
 
 For local HTTP, Compose defaults `DOCKER_NODE_ENV=development` so authentication
@@ -205,7 +217,8 @@ Redis is healthy and reports healthy only after `GET /health` succeeds. The
 web container starts after the API is healthy and has its own Nginx health
 endpoint.
 
-This avoids treating a started process as a ready dependency.
+These checks confirm startup order and HTTP liveness, not continuous Supabase,
+SMTP, push-provider, or Redis readiness. `/health` does not probe those services.
 
 ## Security properties
 
@@ -216,7 +229,7 @@ This avoids treating a started process as a ready dependency.
   `node_modules`;
 - API secrets are runtime environment values, not build arguments;
 - published ports bind to `127.0.0.1` for local-only access;
-- Redis persistence is disabled because it carries transient events only.
+- Redis persistence is disabled because events and guest-admission counters are temporary.
 
 ## Troubleshooting
 
@@ -257,7 +270,7 @@ and port. Supabase authentication redirect URLs must include
 ## Production considerations
 
 Compose is a local verification environment, not the final deployment
-topology. The planned production layout remains:
+topology. The configured production deployment layout is:
 
 - Vercel for the web build;
 - Railway for the long-running API and WebSocket server;

@@ -39,7 +39,8 @@ Under **Authentication → URL Configuration** set:
 
 The callback URL points to the API, not the React application. The API exchanges
 the short-lived PKCE authorization code, stores the resulting session in
-`HttpOnly` cookies, and redirects the browser to `/dashboard`.
+`HttpOnly` cookies, and redirects the browser to the validated invitation return path, or
+`/dashboard` when no return path was supplied.
 
 Under **Authentication → Providers → Email**, keep the Email provider enabled.
 Under **Authentication → Providers → Anonymous Sign-Ins**, enable anonymous
@@ -83,11 +84,13 @@ COOKIE_SAME_SITE=lax
 SUPABASE_URL=https://your-project-ref.supabase.co
 SUPABASE_PUBLISHABLE_KEY=sb_publishable_your-public-key
 CORS_ORIGIN=http://localhost:5173
+GUEST_RATE_LIMIT_SECRET=replace-with-at-least-32-random-characters
 NODE_ENV=development
 ```
 
 The Supabase values are server-side only. `SUPABASE_SERVICE_ROLE_KEY` is needed
-by account deletion and the optional reminder scheduler. It must never be used
+by account deletion, the reminder/custom schedulers, and the email/push workers
+when those features are enabled. It must never be used
 in a `VITE_*` variable.
 
 ## API endpoints

@@ -2,12 +2,12 @@
 
 ## Design principles
 
-- PostgreSQL is the source of truth; Redis will only distribute ephemeral events.
+- PostgreSQL is the source of truth; Redis distributes ephemeral events and holds temporary guest-admission counters.
 - `workspace_id` defines tenant ownership.
 - Foreign keys and checks enforce invariants before application code runs.
 - UUID primary keys avoid coordination between API instances.
 - Mutable entities have database-managed `created_at` and `updated_at` timestamps.
-- Soft archival is used for normal project/task lifecycle; hard deletion remains explicit.
+- The schema supports soft archival; current client Delete actions explicitly hard-delete projects/tasks.
 - RLS is defense in depth. The GraphQL API still performs authentication and authorization.
 
 ## Permission matrix
@@ -155,7 +155,7 @@ For a workspace-visible project, a workspace member can work on tasks without an
 
 **Relationships:** Workspace deletion removes its audit data. Project/task/actor deletion nulls optional references while snapshot metadata remains.
 
-**Security:** Authenticated clients have read-only access filtered by workspace/project visibility. Only the trusted API writes events.
+**Security:** Authenticated clients have read-only access filtered by workspace/project visibility. Authenticated clients have no write operation for activity logs. The current API exposes a read query but no automatic activity-log producer is implemented.
 
 ### `notifications`
 
@@ -165,19 +165,19 @@ For a workspace-visible project, a workspace member can work on tasks without an
 
 **Indexes:** Recipient timeline, partial unread index, and a partial unique recipient/event-key index for retry safety. The partial `(user_id, created_at)` unread index also supports exact per-recipient counts without scanning read notification history.
 
-**Security:** Recipients can read, mark read, and delete. Only the trusted API creates notifications.
+**Security:** Recipients can read, mark read, and delete. Trusted database functions and triggers create notification rows; clients have no direct insert grant. Invitation notifications are recipient-only even before workspace membership exists.
 
 ### `notification_event_types`
 
 **Purpose:** Canonical, data-driven catalog of supported notification events and channel defaults.
 
-**Important columns:** dotted event code, category, display metadata, in-app and email defaults, and active state.
+**Important columns:** dotted event code, category, display metadata, in-app, email, and push defaults, and active state.
 
 **Security:** Authenticated users can read active catalog entries. Only trusted server operations can manage the catalog.
 
 ### `plan_notification_events`
 
-**Purpose:** Define the maximum in-app and email capabilities for every plan/event pair.
+**Purpose:** Define the maximum in-app, email, and push capabilities for every plan/event pair. Workspace invitations are in-app-only on every plan.
 
 **Relationships:** References `subscription_plans` and `notification_event_types`; both references cascade when server-managed catalog data changes.
 
@@ -205,7 +205,7 @@ For a workspace-visible project, a workspace member can work on tasks without an
 
 **Purpose:** Store each user's global channel and notification-event choices.
 
-**Important columns:** In-app, email, task-created, task-assigned, and reminder toggles.
+**Important columns:** In-app, email, push, task-created, task-assigned, and reminder toggles.
 
 **Relationships:** Created automatically with a profile and removed with it.
 
@@ -215,7 +215,7 @@ For a workspace-visible project, a workspace member can work on tasks without an
 
 **Purpose:** Store optional per-event channel overrides without adding a new column for every event type.
 
-**Important columns:** user, event type, in-app choice, and email choice. A missing row inherits the catalog defaults.
+**Important columns:** user, event type, in-app, email, and push choices. A missing row inherits the catalog defaults.
 
 **Security:** Users can read, insert, update, and delete only their own rows. Effective channels are still capped by global preferences and workspace-plan entitlements.
 
@@ -258,15 +258,27 @@ Each generated in-app row records `reminder_id` and `scheduled_for`. Their
 partial unique index makes one reminder occurrence idempotent per recipient,
 including when several API instances poll concurrently.
 
+### `user_devices`
+
+**Purpose:** Register Expo push tokens for authenticated users.
+
+**Important columns:** User, platform, globally unique push token, optional device
+name, enabled state, last-seen time, and revocation time. There is no separate
+installation-ID column.
+
+**Security:** Recipients can read only their devices. Authenticated registration
+and revocation RPCs derive the user from the JWT; direct writes are reserved for
+trusted operations. Sign-out attempts to revoke the local registration.
+
 ### `notification_deliveries`
 
-**Purpose:** Durable email outbox for scheduled reminders and canonical notification events.
+**Purpose:** Durable email/push outbox for scheduled reminders and canonical notification events.
 
-**Important columns:** Recipient, schedule time, retry state, lease token, provider result, unique idempotency key, and JSON payload.
+**Important columns:** Recipient, channel, optional push device, schedule time, retry state, lease token, provider result, unique idempotency key, and JSON payload.
 
 **Indexes:** Pending retry queue, workspace history, recipient history, and unique idempotency.
 
-**Security:** Recipients have read-only access to their delivery history. Only trusted workers create or mutate deliveries. Inserts validate workspace membership, selected reminder recipients, plan email entitlement, and the monthly email quota.
+**Security:** Recipients have read-only access to their delivery history. Only trusted workers create or mutate deliveries. Inserts validate workspace membership. Email rows additionally check reminder recipients, plan email entitlement, and monthly email quota; push rows require an active device owned by the recipient. Push ticket rows can be `sent` before receipt processing marks them delivered or failed.
 
 The worker claims due rows with `FOR UPDATE SKIP LOCKED`. Completion and
 failure RPCs require the exact claim token, so an expired worker cannot mutate a
@@ -282,7 +294,7 @@ Service-role monitoring can read aggregate, non-recipient metrics through
 
 ### `notification_delivery_attempts`
 
-**Purpose:** Immutable operational history for completed SMTP attempts.
+**Purpose:** Immutable operational history for completed SMTP and Expo push attempts.
 
 **Important columns:** Delivery, attempt number, provider, outcome, provider message ID or sanitized error, and start/finish timestamps.
 
@@ -307,14 +319,22 @@ prevents self-notification loops, while task position-only writes are ignored.
 
 **Indexes:** Unique token hash, one pending invitation per workspace/email, status list, and pending expiry cleanup.
 
-**Security:** Owner/admin manage invitations. The token hash is excluded from authenticated column grants. Acceptance is a trusted API transaction that validates the raw token, adds membership, and changes status atomically.
+**Security:** Owner/admin manage invitations. The token hash is excluded from authenticated column grants. The authenticated token or invitation-ID RPC validates registered-account email, expiry, and status, then creates membership and changes status atomically. The private shared acceptance helper is not executable by clients. Migration 430 creates eligible existing recipients' in-app invitations; migration 440 lets registered administrators replace an unexpired pending email atomically. Failed replacement rolls back revocation; successful replacement invalidates the old token.
 
 ## Task ordering
 
-`tasks.position` is `numeric(20,10)`. Moving between two tasks uses a midpoint; moving to an edge uses a value before or after the current boundary. When positions become too dense, the API can rebalance one status column in a transaction. This avoids rewriting every task for normal drag-and-drop operations.
+`tasks.position` is `numeric(20,10)`. Moving between two tasks uses a midpoint; moving to an edge uses a value before or after the current boundary. Automatic column rebalancing is not implemented; adding a transactional rebalancing operation is future work if fractional positions become too dense. This avoids rewriting every task for normal drag-and-drop operations.
 
 ## RLS architecture
 
 Security-definer helpers are in the non-exposed `private` schema with an empty `search_path` and fully qualified relation names. They avoid recursive membership policies and centralize the role combination rules. Public access is revoked, and only the minimum helper execution rights are granted to `authenticated`.
 
 Every public table enables RLS in its own creation migration. Policies are operation-specific, and grants restrict mutable columns so clients cannot reassign tenant IDs, creators, authors, or recipients.
+
+## Exposed and reserved capabilities
+
+The GraphQL API reads task statuses but has no status or label CRUD mutations.
+The tables, seed statuses, constraints, and RLS provide a foundation rather than
+a currently shipped configuration editor. `activityFeed` reads existing rows,
+but there is no automatic activity producer. Plan retention days are stored as
+capability metadata; no notification-history cleanup worker is implemented.

@@ -202,7 +202,8 @@ using the reviewed migration workflow. Deploy the API and clients with the new
 migration affects future invitations only; it does not backfill existing ones.
 The recipient must already have a registered account, and its in-app preferences
 must allow workspace invitations. The unread badge uses its existing polling
-interval; opening Notifications fetches the current inbox. No Redis event or
+interval; the inbox is a separate cache-first query. Reload or explicitly
+refetch it when testing new arrivals on a previously visited screen. No Redis event or
 additional email/push delivery is needed for invitation creation.
 
 ## Invitation email changes

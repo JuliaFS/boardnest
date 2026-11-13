@@ -24,22 +24,33 @@ service-role scheduler that produces due canonical occurrences.
 `notification_event_types` contains the supported event types and their default
 channel choices:
 
-| Event type                 | Default in-app | Default email |
-| -------------------------- | -------------- | ------------- |
-| `workspace.member_added`   | Yes            | Yes           |
-| `workspace.member_removed` | Yes            | Yes           |
-| `project.member_added`     | Yes            | Yes           |
-| `project.member_removed`   | Yes            | Yes           |
-| `task.created`             | Yes            | No            |
-| `task.assigned`            | Yes            | Yes           |
-| `task.updated`             | Yes            | No            |
-| `task.status_changed`      | Yes            | No            |
-| `comment.created`          | Yes            | Yes           |
-| `task.reminder`            | Yes            | Yes           |
-| `custom.notification`      | Yes            | Yes           |
+| Event type                 | Default in-app | Default email | Default push |
+| -------------------------- | -------------- | ------------- | ------------ |
+| `workspace.invited`        | Yes            | No            | No           |
+| `workspace.member_added`   | Yes            | Yes           | Yes          |
+| `workspace.member_removed` | Yes            | Yes           | Yes          |
+| `project.member_added`     | Yes            | Yes           | Yes          |
+| `project.member_removed`   | Yes            | Yes           | Yes          |
+| `task.created`             | Yes            | No            | Yes          |
+| `task.assigned`            | Yes            | Yes           | Yes          |
+| `task.updated`             | Yes            | No            | Yes          |
+| `task.status_changed`      | Yes            | No            | Yes          |
+| `comment.created`          | Yes            | Yes           | Yes          |
+| `task.reminder`            | Yes            | Yes           | Yes          |
+| `custom.notification`      | Yes            | Yes           | Yes          |
 
 Adding an event requires a catalog row and a matching entitlement row for each
 plan. It does not require a new Boolean column in user preferences.
+
+`workspace.invited` is an additional catalog event with in-app enabled by
+default and email/push disabled for every plan. Migration 430 uses a dedicated
+invitation trigger because the recipient is not yet a workspace member. It
+respects in-app preference and entitlement gates, targets only an account that
+already exists when the invitation is inserted, stores only `invitationId`,
+and grants no membership. No historical or later-signup backfill is performed.
+The invitation email remains a separate synchronous Resend/SMTP operation.
+Migration 440's Change email replaces the pending invitation atomically and
+notifies the new eligible address. See [Members](MEMBERS.md).
 
 ## Plan capabilities
 
@@ -48,7 +59,11 @@ plan. It does not require a new Boolean column in user preferences.
 - Guest permits in-app events and blocks all event email.
 - Free permits in-app events and email only for event types whose catalog email
   default is enabled.
-- Pro permits both channels for every active event type.
+- Pro permits in-app and email for the original event catalog.
+- Push entitlements are disabled on Guest and enabled on Free/Pro for the
+  original catalog; catalog/global/per-event defaults still gate actual delivery.
+- `workspace.invited` is an in-app-only exception on every plan; invitation
+  email delivery is handled separately from these outbox entitlements.
 
 The existing workspace-wide monthly email quota remains authoritative. A user
 preference can disable an entitled channel but cannot enable a channel that the
@@ -64,7 +79,7 @@ schedules are not subject to a recurrence interval minimum.
 Channel resolution applies the following gates in order:
 
 1. the event type must be active;
-2. the user's global in-app or email channel must be enabled;
+2. the user's global in-app, email, or push channel must be enabled;
 3. the effective workspace plan must permit the channel for that event;
 4. legacy task-created, task-assigned, and reminder switches remain respected;
 5. a row in `notification_event_preferences` overrides the catalog default.
@@ -154,23 +169,27 @@ belongs to its creator, requires workspace context, and may additionally point
 to an accessible project and task. The API accepts one-time schedules or a
 custom value/unit interval with an IANA timezone.
 
-The notification center presents inbox, schedule, preference, and email
-delivery views. It combines catalog defaults, explicit user overrides, and
+The notification center presents inbox, schedule, preference, and delivery
+history views. The web view retains an Email delivery label, while the API
+returns both email and push rows and exposes their channel. It combines catalog defaults, explicit user overrides, and
 workspace-plan entitlements so unavailable channels are visible but disabled.
 Custom schedules currently notify only their creator. The recipient control
 states this explicitly; team recipients require a future normalized recipient
 model and authorization rules rather than a frontend-only selector.
 
-Inbox navigation treats the JSON payload as untrusted input. Only exact
-workspace, project, and task-detail route shapes are accepted, and every route
+Inbox navigation treats the JSON payload as untrusted input. For ordinary events, only exact
+workspace, project, and task-detail payload route shapes are accepted, and every route
 identifier must match the notification's structured context fields. Absolute,
 protocol-relative, JavaScript, unknown, malformed, and context-mismatched routes
 are rejected. The client then derives a destination from the deepest valid
 structured context: task, project, then workspace. A notification without any
 valid destination exposes an explicit `Mark as read` action instead.
 
-The native client applies a stricter platform-specific rule: it does not query
-or inspect `payload.route` at all. It validates the structured workspace,
+For `workspace.invited`, both clients validate `payload.invitationId` as a UUID
+and open `/invite/:invitationId` instead of the not-yet-accessible workspace.
+An invalid or missing invitation ID gives no navigation action.
+
+The native client never executes `payload.route`. It validates the structured workspace,
 project, and task identifiers, considers the dotted event type, and constructs
 its own Expo Router destination. This prevents a web path or external payload
 value from becoming a native deep link.
@@ -196,6 +215,11 @@ refetch. The polling query, visibility refresh, and mark-as-read cache update
 all write the same exact-count cache entry. A future GraphQL notification
 subscription can replace polling without changing the badge component.
 
+Task reminders and custom schedules are different models. Dedicated task
+reminders have API lifecycle operations and a backend scheduler, but no current
+web/native reminder editor. The clients expose personal custom schedule forms,
+which may also point to a task.
+
 ## Custom schedule execution
 
 `process_due_scheduled_notifications` claims a bounded due batch with `FOR
@@ -213,13 +237,19 @@ produced and the schedule advances directly to the first future occurrence
 instead of replaying every missed interval.
 
 `notificationDeliveries` lists only rows addressed to the authenticated user.
-It provides pending, processing, delivered, failed, and canceled status with
+It provides pending, processing, sent, delivered, failed, and canceled status
+(`sent` is the push ticket stage before receipt confirmation) with
 attempt counts and sanitized failure information for support and retry
 visibility.
 
+The inbox is a normal cache-first Apollo query; the 60-second polling above
+updates the count, not the full inbox. Reload or refetch the inbox to guarantee
+newly arrived entries when a previously visited screen is served from cache.
+
 ## Delivery boundary
 
-`notification_deliveries` is a durable email outbox. The service-role worker:
+`notification_deliveries` is a durable outbox with separate `email` and `push`
+channels. The SMTP lifecycle below concerns email rows only. The service-role worker:
 
 1. claims a bounded due batch with `FOR UPDATE SKIP LOCKED`;
 2. assigns each attempt a five-minute lease token;
@@ -252,7 +282,10 @@ Production metrics, alert thresholds, and recovery steps are documented in
 
 ## Expo push channel
 
-`user_devices` stores one active Expo token per physical installation and user.
+`user_devices` stores registered Expo tokens with a globally unique token
+constraint, user ownership, enabled/revoked state, and optional device name.
+It has no separate installation-ID column; registration reassigns/reactivates
+the token and the client remembers the local registration ID.
 Tokens are registered and revoked through authenticated GraphQL operations;
 clients cannot list or change another user's devices. Global, event-specific,
 and plan preferences independently gate the push channel.

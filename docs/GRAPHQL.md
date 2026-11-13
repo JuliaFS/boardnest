@@ -10,9 +10,12 @@ Its local landing page and introspection are enabled outside production.
 The API TypeScript schema is the single source used by GraphQL Code Generator.
 Shared operations live in `packages/graphql-types/src/operations`, and generated
 schema, input, response, enum, and typed-document definitions live in
-`packages/graphql-types/src/generated`. Web and mobile import shared documents
-from `@boardnest/graphql-types`; each application owns its own Apollo transport
-and authentication configuration.
+`packages/graphql-types/src/generated`. Mobile imports its typed documents from `@boardnest/graphql-types`. Web
+currently keeps its business operations and response interfaces in
+`apps/web/src/features/core/graphql.ts`; its Apollo transport test imports the
+shared connection document. Both clients target the same API schema, but their
+business documents have not been fully consolidated. Each application owns its
+own transport and authentication configuration.
 
 Run `pnpm graphql:generate` after changing the schema or a shared operation.
 Run `pnpm graphql:check` to verify that the checked-in output is current. CI
@@ -54,15 +57,15 @@ same authorization context.
 
 Mobile notification operations reuse the recipient-scoped inbox and unread
 count, global and event preference mutations, workspace plan capabilities,
-personal schedule lifecycle mutations, and delivery history. The native inbox
-document deliberately omits the JSON payload: navigation is derived from typed
-workspace, project, task, and event-type fields instead of executing a web
-route supplied by notification metadata.
+personal schedule lifecycle mutations, and delivery history. The native inbox document requests JSON `payload` for the validated
+`invitationId` on workspace invitations. Other destinations derive from typed
+workspace, project, task, and event-type fields. Native navigation never executes
+`payload.route` or an external URL from that metadata.
 
 Mobile subscribes to project task changes and scoped comment or membership
-signals. Task payloads synchronize the open board directly. Comment and
-membership signals trigger focused refetches because their screens require the
-complete authorized aggregate. Redis channels distribute events across API
+signals. Task payloads synchronize the open board directly. Task-detail comment callbacks filter by the open task ID and refetch only that
+task's details. Membership callbacks refetch their authorized roster/access
+aggregates. Redis channels distribute events across API
 replicas, and stable event identities allow clients to ignore duplicate
 deliveries after reconnects.
 
@@ -95,6 +98,9 @@ check.
 | `workspaceInvitations`         | List pending invitations for a managed workspace     |
 | `projects`                     | List accessible active projects by workspace         |
 | `project`                      | Read one accessible project                          |
+| `projectMembers`               | List an accessible project roster                    |
+| `taskAssignees`                | List authorized assignees of a task                  |
+| `taskComments`                 | List authorized comments on a task                   |
 | `tasks`                        | List or search active project tasks                  |
 | `task`                         | Read one accessible task                             |
 | `taskStatuses`                 | List ordered Kanban columns for a project            |
@@ -107,9 +113,14 @@ check.
 | `workspaceSubscription`        | Read effective reminder capabilities for a workspace |
 | `taskReminders`                | List authorized reminder schedules for a task        |
 | `taskReminder`                 | Read one authorized reminder schedule                |
-| `activityFeed`                 | List workspace or project activity                   |
+| `activityFeed`                 | Read existing activity rows; no automatic producer   |
+| `scheduledNotifications`       | List the creator's schedules in a workspace          |
+| `scheduledNotification`        | Read one creator-owned schedule                      |
+| `notificationDeliveries`       | Read recipient-scoped email/push delivery history    |
 
-List queries return `nodes` and `pageInfo`. `limit` is restricted to 1–100 and
+Paginated connection queries return `nodes` and `pageInfo`. Some queries use
+bounded or scoped arrays instead, including `taskStatuses`, `taskAssignees`,
+`taskReminders`, notification metadata/preferences, and `scheduledNotifications`. `limit` is restricted to 1–100 and
 `offset` cannot be negative. One extra row is fetched to derive `hasNextPage`.
 Offset pagination is appropriate for the current data volume; cursor pagination is a future
 option for large, frequently updated feeds.
@@ -145,7 +156,7 @@ PostgreSQL RLS independently enforces the same recipient boundary. A client
 cannot mark another user's notification as read.
 
 `updateNotificationEventPreference` accepts one canonical dotted event type and
-explicit in-app/email choices. PostgreSQL RLS binds the resulting override to
+explicit in-app, email, and push choices. PostgreSQL RLS binds the resulting override to
 the verified current user. The selected channels remain constrained by global
 preferences and effective workspace-plan capabilities.
 `deleteNotificationEventPreference` restores inherited catalog defaults. See
@@ -173,16 +184,24 @@ mutation CreateProject($input: CreateProjectInput!) {
 }
 ```
 
-`inviteMember` generates a cryptographically random token, stores only its
-SHA-256 hash, and returns the raw token once. `updateWorkspaceMemberRole`,
+`inviteMember` generates a cryptographically random token and stores only its
+SHA-256 hash. Successful email delivery hides the token; otherwise the payload
+returns it for manual sharing. `updateWorkspaceMemberRole`,
 `removeWorkspaceMember`, and `revokeInvitation` manage the current workspace
 roster and pending invitations. Owner creation, final-owner protection, admin
 restrictions, and all authorization remain database-enforced. Email delivery
-uses the optional server-side Resend integration. A successful delivery hides
+uses the configured server-side Resend or SMTP integration. A successful delivery hides
 the raw token from the response; without delivery, the token is returned once
 as a development fallback. `acceptInvitation` validates the token and
 authenticated email through an atomic database function before creating
-workspace membership. See [Members and invitations](MEMBERS.md).
+workspace membership. `acceptInvitationById(id:)` uses the same email and
+lifecycle checks for an in-app invitation without exposing its email token.
+`changeInvitationEmail(id:, email:)` is restricted to registered workspace
+administrators and atomically revokes an unexpired pending invitation and
+creates a replacement with the same role and a fresh token. A failed
+replacement leaves the original valid. Migration 430 supplies recipient-only
+in-app creation for existing registered accounts; migration 440 supplies email
+replacement. See [Members and invitations](MEMBERS.md).
 
 `projectMembers` returns the explicit project roster with both project and
 workspace roles. `addProjectMember`, `updateProjectMemberRole`, and
@@ -201,6 +220,13 @@ return data authorized by the caller's bearer session. `assignTask`,
 `unassignTask`, and `addComment` reuse PostgreSQL RLS and the same task mutation
 surface as web. Status movement continues to publish the existing task event,
 so adding a native interaction does not create a second real-time contract.
+
+`registerPushDevice(input:)` registers/reactivates the current user's Expo token
+for Android/iOS; `revokePushDevice(id:)` revokes only their own device. Global
+and per-event preference mutations include push choices. The native client
+obtains device permission/token locally; the API verifies its bearer session
+and calls JWT-authorized RPCs. The background push worker uses a separate
+service-role path. See [Notifications](NOTIFICATIONS.md).
 
 ### Reminder scheduling
 
@@ -246,7 +272,7 @@ and recipient triggers remain authoritative.
 
 `workspaceSubscription.plan` returns the effective capabilities used by the
 database. For example, a past-due Pro subscription exposes Free capabilities,
-while an anonymous workspace remains on Guest. This lets the future frontend
+while an anonymous workspace remains on Guest. The current notification clients use these capabilities to
 show limits without hardcoding them, but the database remains authoritative.
 
 Plan and recipient validation errors are returned as `BAD_USER_INPUT`, while
@@ -308,7 +334,7 @@ clients manage schedule intent only; occurrence execution remains a trusted
 background operation.
 
 `notificationDeliveries(workspaceId:, limit:, offset:)` exposes the current
-recipient's email outbox history. The API never accepts a recipient ID for this
+recipient's email and push outbox history, including the `channel` field. The API never accepts a recipient ID for this
 query: it derives the user from the verified session, and PostgreSQL RLS applies
 the same recipient boundary. The response includes delivery lifecycle, attempt
 counts, retry timing, and sanitized failure details, but not email addresses,
@@ -316,16 +342,21 @@ payloads, SMTP responses, or credentials.
 
 ## Subscriptions
 
-| Subscription  | Scope                     | Payload         |
-| ------------- | ------------------------- | --------------- |
-| `taskCreated` | One accessible project ID | Created task    |
-| `taskUpdated` | One accessible project ID | Updated task    |
-| `taskDeleted` | One accessible project ID | Deleted task ID |
+| Subscription                 | Scope                       | Payload            |
+| ---------------------------- | --------------------------- | ------------------ |
+| `taskCreated`                | One accessible project ID   | Created task       |
+| `taskUpdated`                | One accessible project ID   | Updated task       |
+| `taskDeleted`                | One accessible project ID   | Deleted task ID    |
+| `taskCommentChanged`         | One accessible project ID   | Scoped sync signal |
+| `projectMembershipChanged`   | One accessible project ID   | Scoped sync signal |
+| `workspaceMembershipChanged` | One accessible workspace ID | Scoped sync signal |
 
-Each subscription validates its project ID and reads that project through the
-user's RLS-aware data service before joining the event stream. Task mutations
+Each subscription validates its scope UUID and checks the project or workspace
+through the user's RLS-aware data service before joining the event stream. Task
+subscriptions also recheck project access for each delivered event. Task mutations
 publish only after persistence succeeds. Direct database edits do not emit
-application events.
+GraphQL subscription events. Notification SQL triggers are separate and can
+still create durable notification rows for those writes.
 
 The subscription resolvers depend on a small event-bus interface rather than a
 Redis client. Production injects a Redis Pub/Sub implementation so mutations
@@ -349,12 +380,12 @@ Security limits include:
 - Apollo CSRF prevention;
 - a 100 KB JSON body limit;
 - maximum operation depth of 10;
-- list limits capped at 100;
+- paginated-query limits capped at 100; scoped array queries have their own contracts;
 - production introspection disabled;
 - parameterized Supabase/PostgREST filters instead of SQL concatenation.
 
-Rate limiting and weighted field cost should be added before exposing a public
-production API. Depth limits address nested operations; field cost addresses
+Redis already rate-limits guest-session creation. General authentication and
+GraphQL rate limiting plus weighted field cost remain unimplemented. Depth limits address nested operations; field cost addresses
 broad operations containing many aliases.
 
 ## N+1, caching, and transport choice

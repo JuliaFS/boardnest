@@ -32,9 +32,11 @@ Task edits, project edits, search, filtering, and task moves are unlimited.
 Archived resources continue to count toward the quota so archival cannot be
 used to accumulate data. Hard deletion releases the corresponding quota.
 
-The invitation and comment capabilities currently exist at the GraphQL and
-database layers. Their full product UI remains outside the current portfolio
-scope, and the `/members` route is still a documented extension point.
+The web `/members` screen supports guest invitation creation and revocation
+within the one-invitation quota. Guest accounts cannot accept email invitations
+or change invitation emails. Comments are available through GraphQL and the
+native task-details screen; the current web task-details screen has no comment
+editor. Native guest login itself is not implemented.
 
 ## Enforcement
 
@@ -111,7 +113,7 @@ Supabase project. Never deploy the always-pass test credentials to production.
   guest data and anonymous users after a defined retention period.
 - Turnstile, Redis admission limits, Supabase's own rate limit, and the database
   quotas are independent layers. Keep all of them enabled for a public demo.
-- A guest may create one invitation. Delivery works when the server-side Resend
+- A guest may create one invitation. Delivery works when the server-side Resend or SMTP
   integration is configured, but only a registered account with the invited
   email can accept it.
 - A guest account cannot currently be upgraded in place to a permanent

@@ -12,7 +12,13 @@ This private workspace is the shared GraphQL contract boundary for the Boardnest
 - Consumers import only from `@boardnest/graphql-types`, never from the generated file directly.
 - Platform-specific Apollo setup stays inside `apps/web` and `apps/mobile`.
 
-The package initially shares the public `MobileConnection` query. Existing web-only operations remain in the web application until a mobile feature needs them, at which point the operation and its consumers can move here together. This avoids maintaining duplicate documents while keeping migrations reviewable.
+The package contains generated mobile documents for authentication context,
+workspaces, projects, tasks, realtime signals, notifications, push devices, and
+invitations. The web Apollo transport test also uses `MobileConnection`. Web
+business documents and response interfaces currently remain in
+`apps/web/src/features/core/graphql.ts`; sharing the API schema does not mean
+all client operations are already deduplicated. Move consumers together when
+consolidating an operation.
 
 ## Generate contracts
 

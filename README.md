@@ -33,12 +33,13 @@ in a portfolio presentation.
   callback, login, refresh, and logout;
 - Turnstile-protected anonymous guest sessions with Redis admission limits and
   database-enforced demo quotas;
-- access and refresh tokens stored only in secure `HttpOnly` cookies;
+- browser access and refresh tokens stored in `HttpOnly` cookies; native
+  sessions persisted through Expo SecureStore;
 - multi-tenant workspaces with owner, admin, member, and viewer roles;
 - explicit project rosters with project lead, member, and viewer roles;
 - workspace-visible and private projects with independent lifecycle status;
 - project and task creation, editing, deletion, dates, and priority;
-- configurable Kanban statuses and pointer/keyboard drag-and-drop;
+- database-seeded Kanban columns and pointer/keyboard drag-and-drop;
 - optimistic task movement with rollback when persistence fails;
 - task search and priority filtering;
 - GraphQL queries, mutations, pagination, validation, and stable public errors;
@@ -54,16 +55,20 @@ in a portfolio presentation.
   event-specific channel preferences, and recipient-visible email status;
 - atomic system notifications for membership, task, assignment, comment, and
   reminder activity;
+- recipient-only in-app workspace invitations for existing registered accounts,
+  email-matched acceptance, and atomic correction of pending invitation emails;
+- Expo push registration, device-scoped delivery, and receipt processing;
 - responsive protected routes with loading, error, empty, and missing-resource
   states;
-- Vitest, React Testing Library, Playwright, coverage gates, Docker images,
+- Vitest, Jest, React Testing Library, Playwright, Maestro, coverage gates, Docker images,
   GitHub Actions CI, and protected production deployment.
 
 ## Current product scope
 
 The portfolio release centers on authentication and the complete workspace →
 project → Kanban task workflow. Workspace member management includes expiring
-email invitations, authenticated acceptance, roles, and removal. The GraphQL
+email invitations, in-app invitations for existing registered recipients,
+authenticated acceptance, email correction, roles, and removal. The GraphQL
 API and project details UI manage project-specific roles for existing workspace
 members. The API also exposes assignments, comments, activity feeds, and
 notification updates. PostgreSQL continues to enforce the documented
@@ -81,7 +86,10 @@ Browser (React + Apollo Client)
 ```
 
 PostgreSQL is the source of truth. Redis carries ephemeral real-time events,
-and clients recover missed state through GraphQL queries after reconnecting.
+and missed state must be recovered through fresh GraphQL queries. Mobile
+automatically refetches active queries after reconnect; web currently retries
+the socket but requires a page refresh or explicit query refetch to recover
+missed board events.
 The browser never receives a Supabase key or readable authentication token.
 
 ### Repository structure
@@ -103,7 +111,8 @@ docs/                  Architecture and operational documentation
 ```
 
 See [Architecture](docs/ARCHITECTURE.md) for boundaries, data flow, ADRs, and
-trade-offs.
+trade-offs. The [documentation audit](docs/DOCUMENTATION_AUDIT.md) records verified
+feature boundaries and remaining implementation limits.
 
 ## Technology stack
 
@@ -115,7 +124,7 @@ trade-offs.
 | API       | Node.js 24, Express 5, Apollo Server 5, GraphQL, `graphql-ws`         |
 | Data/Auth | Supabase PostgreSQL, Supabase Auth, SQL-first migrations, RLS         |
 | Real time | WebSockets, GraphQL subscriptions, Redis Pub/Sub                      |
-| Testing   | Vitest, React Testing Library, Playwright                             |
+| Testing   | Vitest, Jest, React Testing Library, Playwright, Maestro              |
 | Delivery  | Docker, Docker Compose, GitHub Actions, Railway, Vercel, Upstash      |
 
 ## Local development
@@ -177,6 +186,8 @@ Copy [.env.example](.env.example) to `.env`. Never commit the populated file.
 | `VITE_WS_URL`                               | Public               | GraphQL WebSocket endpoint                    |
 | `VITE_TURNSTILE_SITE_KEY`                   | Public               | Cloudflare Turnstile widget site key          |
 | `EXPO_PUBLIC_API_URL`                       | Public mobile        | Mobile REST API origin                        |
+| `EXPO_PUBLIC_WS_URL`                        | Public mobile        | Mobile GraphQL WebSocket endpoint             |
+| `EXPO_PUBLIC_WEB_URL`                       | Public mobile        | Public web origin used for invitation links   |
 | `EXPO_PUBLIC_GRAPHQL_URL`                   | Public mobile        | Mobile GraphQL HTTP endpoint                  |
 | `EXPO_PUBLIC_SUPABASE_URL`                  | Public mobile        | Supabase project URL for native Auth          |
 | `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`      | Public mobile        | Supabase publishable key for native Auth      |
@@ -189,6 +200,8 @@ Copy [.env.example](.env.example) to `.env`. Never commit the populated file.
 | `REDIS_URL`                                 | Secret in production | Redis/Upstash protocol URL                    |
 | `GUEST_RATE_LIMIT_SECRET`                   | Secret               | HMAC key for pseudonymous guest IP counters   |
 | `CUSTOM_NOTIFICATION_SCHEDULER_ENABLED`     | Server               | Enables custom schedule processing            |
+| `PUSH_NOTIFICATION_WORKER_INTERVAL_MS`      | Server               | Push/receipt polling interval                 |
+| `PUSH_NOTIFICATION_WORKER_BATCH_SIZE`       | Server               | Maximum push rows claimed per poll            |
 | `PUSH_NOTIFICATION_WORKER_ENABLED`          | Server               | Enables Expo push and receipt processing      |
 | `EXPO_ACCESS_TOKEN`                         | Secret, optional     | Expo enhanced push security credential        |
 | `CUSTOM_NOTIFICATION_SCHEDULER_INTERVAL_MS` | Server               | Custom schedule polling interval              |
@@ -242,7 +255,8 @@ docker compose config --quiet
 docker build --check --target api-runtime .
 ```
 
-`pnpm check` runs formatting, ESLint, TypeScript, unit/component tests,
+`pnpm check` runs formatting, generated-contract verification, ESLint,
+TypeScript, unit/component tests,
 application builds, and the Playwright browser workflow. Install Chromium once
 with `pnpm exec playwright install chromium`. Coverage thresholds and opt-in
 Redis/database integration checks are documented in [Testing](docs/TESTING.md).
@@ -273,6 +287,7 @@ GitHub `production` environment, never by the application repository.
 
 ## Documentation
 
+- [Documentation audit and current limitations](docs/DOCUMENTATION_AUDIT.md)
 - [Public demo](docs/PUBLIC_DEMO.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Authentication](docs/AUTHENTICATION.md)
