@@ -52,7 +52,7 @@ export function ProjectPage() {
               Edit project
             </button>
             <Link
-              className="rounded-lg bg-indigo-300 px-4 py-2.5 text-sm font-bold text-slate-950 no-underline hover:bg-indigo-200"
+              className="inline-flex items-center justify-center rounded-lg bg-indigo-300 px-4 py-2.5 text-sm font-bold text-slate-950 no-underline hover:bg-indigo-200"
               to={`/projects/${project.id}/board`}
             >
               Open board

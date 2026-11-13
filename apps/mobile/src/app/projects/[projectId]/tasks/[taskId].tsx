@@ -90,6 +90,9 @@ export default function TaskDetailsScreen() {
   const refreshTaskData = useCallback(() => {
     void Promise.all([details.refetch(), workspaceMembers.refetch()]);
   }, [details, workspaceMembers]);
+  const handleCommentChanged = useCallback(() => {
+    void details.refetch();
+  }, [details]);
   const handleTaskUpdated = useCallback(
     (updatedTask: { id: string }) => {
       if (updatedTask.id === taskId) void details.refetch();
@@ -106,7 +109,8 @@ export default function TaskDetailsScreen() {
   );
 
   useProjectRealtime({
-    onCommentChanged: refreshTaskData,
+    commentTaskId: taskId,
+    onCommentChanged: handleCommentChanged,
     onMembershipChanged: refreshTaskData,
     onTaskDeleted: handleTaskDeleted,
     onTaskUpdated: handleTaskUpdated,

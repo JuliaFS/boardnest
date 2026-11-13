@@ -1,9 +1,14 @@
+import { InMemoryCache } from '@apollo/client';
 import { MockedProvider } from '@apollo/client/testing/react';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { CREATE_TASK_MUTATION } from '../core/graphql';
+import {
+  BOARD_QUERY,
+  CREATE_TASK_MUTATION,
+  type BoardData,
+} from '../core/graphql';
 import { TaskForm } from './TaskForm';
 
 afterEach(cleanup);
@@ -25,8 +30,21 @@ describe('TaskForm', () => {
       title: 'Prepare release',
       updatedAt: new Date(0).toISOString(),
     };
+    const cache = new InMemoryCache();
+    cache.writeQuery<BoardData>({
+      query: BOARD_QUERY,
+      variables: { projectId },
+      data: {
+        taskStatuses: [],
+        tasks: {
+          nodes: [],
+          pageInfo: { hasNextPage: false, limit: 100, offset: 0 },
+        },
+      },
+    });
     render(
       <MockedProvider
+        cache={cache}
         mocks={[
           {
             request: {
@@ -63,5 +81,11 @@ describe('TaskForm', () => {
     await user.click(screen.getByRole('button', { name: 'Create task' }));
 
     await waitFor(() => expect(onCompleted).toHaveBeenCalledWith(task));
+    expect(
+      cache.readQuery<BoardData>({
+        query: BOARD_QUERY,
+        variables: { projectId },
+      })?.tasks.nodes,
+    ).toEqual([task]);
   });
 });

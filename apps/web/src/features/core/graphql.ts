@@ -658,7 +658,12 @@ export const MOVE_TASK_MUTATION = gql`
   mutation MoveTask($id: ID!, $input: MoveTaskInput!) {
     moveTask(id: $id, input: $input) {
       id
+      projectId
       statusId
+      title
+      description
+      priority
+      dueAt
       position
       updatedAt
     }

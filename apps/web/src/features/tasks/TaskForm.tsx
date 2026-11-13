@@ -3,7 +3,6 @@ import { useMutation } from '@apollo/client/react';
 import { useForm } from 'react-hook-form';
 
 import {
-  BOARD_QUERY,
   CREATE_TASK_MUTATION,
   UPDATE_TASK_MUTATION,
   type TaskSummary,
@@ -14,6 +13,7 @@ import {
   primaryButtonClassName,
   secondaryButtonClassName,
 } from '../core/form-styles';
+import { upsertBoardTask } from './board-cache';
 import { taskFormSchema, type TaskFormValues } from './task-schema';
 
 interface TaskFormProps {
@@ -56,7 +56,10 @@ export function TaskForm({
     TaskMutationResult,
     TaskMutationVariables
   >(editing ? UPDATE_TASK_MUTATION : CREATE_TASK_MUTATION, {
-    refetchQueries: [{ query: BOARD_QUERY, variables: { projectId } }],
+    update: (cache, { data }) => {
+      const saved = data?.createTask ?? data?.updateTask;
+      if (saved) upsertBoardTask(cache, saved);
+    },
   });
   const {
     formState: { errors, isSubmitting },

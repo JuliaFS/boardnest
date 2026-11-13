@@ -5,6 +5,7 @@ import {
   MobileTaskDeletedDocument,
   MobileTaskUpdatedDocument,
   type MobileTaskCreatedSubscription,
+  type MobileTaskCommentChangedSubscription,
 } from '@boardnest/graphql-types';
 import { useSubscription } from '@apollo/client/react';
 import { useEffect, useRef } from 'react';
@@ -14,7 +15,10 @@ import { createEventDeduplicator, taskEventKey } from '@/lib/realtime-events';
 type RealtimeTask = MobileTaskCreatedSubscription['taskCreated'];
 
 type ProjectRealtimeOptions = {
-  onCommentChanged?: () => void;
+  commentTaskId?: string;
+  onCommentChanged?: (
+    event: MobileTaskCommentChangedSubscription['taskCommentChanged'],
+  ) => void;
   onMembershipChanged?: () => void;
   onTaskCreated?: (task: RealtimeTask) => void;
   onTaskDeleted?: (taskId: string) => void;
@@ -24,6 +28,7 @@ type ProjectRealtimeOptions = {
 };
 
 export function useProjectRealtime({
+  commentTaskId,
   onCommentChanged,
   onMembershipChanged,
   onTaskCreated,
@@ -82,10 +87,14 @@ export function useProjectRealtime({
 
   useEffect(() => {
     const event = comments.data?.taskCommentChanged;
-    if (event && deduplicator.current.accept(event.id)) {
-      onCommentChanged?.();
+    if (
+      event &&
+      (!commentTaskId || event.taskId === commentTaskId) &&
+      deduplicator.current.accept(event.id)
+    ) {
+      onCommentChanged?.(event);
     }
-  }, [comments.data, onCommentChanged]);
+  }, [commentTaskId, comments.data, onCommentChanged]);
 
   useEffect(() => {
     const event = membership.data?.projectMembershipChanged;

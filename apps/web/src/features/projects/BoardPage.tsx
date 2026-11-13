@@ -28,11 +28,10 @@ import {
   cloneGroups,
   findTask,
   groupTasks,
-  removeTask,
   type TaskGroups,
-  upsertTask,
 } from '../tasks/task-groups';
 import { positionAt } from '../tasks/task-order';
+import { removeBoardTask, upsertBoardTask } from '../tasks/board-cache';
 
 export function BoardPage() {
   const { projectId = '' } = useParams();
@@ -57,19 +56,27 @@ export function BoardPage() {
     skip: !projectId || !board.data,
     variables: { projectId },
   };
-  const created = useSubscription<TaskCreatedData>(
-    TASK_CREATED_SUBSCRIPTION,
-    subscriptionOptions,
-  );
-  const updated = useSubscription<TaskUpdatedData>(
-    TASK_UPDATED_SUBSCRIPTION,
-    subscriptionOptions,
-  );
-  const deleted = useSubscription<TaskDeletedData>(
-    TASK_DELETED_SUBSCRIPTION,
-    subscriptionOptions,
-  );
-  const [moveTask] = useMutation(MOVE_TASK_MUTATION);
+  const created = useSubscription<TaskCreatedData>(TASK_CREATED_SUBSCRIPTION, {
+    ...subscriptionOptions,
+    onData: ({ client, data }) => {
+      if (data.data) upsertBoardTask(client.cache, data.data.taskCreated);
+    },
+  });
+  const updated = useSubscription<TaskUpdatedData>(TASK_UPDATED_SUBSCRIPTION, {
+    ...subscriptionOptions,
+    onData: ({ client, data }) => {
+      if (data.data) upsertBoardTask(client.cache, data.data.taskUpdated);
+    },
+  });
+  const deleted = useSubscription<TaskDeletedData>(TASK_DELETED_SUBSCRIPTION, {
+    ...subscriptionOptions,
+    onData: ({ client, data }) => {
+      if (data.data) {
+        removeBoardTask(client.cache, projectId, data.data.taskDeleted.id);
+      }
+    },
+  });
+  const [moveTask] = useMutation<{ moveTask: TaskSummary }>(MOVE_TASK_MUTATION);
 
   useEffect(() => {
     if (!board.data) return;
@@ -80,36 +87,6 @@ export function BoardPage() {
     groupsRef.current = nextGroups;
     setGroups(nextGroups);
   }, [board.data]);
-
-  useEffect(() => {
-    if (!created.data) return;
-    const task = created.data.taskCreated;
-    setGroups((current) => {
-      const next = upsertTask(current, task);
-      groupsRef.current = next;
-      return next;
-    });
-  }, [created.data]);
-
-  useEffect(() => {
-    if (!updated.data) return;
-    const task = updated.data.taskUpdated;
-    setGroups((current) => {
-      const next = upsertTask(current, task);
-      groupsRef.current = next;
-      return next;
-    });
-  }, [updated.data]);
-
-  useEffect(() => {
-    if (!deleted.data) return;
-    const taskId = deleted.data.taskDeleted.id;
-    setGroups((current) => {
-      const next = removeTask(current, taskId);
-      groupsRef.current = next;
-      return next;
-    });
-  }, [deleted.data]);
 
   const filtersActive = search.trim().length > 0 || priority !== 'ALL';
   const visibleGroups = useMemo(() => {
@@ -252,10 +229,9 @@ export function BoardPage() {
             const position = positionAt(destination.tasks, destination.index);
             setDragError(null);
             void moveTask({
-              awaitRefetchQueries: true,
-              refetchQueries: [
-                { query: BOARD_QUERY, variables: { projectId } },
-              ],
+              update: (cache, { data }) => {
+                if (data?.moveTask) upsertBoardTask(cache, data.moveTask);
+              },
               variables: {
                 id: taskId,
                 input: { position, statusId: destination.statusId },
