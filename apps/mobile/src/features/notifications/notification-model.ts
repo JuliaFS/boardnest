@@ -3,6 +3,7 @@ import type { Href } from 'expo-router';
 import { mobileRoutes } from '../../navigation/routes';
 
 export type NotificationRouteContext = {
+  payload?: unknown;
   projectId?: string | null;
   taskId?: string | null;
   type: string;
@@ -43,6 +44,14 @@ export function mobileNotificationRoute(
   context: NotificationRouteContext,
 ): Href | null {
   if (!isUuid(context.workspaceId)) return null;
+  if (context.type === 'workspace.invited') {
+    const payload = context.payload;
+    const id =
+      payload && typeof payload === 'object' && 'invitationId' in payload
+        ? payload.invitationId
+        : null;
+    return isUuid(id) ? mobileRoutes.invitation(id) : null;
+  }
   const eventScope = context.type.split('.')[0]?.toLowerCase();
   if (eventScope === 'workspace') {
     return mobileRoutes.workspace(context.workspaceId);
@@ -131,7 +140,7 @@ function isIanaTimezone(value: string): boolean {
   }
 }
 
-function isUuid(value: string | null | undefined): value is string {
+function isUuid(value: unknown): value is string {
   return typeof value === 'string' && uuidPattern.test(value);
 }
 

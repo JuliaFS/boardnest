@@ -66,8 +66,8 @@ set local role service_role;
 
 do $$
 begin
-  if (select count(*) from public.notification_event_types) <> 11 then
-    raise exception 'Expected eleven canonical notification event types';
+  if (select count(*) from public.notification_event_types) <> 12 then
+    raise exception 'Expected twelve canonical notification event types';
   end if;
 
   if exists (

@@ -784,6 +784,7 @@ export const typeDefs = `#graphql
     addComment(taskId: ID!, body: String!): TaskComment!
     inviteMember(input: InviteMemberInput!): InvitationPayload!
     acceptInvitation(token: String!): InvitationAcceptance!
+    acceptInvitationById(id: ID!): InvitationAcceptance!
     updateWorkspaceMemberRole(workspaceId: ID!, userId: ID!, role: WorkspaceRole!): WorkspaceMember!
     removeWorkspaceMember(workspaceId: ID!, userId: ID!): DeletePayload!
     revokeInvitation(id: ID!): Invitation!
@@ -1513,6 +1514,21 @@ export const resolvers = {
     ) => {
       const membership = await requireAuth(context).data.acceptInvitation(
         parse(invitationTokenSchema, args.token),
+      );
+      await context.events.publishSync(
+        syncEvent('workspace_membership', {
+          workspaceId: membership.workspace_id,
+        }),
+      );
+      return membership;
+    },
+    acceptInvitationById: async (
+      _parent: unknown,
+      args: { id: string },
+      context: GraphQLContext,
+    ) => {
+      const membership = await requireAuth(context).data.acceptInvitationById(
+        uuid(args.id),
       );
       await context.events.publishSync(
         syncEvent('workspace_membership', {

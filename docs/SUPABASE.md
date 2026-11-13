@@ -45,7 +45,7 @@ successful query with no returned rows means the migration is not installed.
 The migration affects future inserts and does not remove guest resources that
 were created before it was applied.
 
-Continue through `410_custom_notification_scheduler.sql` in filename order. The
+Continue through `430_in_app_workspace_invitations.sql` in filename order. The
 reminder scheduler migration adds columns, an index, and narrowly granted
 functions; the account deletion migration makes creator attribution nullable
 and adds narrowly granted preview/preparation functions. The member cleanup
@@ -193,3 +193,14 @@ migrations in an isolated database and apply them through a controlled
 deployment step. Do not make ad hoc production schema changes through Table
 Editor or SQL Editor. See [Production deployment](DEPLOYMENT.md) for the exact
 boundary.
+
+## In-app invitation migration
+
+Apply `430_in_app_workspace_invitations.sql` after `420_push_notifications.sql`
+using the reviewed migration workflow. Deploy the API and clients with the new
+`acceptInvitationById` mutation after the database function is available. The
+migration affects future invitations only; it does not backfill existing ones.
+The recipient must already have a registered account, and its in-app preferences
+must allow workspace invitations. The unread badge uses its existing polling
+interval; opening Notifications fetches the current inbox. No Redis event or
+additional email/push delivery is needed for invitation creation.

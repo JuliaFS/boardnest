@@ -210,3 +210,12 @@ mutation AcceptMobileWorkspaceInvitation($token: String!) {
     joinedAt
   }
 }
+
+mutation AcceptMobileWorkspaceInvitationById($id: ID!) {
+  acceptInvitation: acceptInvitationById(id: $id) {
+    workspaceId
+    userId
+    role
+    joinedAt
+  }
+}

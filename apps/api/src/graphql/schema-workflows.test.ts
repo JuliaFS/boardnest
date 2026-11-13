@@ -293,6 +293,45 @@ describe('GraphQL project and task workflow resolvers', () => {
     );
   });
 
+  it('accepts an in-app invitation ID through the authenticated data service', async () => {
+    const membership = {
+      joined_at: timestamp,
+      role: 'member',
+      updated_at: timestamp,
+      user_id: user.id,
+      workspace_id: workspaceId,
+    };
+    const acceptInvitationById = vi.fn().mockResolvedValue(membership);
+    const events = createEvents();
+
+    await expect(
+      runMutation(
+        'acceptInvitationById',
+        { id: projectId },
+        context(createDataService({ acceptInvitationById }), events),
+      ),
+    ).resolves.toEqual(membership);
+    expect(acceptInvitationById).toHaveBeenCalledWith(projectId);
+    expect(events.publishSync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'workspace_membership',
+        workspaceId,
+      }),
+    );
+  });
+
+  it('rejects invalid invitation IDs before calling the data service', async () => {
+    const acceptInvitationById = vi.fn();
+    await expect(
+      runMutation(
+        'acceptInvitationById',
+        { id: 'not-an-id' },
+        context(createDataService({ acceptInvitationById })),
+      ),
+    ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
+    expect(acceptInvitationById).not.toHaveBeenCalled();
+  });
+
   it('delivers a workspace invitation and hides the raw token after email success', async () => {
     const token = 'b'.repeat(43);
     const invitation = {

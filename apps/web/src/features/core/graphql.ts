@@ -379,6 +379,17 @@ export const ACCEPT_INVITATION_MUTATION = gql`
   }
 `;
 
+export const ACCEPT_INVITATION_BY_ID_MUTATION = gql`
+  mutation AcceptInvitationById($id: ID!) {
+    acceptInvitationById(id: $id) {
+      workspaceId
+      userId
+      role
+      joinedAt
+    }
+  }
+`;
+
 export const UPDATE_WORKSPACE_MEMBER_ROLE_MUTATION = gql`
   mutation UpdateWorkspaceMemberRole(
     $workspaceId: ID!

@@ -324,6 +324,7 @@ export interface InviteResult {
 }
 
 export interface BoardnestDataService {
+  acceptInvitationById: (id: string) => Promise<WorkspaceMembership>;
   acceptInvitation: (token: string) => Promise<WorkspaceMembership>;
   activityFeed: (
     workspaceId: string,
@@ -507,6 +508,13 @@ export function createBoardnestDataService(
 
 class SupabaseBoardnestDataService implements BoardnestDataService {
   constructor(private readonly client: SupabaseClient) {}
+
+  async acceptInvitationById(id: string): Promise<WorkspaceMembership> {
+    const response = await this.client
+      .rpc('accept_workspace_invitation_by_id', { p_invitation_id: id })
+      .single();
+    return required(workspaceMembershipSchema, response);
+  }
 
   async acceptInvitation(token: string): Promise<WorkspaceMembership> {
     const response = await this.client

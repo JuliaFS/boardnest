@@ -139,6 +139,7 @@ export type MoveTaskInput = {
 export type Mutation = {
   __typename?: 'Mutation';
   acceptInvitation: InvitationAcceptance;
+  acceptInvitationById: InvitationAcceptance;
   addComment: TaskComment;
   addProjectMember: ProjectMember;
   assignTask: TaskAssignee;
@@ -180,6 +181,11 @@ export type Mutation = {
 
 export type MutationAcceptInvitationArgs = {
   token: Scalars['String']['input'];
+};
+
+
+export type MutationAcceptInvitationByIdArgs = {
+  id: Scalars['ID']['input'];
 };
 
 

@@ -1,6 +1,8 @@
 import {
   AcceptMobileWorkspaceInvitationDocument,
+  AcceptMobileWorkspaceInvitationByIdDocument,
   MobileWorkspacesDocument,
+  type AcceptMobileWorkspaceInvitationMutation,
 } from '@boardnest/graphql-types';
 import { useMutation } from '@apollo/client/react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -13,11 +15,22 @@ export default function InvitationDeepLinkScreen() {
   const router = useRouter();
   const { token } = useLocalSearchParams<{ token?: string | string[] }>();
   const invitationToken = Array.isArray(token) ? token[0] : token;
-  const validToken = Boolean(
-    invitationToken && /^[A-Za-z0-9_-]{43}$/.test(invitationToken),
+  const byId = Boolean(
+    invitationToken &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      invitationToken,
+    ),
   );
-  const [acceptInvitation, state] = useMutation(
-    AcceptMobileWorkspaceInvitationDocument,
+  const validToken =
+    byId ||
+    Boolean(invitationToken && /^[A-Za-z0-9_-]{43}$/.test(invitationToken));
+  const [acceptInvitation, state] = useMutation<
+    AcceptMobileWorkspaceInvitationMutation,
+    { token?: string; id?: string }
+  >(
+    byId
+      ? AcceptMobileWorkspaceInvitationByIdDocument
+      : AcceptMobileWorkspaceInvitationDocument,
     { refetchQueries: [MobileWorkspacesDocument] },
   );
   const accepted = state.data?.acceptInvitation;
@@ -25,7 +38,9 @@ export default function InvitationDeepLinkScreen() {
   async function accept() {
     if (!invitationToken || !validToken) return;
     try {
-      await acceptInvitation({ variables: { token: invitationToken } });
+      await acceptInvitation({
+        variables: byId ? { id: invitationToken } : { token: invitationToken },
+      });
     } catch {
       // Apollo exposes the invitation error through state.
     }

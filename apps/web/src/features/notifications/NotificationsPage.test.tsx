@@ -38,6 +38,65 @@ vi.mock('../auth/AuthProvider', () => ({
 afterEach(cleanup);
 
 describe('NotificationsPage', () => {
+  it('shows an invitation before the recipient has joined any workspace', async () => {
+    const user = userEvent.setup();
+    const invitationId = '1251a531-5635-4fa7-a986-5d99780651dd';
+    const mocks: MockedResponse[] = [
+      {
+        request: { query: WORKSPACES_QUERY },
+        result: {
+          data: {
+            workspaces: {
+              nodes: [],
+              pageInfo: { hasNextPage: false, limit: 25, offset: 0 },
+            },
+          },
+        },
+      },
+      {
+        request: {
+          query: NOTIFICATIONS_QUERY,
+          variables: { unreadOnly: false },
+        },
+        result: {
+          data: {
+            notifications: {
+              nodes: [
+                notification({
+                  title: 'Workspace invitation',
+                  type: 'workspace.invited',
+                  payload: { invitationId },
+                  projectId: null,
+                  taskId: null,
+                  readAt: '2030-01-01T00:01:00Z',
+                }),
+              ],
+              pageInfo: { hasNextPage: false, limit: 25, offset: 0 },
+            },
+          },
+        },
+      },
+    ];
+    render(
+      <MemoryRouter>
+        <MockedProvider mocks={mocks}>
+          <>
+            <NotificationsPage />
+            <LocationProbe />
+          </>
+        </MockedProvider>
+      </MemoryRouter>,
+    );
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Open notification: Workspace invitation',
+      }),
+    );
+    expect(screen.getByTestId('location').textContent).toBe(
+      `/invite/${invitationId}`,
+    );
+  });
+
   it('opens an accessible custom notification form with plan context', async () => {
     const user = userEvent.setup();
     render(
@@ -410,6 +469,8 @@ function notificationMocks(
 
 function notification(
   overrides: Partial<{
+    title: string;
+    type: string;
     payload: Record<string, unknown>;
     projectId: string | null;
     readAt: string | null;
