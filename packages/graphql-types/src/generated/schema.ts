@@ -143,6 +143,7 @@ export type Mutation = {
   addComment: TaskComment;
   addProjectMember: ProjectMember;
   assignTask: TaskAssignee;
+  changeInvitationEmail: InvitationPayload;
   createProject: Project;
   createScheduledNotification: ScheduledNotification;
   createTask: Task;
@@ -205,6 +206,12 @@ export type MutationAddProjectMemberArgs = {
 export type MutationAssignTaskArgs = {
   assigneeId: Scalars['ID']['input'];
   taskId: Scalars['ID']['input'];
+};
+
+
+export type MutationChangeInvitationEmailArgs = {
+  email: Scalars['String']['input'];
+  id: Scalars['ID']['input'];
 };
 
 

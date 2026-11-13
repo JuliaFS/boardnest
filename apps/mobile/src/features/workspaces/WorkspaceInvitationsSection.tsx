@@ -1,5 +1,6 @@
 import {
   InviteMobileWorkspaceMemberDocument,
+  ChangeMobileInvitationEmailDocument,
   MobileWorkspaceInvitationsDocument,
   RevokeMobileWorkspaceInvitationDocument,
   type WorkspaceRole,
@@ -22,6 +23,7 @@ import { theme } from '@/theme';
 const roles: Exclude<WorkspaceRole, 'OWNER'>[] = ['ADMIN', 'MEMBER', 'VIEWER'];
 
 type InvitationResult = {
+  emailChanged?: boolean;
   email: string;
   emailSent: boolean;
   token?: string | null;
@@ -34,6 +36,10 @@ export function WorkspaceInvitationsSection({
   isAnonymous: boolean;
   workspaceId: string;
 }) {
+  const [editingInvitation, setEditingInvitation] = useState<{
+    id: string;
+    email: string;
+  } | null>(null);
   const [showInvite, setShowInvite] = useState(false);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<Exclude<WorkspaceRole, 'OWNER'>>('MEMBER');
@@ -44,6 +50,9 @@ export function WorkspaceInvitationsSection({
   });
   const [inviteMember, invitationState] = useMutation(
     InviteMobileWorkspaceMemberDocument,
+  );
+  const [changeEmail, changeState] = useMutation(
+    ChangeMobileInvitationEmailDocument,
   );
   const [revokeInvitation, revokeState] = useMutation(
     RevokeMobileWorkspaceInvitationDocument,
@@ -59,21 +68,34 @@ export function WorkspaceInvitationsSection({
     }
     setEmailError(null);
     try {
-      const response = await inviteMember({
-        refetchQueries: [
-          {
-            query: MobileWorkspaceInvitationsDocument,
-            variables: { workspaceId },
-          },
-        ],
-        variables: {
-          input: { email: normalizedEmail, role, workspaceId },
+      const refresh = [
+        {
+          query: MobileWorkspaceInvitationsDocument,
+          variables: { workspaceId },
         },
-      });
+      ];
+      const response = editingInvitation
+        ? await changeEmail({
+            refetchQueries: refresh,
+            variables: { id: editingInvitation.id, email: normalizedEmail },
+          })
+        : await inviteMember({
+            refetchQueries: [
+              {
+                query: MobileWorkspaceInvitationsDocument,
+                variables: { workspaceId },
+              },
+            ],
+            variables: {
+              input: { email: normalizedEmail, role, workspaceId },
+            },
+          });
       const payload = response.data?.inviteMember;
       if (!payload) return;
       setShowInvite(false);
+      setEditingInvitation(null);
       setResult({
+        emailChanged: Boolean(editingInvitation),
         email: payload.invitation.email,
         emailSent: payload.emailSent,
         token: payload.token,
@@ -119,7 +141,12 @@ export function WorkspaceInvitationsSection({
       <AppButton
         disabled={guestLimitReached}
         label="Invite workspace member"
-        onPress={() => setShowInvite(true)}
+        onPress={() => {
+          setEditingInvitation(null);
+          setEmail('');
+          setEmailError(null);
+          setShowInvite(true);
+        }}
         variant="secondary"
       />
       {guestLimitReached ? (
@@ -147,6 +174,18 @@ export function WorkspaceInvitationsSection({
                 {roleLabel(invitation.role)} · expires{' '}
                 {new Date(invitation.expiresAt).toLocaleDateString()}
               </Text>
+              {!isAnonymous ? (
+                <AppButton
+                  label="Change email"
+                  variant="secondary"
+                  onPress={() => {
+                    setEditingInvitation(invitation);
+                    setEmail(invitation.email);
+                    setEmailError(null);
+                    setShowInvite(true);
+                  }}
+                />
+              ) : null}
               <AppButton
                 label="Revoke invitation"
                 loading={revokeState.loading}
@@ -167,9 +206,17 @@ export function WorkspaceInvitationsSection({
         />
       ) : null}
       <BottomSheetModal
-        description="Choose the maximum workspace permissions for the invited account."
+        description={
+          editingInvitation
+            ? 'An invitation will be sent to the updated email address. The previous link will no longer work.'
+            : 'Choose the maximum workspace permissions for the invited account.'
+        }
         onClose={() => setShowInvite(false)}
-        title="Invite workspace member"
+        title={
+          editingInvitation
+            ? 'Change invitation email'
+            : 'Invite workspace member'
+        }
         visible={showInvite}
       >
         <View style={styles.form}>
@@ -182,25 +229,32 @@ export function WorkspaceInvitationsSection({
             onChangeText={setEmail}
             value={email}
           />
-          <Text style={styles.help}>Workspace role</Text>
-          {roles.map((option) => (
-            <AppButton
-              key={option}
-              label={roleLabel(option)}
-              onPress={() => setRole(option)}
-              variant={role === option ? 'primary' : 'secondary'}
-            />
-          ))}
-          {invitationState.error ? (
+          {!editingInvitation ? (
+            <>
+              <Text style={styles.help}>Workspace role</Text>
+              {roles.map((option) => (
+                <AppButton
+                  key={option}
+                  label={roleLabel(option)}
+                  onPress={() => setRole(option)}
+                  variant={role === option ? 'primary' : 'secondary'}
+                />
+              ))}
+            </>
+          ) : null}
+          {(editingInvitation ? changeState.error : invitationState.error) ? (
             <AppBanner
-              message={invitationState.error.message}
+              message={
+                (editingInvitation ? changeState.error : invitationState.error)
+                  ?.message ?? 'The invitation could not be saved.'
+              }
               title="Invitation could not be created"
               tone="error"
             />
           ) : null}
           <AppButton
-            label="Send invitation"
-            loading={invitationState.loading}
+            label={editingInvitation ? 'Save email' : 'Send invitation'}
+            loading={invitationState.loading || changeState.loading}
             onPress={() => void submitInvitation()}
           />
         </View>
@@ -212,7 +266,11 @@ export function WorkspaceInvitationsSection({
             : `Email delivery was unavailable. Share this one-time link securely with ${result?.email ?? 'the invited user'}.`
         }
         onClose={() => setResult(null)}
-        title="Invitation created"
+        title={
+          result?.emailChanged
+            ? 'Invitation email changed'
+            : 'Invitation created'
+        }
         visible={Boolean(result)}
       >
         <View style={styles.form}>

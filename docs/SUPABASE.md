@@ -45,7 +45,7 @@ successful query with no returned rows means the migration is not installed.
 The migration affects future inserts and does not remove guest resources that
 were created before it was applied.
 
-Continue through `430_in_app_workspace_invitations.sql` in filename order. The
+Continue through `440_change_invitation_email.sql` in filename order. The
 reminder scheduler migration adds columns, an index, and narrowly granted
 functions; the account deletion migration makes creator attribution nullable
 and adds narrowly granted preview/preparation functions. The member cleanup
@@ -204,3 +204,12 @@ The recipient must already have a registered account, and its in-app preferences
 must allow workspace invitations. The unread badge uses its existing polling
 interval; opening Notifications fetches the current inbox. No Redis event or
 additional email/push delivery is needed for invitation creation.
+
+## Invitation email changes
+
+Apply `440_change_invitation_email.sql` after migration 430 before deploying the
+API/client `changeInvitationEmail` operation. Installing this migration does not
+change existing invitations. Changing an address later atomically revokes the
+selected pending invitation and creates a replacement with a fresh acceptance
+link. The original role is retained and failed replacements leave the old
+invitation valid. Email delivery follows the existing sender/fallback behavior.

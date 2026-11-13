@@ -83,6 +83,7 @@ Run every file exactly once and in filename order:
 | `410_custom_notification_scheduler.sql` | Concurrent custom occurrence processing and recurrence                  |
 | `420_push_notifications.sql`            | Device registry, Expo push outbox, receipts, and preferences            |
 | `430_in_app_workspace_invitations.sql`  | Recipient-only invitation notifications and email-matched ID acceptance |
+| `440_change_invitation_email.sql`       | Atomic replacement of pending invitation email addresses                |
 
 Do not run `database/tests/*.sql` as migrations. The smoke test inserts deterministic temporary records and rolls the transaction back.
 
@@ -219,3 +220,19 @@ email or push delivery.
 Run `database/tests/014_in_app_workspace_invitations.sql` only in a disposable
 database to verify recipient visibility, non-member access, lifecycle checks,
 preference opt-out, and compatibility with email links.
+
+### Changing an invitation email
+
+Migration `440_change_invitation_email.sql` exposes an authenticated RPC for
+registered workspace owners and admins. It locks the pending invitation,
+revokes it, and inserts its replacement in one transaction. The workspace and
+role are preserved; the replacement receives a fresh token and seven-day
+expiry. A conflict rolls back the revocation. In-app delivery follows migration
+430 and email delivery uses the existing API sender and manual-link fallback.
+The original invitation remains in history with revoked status, and its link
+can no longer be accepted. Accepted, revoked, and expired invitations cannot be
+changed. Guest accounts keep their existing single-invitation limit.
+
+`database/tests/015_change_invitation_email.sql` checks authorization, normalized
+addresses, conflict rollback, role preservation, old-token rejection, replacement
+notification creation, and acceptance with the new token in a disposable database.

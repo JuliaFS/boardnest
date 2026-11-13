@@ -368,6 +368,24 @@ export const INVITE_MEMBER_MUTATION = gql`
   }
 `;
 
+export const CHANGE_INVITATION_EMAIL_MUTATION = gql`
+  mutation ChangeInvitationEmail($id: ID!, $email: String!) {
+    inviteMember: changeInvitationEmail(id: $id, email: $email) {
+      invitation {
+        id
+        workspaceId
+        email
+        role
+        status
+        expiresAt
+        createdAt
+      }
+      token
+      emailSent
+    }
+  }
+`;
+
 export const ACCEPT_INVITATION_MUTATION = gql`
   mutation AcceptInvitation($token: String!) {
     acceptInvitation(token: $token) {

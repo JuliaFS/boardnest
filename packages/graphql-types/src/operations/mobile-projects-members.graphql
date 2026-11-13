@@ -219,3 +219,18 @@ mutation AcceptMobileWorkspaceInvitationById($id: ID!) {
     joinedAt
   }
 }
+
+mutation ChangeMobileInvitationEmail($id: ID!, $email: String!) {
+  inviteMember: changeInvitationEmail(id: $id, email: $email) {
+    emailSent
+    token
+    invitation {
+      id
+      workspaceId
+      email
+      role
+      status
+      expiresAt
+    }
+  }
+}
