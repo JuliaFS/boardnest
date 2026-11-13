@@ -293,6 +293,45 @@ describe('GraphQL project and task workflow resolvers', () => {
     );
   });
 
+  it('accepts an in-app invitation ID through the authenticated data service', async () => {
+    const membership = {
+      joined_at: timestamp,
+      role: 'member',
+      updated_at: timestamp,
+      user_id: user.id,
+      workspace_id: workspaceId,
+    };
+    const acceptInvitationById = vi.fn().mockResolvedValue(membership);
+    const events = createEvents();
+
+    await expect(
+      runMutation(
+        'acceptInvitationById',
+        { id: projectId },
+        context(createDataService({ acceptInvitationById }), events),
+      ),
+    ).resolves.toEqual(membership);
+    expect(acceptInvitationById).toHaveBeenCalledWith(projectId);
+    expect(events.publishSync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'workspace_membership',
+        workspaceId,
+      }),
+    );
+  });
+
+  it('rejects invalid invitation IDs before calling the data service', async () => {
+    const acceptInvitationById = vi.fn();
+    await expect(
+      runMutation(
+        'acceptInvitationById',
+        { id: 'not-an-id' },
+        context(createDataService({ acceptInvitationById })),
+      ),
+    ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
+    expect(acceptInvitationById).not.toHaveBeenCalled();
+  });
+
   it('delivers a workspace invitation and hides the raw token after email success', async () => {
     const token = 'b'.repeat(43);
     const invitation = {
@@ -333,6 +372,57 @@ describe('GraphQL project and task workflow resolvers', () => {
         value,
       ),
     ).resolves.toMatchObject({ emailSent: true, invitation, token: null });
+    expect(sendWorkspaceInvitation).toHaveBeenCalledWith({
+      email: 'member@example.com',
+      inviterName: user.displayName,
+      token,
+      workspaceName: 'Product team',
+    });
+  });
+
+  it('changes the invitation email and sends only the replacement token', async () => {
+    const token = 'b'.repeat(43);
+    const invitation = {
+      accepted_at: null,
+      accepted_by: null,
+      created_at: timestamp,
+      email: 'member@example.com',
+      expires_at: new Date(Date.now() + 60_000).toISOString(),
+      id: reminderId,
+      invited_by: user.id,
+      revoked_at: null,
+      role: 'member',
+      status: 'pending',
+      updated_at: timestamp,
+      workspace_id: workspaceId,
+    };
+    const changeInvitationEmail = vi
+      .fn()
+      .mockResolvedValue({ invitation, token });
+    const workspace = vi.fn().mockResolvedValue({
+      id: workspaceId,
+      name: 'Product team',
+    });
+    const sendWorkspaceInvitation = vi.fn().mockResolvedValue(undefined);
+    const value = {
+      ...context(createDataService({ changeInvitationEmail, workspace })),
+      invitationEmail: { sendWorkspaceInvitation },
+    };
+
+    await expect(
+      runMutation(
+        'changeInvitationEmail',
+        {
+          id: reminderId,
+          email: ' MEMBER@example.com ',
+        },
+        value,
+      ),
+    ).resolves.toMatchObject({ emailSent: true, invitation, token: null });
+    expect(changeInvitationEmail).toHaveBeenCalledWith(
+      reminderId,
+      'member@example.com',
+    );
     expect(sendWorkspaceInvitation).toHaveBeenCalledWith({
       email: 'member@example.com',
       inviterName: user.displayName,

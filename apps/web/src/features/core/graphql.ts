@@ -368,9 +368,38 @@ export const INVITE_MEMBER_MUTATION = gql`
   }
 `;
 
+export const CHANGE_INVITATION_EMAIL_MUTATION = gql`
+  mutation ChangeInvitationEmail($id: ID!, $email: String!) {
+    inviteMember: changeInvitationEmail(id: $id, email: $email) {
+      invitation {
+        id
+        workspaceId
+        email
+        role
+        status
+        expiresAt
+        createdAt
+      }
+      token
+      emailSent
+    }
+  }
+`;
+
 export const ACCEPT_INVITATION_MUTATION = gql`
   mutation AcceptInvitation($token: String!) {
     acceptInvitation(token: $token) {
+      workspaceId
+      userId
+      role
+      joinedAt
+    }
+  }
+`;
+
+export const ACCEPT_INVITATION_BY_ID_MUTATION = gql`
+  mutation AcceptInvitationById($id: ID!) {
+    acceptInvitationById(id: $id) {
       workspaceId
       userId
       role

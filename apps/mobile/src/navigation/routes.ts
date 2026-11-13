@@ -23,7 +23,10 @@ export const mobileRoutes = {
 
 export function invitationRouteFromReturnTo(value: unknown) {
   if (typeof value !== 'string') return null;
-  const match = /^\/invite\/([A-Za-z0-9_-]{43})$/.exec(value);
+  const match =
+    /^\/invite\/([A-Za-z0-9_-]{43}|[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i.exec(
+      value,
+    );
   const token = match?.[1];
   return token ? mobileRoutes.invitation(token) : null;
 }

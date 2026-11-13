@@ -1,3 +1,4 @@
+import userEvent from '@testing-library/user-event';
 import { MockedProvider } from '@apollo/client/testing/react';
 import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
@@ -83,7 +84,17 @@ describe('MembersPage', () => {
               result: {
                 data: {
                   workspaceInvitations: {
-                    nodes: [],
+                    nodes: [
+                      {
+                        id: workspaceId,
+                        workspaceId,
+                        email: 'wrong@example.com',
+                        role: 'MEMBER',
+                        status: 'PENDING',
+                        expiresAt: '2030-01-01T00:00:00Z',
+                        createdAt: timestamp,
+                      },
+                    ],
                     pageInfo: { hasNextPage: false, limit: 100, offset: 0 },
                   },
                 },
@@ -100,8 +111,16 @@ describe('MembersPage', () => {
     expect(
       await screen.findByRole('button', { name: 'Invite member' }),
     ).toBeTruthy();
-    expect(
-      await screen.findByText('There are no pending invitations.'),
-    ).toBeTruthy();
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole('button', { name: 'Change email' }),
+    );
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(screen.getByLabelText<HTMLInputElement>('Email address').value).toBe(
+      'wrong@example.com',
+    );
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByText('wrong@example.com')).toBeTruthy();
   });
 });

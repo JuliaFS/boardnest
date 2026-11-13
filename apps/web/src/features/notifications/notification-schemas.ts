@@ -88,6 +88,7 @@ const taskRoutePattern = new RegExp(
 
 const notificationRouteContextSchema = z.object({
   payload: z.unknown(),
+  type: z.string().optional(),
   projectId: z.uuid().nullable(),
   taskId: z.uuid().nullable(),
   workspaceId: z.uuid(),
@@ -104,7 +105,13 @@ export function notificationRoute(context: unknown): string | null {
   const parsedContext = notificationRouteContextSchema.safeParse(context);
   if (!parsedContext.success) return null;
 
-  const { payload, projectId, taskId, workspaceId } = parsedContext.data;
+  const { payload, projectId, taskId, workspaceId, type } = parsedContext.data;
+  if (type === 'workspace.invited') {
+    const invitation = z.object({ invitationId: z.uuid() }).safeParse(payload);
+    return invitation.success
+      ? `/invite/${invitation.data.invitationId}`
+      : null;
+  }
   const payloadRoute = extractPayloadRoute(payload);
   if (
     payloadRoute &&

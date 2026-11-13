@@ -41,47 +41,49 @@ auth.users 1 ─── 1 profiles
 
 Run every file exactly once and in filename order:
 
-| Migration                               | Responsibility                                               |
-| --------------------------------------- | ------------------------------------------------------------ |
-| `000_extensions.sql`                    | PostgreSQL extension and private schemas                     |
-| `001_common_functions.sql`              | Shared `updated_at` trigger function                         |
-| `010_profiles.sql`                      | Auth-linked profiles and signup trigger                      |
-| `020_workspaces.sql`                    | Tenant records                                               |
-| `030_workspace_members.sql`             | Workspace roles and owner invariants                         |
-| `040_projects.sql`                      | Project visibility, status, and archival                     |
-| `050_project_members.sql`               | Explicit private-project access                              |
-| `060_task_statuses.sql`                 | Configurable Kanban columns and defaults                     |
-| `070_tasks.sql`                         | Tasks, priorities, ordering, and search index                |
-| `080_task_assignees.sql`                | Multi-assignee relationship and access validation            |
-| `090_labels.sql`                        | Project-scoped labels                                        |
-| `100_task_labels.sql`                   | Task-to-label relationship                                   |
-| `110_task_comments.sql`                 | Task discussion                                              |
-| `120_activity_logs.sql`                 | Append-only audit events                                     |
-| `130_notifications.sql`                 | Per-user notifications                                       |
-| `140_invitations.sql`                   | Hashed, expiring workspace invitations                       |
-| `200_authorization_functions.sql`       | Non-exposed RLS helper functions                             |
-| `210_rls_policies.sql`                  | Per-operation RLS policies                                   |
-| `220_api_grants.sql`                    | Explicit `anon`, `authenticated`, and `service_role` grants  |
-| `230_anonymous_guest_limits.sql`        | Concurrency-safe quotas for anonymous guest sessions         |
-| `240_subscription_plans.sql`            | Guest, Free, and Pro notification capabilities               |
-| `250_workspace_subscriptions.sql`       | Workspace plan assignment and billing-ready state            |
-| `260_notification_preferences.sql`      | Per-user channel and event preferences                       |
-| `270_task_reminders.sql`                | Reminder schedules, recipients, and plan enforcement         |
-| `280_notification_deliveries.sql`       | Durable email outbox and monthly email quota enforcement     |
-| `290_notification_authorization.sql`    | Reminder and subscription RLS policies                       |
-| `300_notification_grants.sql`           | Explicit grants for notification scheduling tables           |
-| `310_reminder_api_functions.sql`        | Atomic reminder and recipient API transactions               |
-| `320_in_app_reminder_scheduler.sql`     | Due-reminder processing, recurrence, and idempotency         |
-| `330_account_deletion.sql`              | Ownership handoff and safe account anonymization             |
-| `340_workspace_member_cleanup.sql`      | Workspace-scoped cleanup after membership removal            |
-| `350_invitation_acceptance.sql`         | Atomic email-matched invitation acceptance                   |
-| `360_notification_event_model.sql`      | Event catalog, plan gates, preferences, and email fan-out    |
-| `370_notification_delivery_worker.sql`  | SMTP claim leases, retry state, and attempt history          |
-| `380_custom_notification_schedules.sql` | Contextual custom schedules, plan limits, RLS, and grants    |
-| `390_system_notification_events.sql`    | Atomic membership, task, assignment, and comment producers   |
-| `400_notification_hardening.sql`        | Preference-safe claims, monitoring, and outbox indexes       |
-| `410_custom_notification_scheduler.sql` | Concurrent custom occurrence processing and recurrence       |
-| `420_push_notifications.sql`            | Device registry, Expo push outbox, receipts, and preferences |
+| Migration                               | Responsibility                                                          |
+| --------------------------------------- | ----------------------------------------------------------------------- |
+| `000_extensions.sql`                    | PostgreSQL extension and private schemas                                |
+| `001_common_functions.sql`              | Shared `updated_at` trigger function                                    |
+| `010_profiles.sql`                      | Auth-linked profiles and signup trigger                                 |
+| `020_workspaces.sql`                    | Tenant records                                                          |
+| `030_workspace_members.sql`             | Workspace roles and owner invariants                                    |
+| `040_projects.sql`                      | Project visibility, status, and archival                                |
+| `050_project_members.sql`               | Explicit private-project access                                         |
+| `060_task_statuses.sql`                 | Configurable Kanban columns and defaults                                |
+| `070_tasks.sql`                         | Tasks, priorities, ordering, and search index                           |
+| `080_task_assignees.sql`                | Multi-assignee relationship and access validation                       |
+| `090_labels.sql`                        | Project-scoped labels                                                   |
+| `100_task_labels.sql`                   | Task-to-label relationship                                              |
+| `110_task_comments.sql`                 | Task discussion                                                         |
+| `120_activity_logs.sql`                 | Append-only audit events                                                |
+| `130_notifications.sql`                 | Per-user notifications                                                  |
+| `140_invitations.sql`                   | Hashed, expiring workspace invitations                                  |
+| `200_authorization_functions.sql`       | Non-exposed RLS helper functions                                        |
+| `210_rls_policies.sql`                  | Per-operation RLS policies                                              |
+| `220_api_grants.sql`                    | Explicit `anon`, `authenticated`, and `service_role` grants             |
+| `230_anonymous_guest_limits.sql`        | Concurrency-safe quotas for anonymous guest sessions                    |
+| `240_subscription_plans.sql`            | Guest, Free, and Pro notification capabilities                          |
+| `250_workspace_subscriptions.sql`       | Workspace plan assignment and billing-ready state                       |
+| `260_notification_preferences.sql`      | Per-user channel and event preferences                                  |
+| `270_task_reminders.sql`                | Reminder schedules, recipients, and plan enforcement                    |
+| `280_notification_deliveries.sql`       | Durable email outbox and monthly email quota enforcement                |
+| `290_notification_authorization.sql`    | Reminder and subscription RLS policies                                  |
+| `300_notification_grants.sql`           | Explicit grants for notification scheduling tables                      |
+| `310_reminder_api_functions.sql`        | Atomic reminder and recipient API transactions                          |
+| `320_in_app_reminder_scheduler.sql`     | Due-reminder processing, recurrence, and idempotency                    |
+| `330_account_deletion.sql`              | Ownership handoff and safe account anonymization                        |
+| `340_workspace_member_cleanup.sql`      | Workspace-scoped cleanup after membership removal                       |
+| `350_invitation_acceptance.sql`         | Atomic email-matched invitation acceptance                              |
+| `360_notification_event_model.sql`      | Event catalog, plan gates, preferences, and email fan-out               |
+| `370_notification_delivery_worker.sql`  | SMTP claim leases, retry state, and attempt history                     |
+| `380_custom_notification_schedules.sql` | Contextual custom schedules, plan limits, RLS, and grants               |
+| `390_system_notification_events.sql`    | Atomic membership, task, assignment, and comment producers              |
+| `400_notification_hardening.sql`        | Preference-safe claims, monitoring, and outbox indexes                  |
+| `410_custom_notification_scheduler.sql` | Concurrent custom occurrence processing and recurrence                  |
+| `420_push_notifications.sql`            | Device registry, Expo push outbox, receipts, and preferences            |
+| `430_in_app_workspace_invitations.sql`  | Recipient-only invitation notifications and email-matched ID acceptance |
+| `440_change_invitation_email.sql`       | Atomic replacement of pending invitation email addresses                |
 
 Do not run `database/tests/*.sql` as migrations. The smoke test inserts deterministic temporary records and rolls the transaction back.
 
@@ -203,3 +205,34 @@ A new project defaults to `workspace` visibility and `active` status. Its creato
 - Development seed data stays separate from production migrations.
 
 See [Database design](../docs/DATABASE.md) for table-level details and [Supabase setup](../docs/SUPABASE.md) for execution instructions.
+
+### In-app workspace invitations
+
+Migration `430_in_app_workspace_invitations.sql` creates one private inbox event
+when a pending invitation targets an existing registered account and its in-app
+preferences permit it. No raw token is persisted in the event. Invitations to
+addresses without an account continue through email only; historical invitations
+are not backfilled. The ID acceptance RPC and email-token RPC share the same
+email ownership, expiration, revocation, and idempotency checks. Receiving the
+notification grants no workspace access. The invitation event queues no extra
+email or push delivery.
+
+Run `database/tests/014_in_app_workspace_invitations.sql` only in a disposable
+database to verify recipient visibility, non-member access, lifecycle checks,
+preference opt-out, and compatibility with email links.
+
+### Changing an invitation email
+
+Migration `440_change_invitation_email.sql` exposes an authenticated RPC for
+registered workspace owners and admins. It locks the pending invitation,
+revokes it, and inserts its replacement in one transaction. The workspace and
+role are preserved; the replacement receives a fresh token and seven-day
+expiry. A conflict rolls back the revocation. In-app delivery follows migration
+430 and email delivery uses the existing API sender and manual-link fallback.
+The original invitation remains in history with revoked status, and its link
+can no longer be accepted. Accepted, revoked, and expired invitations cannot be
+changed. Guest accounts keep their existing single-invitation limit.
+
+`database/tests/015_change_invitation_email.sql` checks authorization, normalized
+addresses, conflict rollback, role preservation, old-token rejection, replacement
+notification creation, and acceptance with the new token in a disposable database.

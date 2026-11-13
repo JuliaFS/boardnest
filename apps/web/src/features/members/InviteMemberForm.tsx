@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 
 import {
   INVITE_MEMBER_MUTATION,
+  CHANGE_INVITATION_EMAIL_MUTATION,
   WORKSPACE_INVITATIONS_QUERY,
   type InvitationSummary,
 } from '../core/graphql';
@@ -16,6 +17,7 @@ import {
 import { inviteMemberSchema, type InviteMemberValues } from './member-schemas';
 
 interface InviteMemberFormProps {
+  invitation?: InvitationSummary;
   onCancel: () => void;
   onCompleted: (result: {
     emailSent: boolean;
@@ -34,14 +36,19 @@ interface InviteMemberResult {
 }
 
 export function InviteMemberForm({
+  invitation,
   onCancel,
   onCompleted,
   workspaceId,
 }: InviteMemberFormProps) {
   const [inviteMember, mutation] = useMutation<
     InviteMemberResult,
-    { input: InviteMemberValues & { workspaceId: string } }
-  >(INVITE_MEMBER_MUTATION, {
+    {
+      input?: InviteMemberValues & { workspaceId: string };
+      id?: string;
+      email?: string;
+    }
+  >(invitation ? CHANGE_INVITATION_EMAIL_MUTATION : INVITE_MEMBER_MUTATION, {
     refetchQueries: [WORKSPACE_INVITATIONS_QUERY],
   });
   const {
@@ -49,7 +56,10 @@ export function InviteMemberForm({
     handleSubmit,
     register,
   } = useForm<InviteMemberValues>({
-    defaultValues: { email: '', role: 'MEMBER' },
+    defaultValues: {
+      email: invitation?.email ?? '',
+      role: invitation?.role ?? 'MEMBER',
+    },
     resolver: zodResolver(inviteMemberSchema),
   });
 
@@ -60,7 +70,9 @@ export function InviteMemberForm({
         void handleSubmit(async (input) => {
           try {
             const result = await inviteMember({
-              variables: { input: { ...input, workspaceId } },
+              variables: invitation
+                ? { id: invitation.id, email: input.email }
+                : { input: { ...input, workspaceId } },
             });
             if (result.data) onCompleted(result.data.inviteMember);
           } catch {
@@ -85,7 +97,14 @@ export function InviteMemberForm({
       </label>
       <label className={labelClassName}>
         Workspace role
-        <select className={fieldClassName} {...register('role')}>
+        {invitation ? <input type="hidden" {...register('role')} /> : null}
+        <select
+          aria-label="Workspace role"
+          disabled={Boolean(invitation)}
+          className={fieldClassName}
+          {...(invitation ? {} : register('role'))}
+          defaultValue={invitation?.role}
+        >
           <option value="MEMBER">Member — create and edit work</option>
           <option value="VIEWER">Viewer — read only</option>
           <option value="ADMIN">Admin — manage workspace and members</option>
@@ -112,7 +131,11 @@ export function InviteMemberForm({
           disabled={isSubmitting}
           type="submit"
         >
-          {isSubmitting ? 'Sending…' : 'Create invitation'}
+          {isSubmitting
+            ? 'Sending…'
+            : invitation
+              ? 'Save email'
+              : 'Create invitation'}
         </button>
       </div>
     </form>

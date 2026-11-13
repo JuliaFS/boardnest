@@ -26,6 +26,10 @@ describe('mobile navigation contracts', () => {
     expect(invitationRouteFromReturnTo(`/invite/${token}`)).toBe(
       `/invite/${token}`,
     );
+    const invitationId = '6992c303-a240-4e15-8fcc-461d53756324';
+    expect(invitationRouteFromReturnTo(`/invite/${invitationId}`)).toBe(
+      `/invite/${invitationId}`,
+    );
     expect(invitationRouteFromReturnTo('https://example.com')).toBeNull();
     expect(invitationRouteFromReturnTo('/projects/one')).toBeNull();
   });

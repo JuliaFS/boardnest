@@ -106,3 +106,22 @@ describe('notification presentation', () => {
     });
   });
 });
+
+describe('mobile invitation notification routes', () => {
+  it('opens only a validated invitation ID', () => {
+    const context = { type: 'workspace.invited', workspaceId };
+    expect(
+      mobileNotificationRoute({
+        ...context,
+        payload: { invitationId: taskId },
+      }),
+    ).toBe(`/invite/${taskId}`);
+    expect(
+      mobileNotificationRoute({
+        ...context,
+        payload: { invitationId: '../settings' },
+      }),
+    ).toBeNull();
+    expect(mobileNotificationRoute(context)).toBeNull();
+  });
+});

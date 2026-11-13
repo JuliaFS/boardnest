@@ -1,25 +1,33 @@
 import { useMutation } from '@apollo/client/react';
 import { Link, useParams } from 'react-router';
+import { z } from 'zod';
 
 import { useAuth } from '../auth/AuthProvider';
 import {
   ACCEPT_INVITATION_MUTATION,
+  ACCEPT_INVITATION_BY_ID_MUTATION,
   WORKSPACES_QUERY,
   type InvitationAcceptanceSummary,
 } from '../core/graphql';
 
 interface AcceptInvitationResult {
-  acceptInvitation: InvitationAcceptanceSummary;
+  acceptInvitation?: InvitationAcceptanceSummary;
+  acceptInvitationById?: InvitationAcceptanceSummary;
 }
 
 export function InvitationAcceptancePage() {
   const { user } = useAuth();
   const { token = '' } = useParams();
+  const byId = z.uuid().safeParse(token).success;
+  const validInvitation = byId || /^[A-Za-z0-9_-]{43}$/.test(token);
   const [acceptInvitation, mutation] = useMutation<
     AcceptInvitationResult,
-    { token: string }
-  >(ACCEPT_INVITATION_MUTATION, { refetchQueries: [WORKSPACES_QUERY] });
-  const accepted = mutation.data?.acceptInvitation;
+    { token?: string; id?: string }
+  >(byId ? ACCEPT_INVITATION_BY_ID_MUTATION : ACCEPT_INVITATION_MUTATION, {
+    refetchQueries: [WORKSPACES_QUERY],
+  });
+  const accepted =
+    mutation.data?.acceptInvitation ?? mutation.data?.acceptInvitationById;
 
   return (
     <main className="auth-page">
@@ -65,17 +73,17 @@ export function InvitationAcceptancePage() {
             ) : null}
             <button
               className="primary-button"
-              disabled={mutation.loading || token.length !== 43}
+              disabled={mutation.loading || !validInvitation}
               onClick={() =>
-                void acceptInvitation({ variables: { token } }).catch(
-                  () => undefined,
-                )
+                void acceptInvitation({
+                  variables: byId ? { id: token } : { token },
+                }).catch(() => undefined)
               }
               type="button"
             >
               {mutation.loading ? 'Accepting…' : 'Accept invitation'}
             </button>
-            {token.length !== 43 ? (
+            {!validInvitation ? (
               <p className="form-message error-message" role="alert">
                 This invitation link is invalid.
               </p>

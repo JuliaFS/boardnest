@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createBoardnestDataService } from './data-service.js';
@@ -18,11 +20,12 @@ const supabase = vi.hoisted(() => {
   return {
     builder,
     from: vi.fn(),
+    rpc: vi.fn(),
   };
 });
 
 vi.mock('@supabase/supabase-js', () => ({
-  createClient: () => ({ from: supabase.from }),
+  createClient: () => ({ from: supabase.from, rpc: supabase.rpc }),
 }));
 
 const userId = '4ac60f36-9f7a-419f-b447-d8f9d2bc7cd8';
@@ -50,12 +53,54 @@ describe('Boardnest data service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     supabase.from.mockReturnValue(supabase.builder);
+    supabase.rpc.mockReturnValue(supabase.builder);
     supabase.builder.select.mockReturnValue(supabase.builder);
     supabase.builder.eq.mockReturnValue(supabase.builder);
     supabase.builder.delete.mockReturnValue(supabase.builder);
     supabase.builder.insert.mockReturnValue(supabase.builder);
     supabase.builder.order.mockReturnValue(supabase.builder);
     supabase.builder.update.mockReturnValue(supabase.builder);
+  });
+
+  it('generates a fresh token and submits only its hash to the atomic replacement RPC', async () => {
+    const invitation = {
+      id: notificationId,
+      workspace_id: workspaceId,
+      email: 'correct@example.com',
+      role: 'viewer',
+      status: 'pending',
+      invited_by: userId,
+      accepted_by: null,
+      expires_at: '2030-01-01T00:00:00Z',
+      accepted_at: null,
+      revoked_at: null,
+      created_at: notification.created_at,
+      updated_at: notification.created_at,
+    };
+    supabase.builder.single.mockResolvedValue({
+      data: invitation,
+      error: null,
+    });
+    const service = createBoardnestDataService(
+      'https://example.supabase.co',
+      'publishable-key',
+      'access-token',
+    );
+    const result = await service.changeInvitationEmail(
+      notificationId,
+      ' CORRECT@example.com ',
+    );
+    expect(result.token).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      'change_workspace_invitation_email',
+      {
+        p_invitation_id: notificationId,
+        p_email: 'correct@example.com',
+        p_token_hash: createHash('sha256').update(result.token).digest('hex'),
+      },
+    );
+    expect(result.invitation.role).toBe('viewer');
+    expect(supabase.from).not.toHaveBeenCalled();
   });
 
   it('returns a clear conflict when a workspace slug already exists', async () => {

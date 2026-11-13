@@ -6,6 +6,7 @@ query MobileNotifications($unreadOnly: Boolean = false, $limit: Int = 50) {
       type
       title
       body
+      payload
       workspaceId
       projectId
       taskId

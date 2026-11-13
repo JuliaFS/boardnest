@@ -143,3 +143,25 @@ describe('notification route parsing', () => {
     ).toBeNull();
   });
 });
+
+describe('invitation notification routes', () => {
+  it('opens a validated invitation ID instead of the inaccessible workspace', () => {
+    const id = '6992c303-a240-4e15-8fcc-461d53756324';
+    const context = {
+      type: 'workspace.invited',
+      workspaceId: id,
+      projectId: null,
+      taskId: null,
+    };
+    expect(
+      notificationRoute({ ...context, payload: { invitationId: id } }),
+    ).toBe(`/invite/${id}`);
+    expect(
+      notificationRoute({
+        ...context,
+        payload: { invitationId: 'https://example.com' },
+      }),
+    ).toBeNull();
+    expect(notificationRoute({ ...context, payload: {} })).toBeNull();
+  });
+});

@@ -34,12 +34,41 @@ const notification = {
   scheduledFor: null,
   taskId: null,
   title: 'Workspace membership updated',
+  payload: {},
   type: 'workspace.member_added',
   workspaceId,
 };
 
 describe('InboxPanel', () => {
   beforeEach(() => mockPush.mockClear());
+
+  test('opens the invitation screen for a registered recipient', async () => {
+    const invitationId = '6992c303-a240-4e15-8fcc-461d53756324';
+    const screen = await render(
+      <MockedProvider>
+        <InboxPanel
+          data={{
+            notifications: {
+              nodes: [
+                {
+                  ...notification,
+                  readAt: '2030-01-01T00:01:00Z',
+                  type: 'workspace.invited',
+                  title: 'Workspace invitation',
+                  payload: { invitationId },
+                },
+              ],
+              pageInfo: { hasNextPage: false, limit: 50, offset: 0 },
+            },
+          }}
+          loading={false}
+          onRetry={jest.fn()}
+        />
+      </MockedProvider>,
+    );
+    await fireEvent.press(screen.getByRole('button', { name: 'Open' }));
+    expect(mockPush).toHaveBeenCalledWith(`/invite/${invitationId}`);
+  });
 
   test('marks an unread notification optimistically and opens its native route', async () => {
     const cache = new InMemoryCache();
@@ -56,6 +85,7 @@ describe('InboxPanel', () => {
       result: {
         data: {
           markNotificationAsRead: {
+            __typename: 'Notification',
             id: notification.id,
             readAt: '2030-01-01T00:01:00.000Z',
           },

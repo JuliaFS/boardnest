@@ -139,9 +139,11 @@ export type MoveTaskInput = {
 export type Mutation = {
   __typename?: 'Mutation';
   acceptInvitation: InvitationAcceptance;
+  acceptInvitationById: InvitationAcceptance;
   addComment: TaskComment;
   addProjectMember: ProjectMember;
   assignTask: TaskAssignee;
+  changeInvitationEmail: InvitationPayload;
   createProject: Project;
   createScheduledNotification: ScheduledNotification;
   createTask: Task;
@@ -183,6 +185,11 @@ export type MutationAcceptInvitationArgs = {
 };
 
 
+export type MutationAcceptInvitationByIdArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
 export type MutationAddCommentArgs = {
   body: Scalars['String']['input'];
   taskId: Scalars['ID']['input'];
@@ -199,6 +206,12 @@ export type MutationAddProjectMemberArgs = {
 export type MutationAssignTaskArgs = {
   assigneeId: Scalars['ID']['input'];
   taskId: Scalars['ID']['input'];
+};
+
+
+export type MutationChangeInvitationEmailArgs = {
+  email: Scalars['String']['input'];
+  id: Scalars['ID']['input'];
 };
 
 

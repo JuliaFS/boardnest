@@ -4,7 +4,10 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { ACCEPT_INVITATION_MUTATION } from '../core/graphql';
+import {
+  ACCEPT_INVITATION_MUTATION,
+  ACCEPT_INVITATION_BY_ID_MUTATION,
+} from '../core/graphql';
 import { InvitationAcceptancePage } from './InvitationAcceptancePage';
 
 const token = 'a'.repeat(43);
@@ -39,6 +42,50 @@ describe('InvitationAcceptancePage', () => {
               result: {
                 data: {
                   acceptInvitation: {
+                    joinedAt: new Date(0).toISOString(),
+                    role: 'MEMBER',
+                    userId,
+                    workspaceId,
+                  },
+                },
+              },
+            },
+          ]}
+        >
+          <Routes>
+            <Route
+              element={<InvitationAcceptancePage />}
+              path="/invite/:token"
+            />
+          </Routes>
+        </MockedProvider>
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Accept invitation' }));
+
+    expect(await screen.findByText('Invitation accepted')).toBeTruthy();
+    expect(
+      screen.getByText('You joined the workspace as Member.'),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole('link', { name: 'Open workspace' }).getAttribute('href'),
+    ).toBe(`/workspaces/${workspaceId}`);
+  });
+  it('accepts an in-app invitation by ID without an email token', async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={[`/invite/${workspaceId}`]}>
+        <MockedProvider
+          mocks={[
+            {
+              request: {
+                query: ACCEPT_INVITATION_BY_ID_MUTATION,
+                variables: { id: workspaceId },
+              },
+              result: {
+                data: {
+                  acceptInvitationById: {
                     joinedAt: new Date(0).toISOString(),
                     role: 'MEMBER',
                     userId,

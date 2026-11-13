@@ -11,7 +11,7 @@ import type {
   TaskEvent,
   TaskEventKind,
 } from '../realtime/event-bus.js';
-import type { BoardnestDataService } from './data-service.js';
+import type { BoardnestDataService, InviteResult } from './data-service.js';
 import type { InvitationEmailService } from '../invitations/invitation-email.js';
 import type {
   CreateProjectData,
@@ -783,7 +783,9 @@ export const typeDefs = `#graphql
     unassignTask(taskId: ID!, assigneeId: ID!): DeletePayload!
     addComment(taskId: ID!, body: String!): TaskComment!
     inviteMember(input: InviteMemberInput!): InvitationPayload!
+    changeInvitationEmail(id: ID!, email: String!): InvitationPayload!
     acceptInvitation(token: String!): InvitationAcceptance!
+    acceptInvitationById(id: ID!): InvitationAcceptance!
     updateWorkspaceMemberRole(workspaceId: ID!, userId: ID!, role: WorkspaceRole!): WorkspaceMember!
     removeWorkspaceMember(workspaceId: ID!, userId: ID!): DeletePayload!
     revokeInvitation(id: ID!): Invitation!
@@ -1479,32 +1481,18 @@ export const resolvers = {
         input.role,
         authenticated.user.id,
       );
-      let emailSent = false;
-      if (context.invitationEmail) {
-        const workspace = await authenticated.data.workspace(input.workspaceId);
-        if (workspace) {
-          try {
-            await context.invitationEmail.sendWorkspaceInvitation({
-              email: result.invitation.email,
-              inviterName:
-                authenticated.user.displayName ?? 'A Boardnest member',
-              token: result.token,
-              workspaceName: workspace.name,
-            });
-            emailSent = true;
-          } catch (error) {
-            console.error(
-              'Invitation email delivery failed',
-              error instanceof Error ? error.message : 'Unknown email error',
-            );
-          }
-        }
-      }
-      return {
-        ...result,
-        emailSent,
-        token: emailSent ? null : result.token,
-      };
+      return deliverInvitation(result, context);
+    },
+    changeInvitationEmail: async (
+      _parent: unknown,
+      args: { id: string; email: string },
+      context: GraphQLContext,
+    ) => {
+      const result = await requireAuth(context).data.changeInvitationEmail(
+        uuid(args.id),
+        parse(z.string().trim().toLowerCase().pipe(z.email()), args.email),
+      );
+      return deliverInvitation(result, context);
     },
     acceptInvitation: async (
       _parent: unknown,
@@ -1513,6 +1501,21 @@ export const resolvers = {
     ) => {
       const membership = await requireAuth(context).data.acceptInvitation(
         parse(invitationTokenSchema, args.token),
+      );
+      await context.events.publishSync(
+        syncEvent('workspace_membership', {
+          workspaceId: membership.workspace_id,
+        }),
+      );
+      return membership;
+    },
+    acceptInvitationById: async (
+      _parent: unknown,
+      args: { id: string },
+      context: GraphQLContext,
+    ) => {
+      const membership = await requireAuth(context).data.acceptInvitationById(
+        uuid(args.id),
       );
       await context.events.publishSync(
         syncEvent('workspace_membership', {
@@ -1816,6 +1819,40 @@ export const resolvers = {
     ),
   },
 };
+
+async function deliverInvitation(
+  result: InviteResult,
+  context: GraphQLContext,
+) {
+  const authenticated = requireAuth(context);
+  let emailSent = false;
+  if (context.invitationEmail) {
+    const workspace = await authenticated.data.workspace(
+      result.invitation.workspace_id,
+    );
+    if (workspace) {
+      try {
+        await context.invitationEmail.sendWorkspaceInvitation({
+          email: result.invitation.email,
+          inviterName: authenticated.user.displayName ?? 'A Boardnest member',
+          token: result.token,
+          workspaceName: workspace.name,
+        });
+        emailSent = true;
+      } catch (error) {
+        console.error(
+          'Invitation email delivery failed',
+          error instanceof Error ? error.message : 'Unknown email error',
+        );
+      }
+    }
+  }
+  return {
+    ...result,
+    emailSent,
+    token: emailSent ? null : result.token,
+  };
+}
 
 function syncEvent(
   kind: SyncEventKind,

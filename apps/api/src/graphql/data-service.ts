@@ -324,6 +324,8 @@ export interface InviteResult {
 }
 
 export interface BoardnestDataService {
+  changeInvitationEmail: (id: string, email: string) => Promise<InviteResult>;
+  acceptInvitationById: (id: string) => Promise<WorkspaceMembership>;
   acceptInvitation: (token: string) => Promise<WorkspaceMembership>;
   activityFeed: (
     workspaceId: string,
@@ -507,6 +509,13 @@ export function createBoardnestDataService(
 
 class SupabaseBoardnestDataService implements BoardnestDataService {
   constructor(private readonly client: SupabaseClient) {}
+
+  async acceptInvitationById(id: string): Promise<WorkspaceMembership> {
+    const response = await this.client
+      .rpc('accept_workspace_invitation_by_id', { p_invitation_id: id })
+      .single();
+    return required(workspaceMembershipSchema, response);
+  }
 
   async acceptInvitation(token: string): Promise<WorkspaceMembership> {
     const response = await this.client
@@ -1349,6 +1358,29 @@ class SupabaseBoardnestDataService implements BoardnestDataService {
         status: 'pending',
         token_hash: tokenHash,
         workspace_id: workspaceId,
+      })
+      .select(
+        'id,workspace_id,email,role,status,invited_by,accepted_by,expires_at,accepted_at,revoked_at,created_at,updated_at',
+      )
+      .single();
+    throwForError(
+      response.error,
+      'A pending invitation already exists for this email in the workspace.',
+    );
+    return { invitation: invitationSchema.parse(response.data), token };
+  }
+
+  async changeInvitationEmail(
+    id: string,
+    email: string,
+  ): Promise<InviteResult> {
+    const token = randomBytes(32).toString('base64url');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const response = await this.client
+      .rpc('change_workspace_invitation_email', {
+        p_invitation_id: id,
+        p_email: email.trim().toLowerCase(),
+        p_token_hash: tokenHash,
       })
       .select(
         'id,workspace_id,email,role,status,invited_by,accepted_by,expires_at,accepted_at,revoked_at,created_at,updated_at',

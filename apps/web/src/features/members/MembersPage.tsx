@@ -23,6 +23,7 @@ import { primaryButtonClassName } from '../core/form-styles';
 import { InviteMemberForm } from './InviteMemberForm';
 
 type InvitationResult = {
+  emailChanged?: boolean;
   emailSent: boolean;
   invitation: InvitationSummary;
   token: string | null;
@@ -38,6 +39,8 @@ export function MembersPage() {
   const { user } = useAuth();
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState('');
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [editingInvitation, setEditingInvitation] =
+    useState<InvitationSummary | null>(null);
   const [invitationResult, setInvitationResult] =
     useState<InvitationResult | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -318,21 +321,36 @@ export function MembersPage() {
                             {formatDate(invitation.expiresAt)}
                           </p>
                         </div>
-                        <button
-                          className="w-fit rounded-lg border border-slate-700 px-3 py-2 text-sm font-semibold text-slate-300 hover:bg-slate-800"
-                          disabled={actionPending}
-                          onClick={() => {
-                            setActionError(null);
-                            void revokeInvitation({
-                              variables: { id: invitation.id },
-                            }).catch((error: Error) =>
-                              setActionError(error.message),
-                            );
-                          }}
-                          type="button"
-                        >
-                          Revoke
-                        </button>
+                        <div className="flex gap-2">
+                          {!user?.isAnonymous ? (
+                            <button
+                              className="rounded-lg border border-slate-700 px-3 py-2 text-sm font-semibold text-slate-300 hover:bg-slate-800"
+                              disabled={actionPending}
+                              onClick={() => {
+                                setEditingInvitation(invitation);
+                                setInviteOpen(true);
+                              }}
+                              type="button"
+                            >
+                              Change email
+                            </button>
+                          ) : null}
+                          <button
+                            className="w-fit rounded-lg border border-slate-700 px-3 py-2 text-sm font-semibold text-slate-300 hover:bg-slate-800"
+                            disabled={actionPending}
+                            onClick={() => {
+                              setActionError(null);
+                              void revokeInvitation({
+                                variables: { id: invitation.id },
+                              }).catch((error: Error) =>
+                                setActionError(error.message),
+                              );
+                            }}
+                            type="button"
+                          >
+                            Revoke
+                          </button>
+                        </div>
                       </li>
                     ),
                   )}
@@ -361,15 +379,35 @@ export function MembersPage() {
 
       {inviteOpen && activeWorkspaceId ? (
         <Modal
-          description="Invite someone to the workspace and choose their maximum access level."
-          onClose={() => setInviteOpen(false)}
-          title="Invite workspace member"
+          description={
+            editingInvitation
+              ? 'An invitation will be sent to the updated email address. The previous link will no longer work.'
+              : 'Invite someone to the workspace and choose their maximum access level.'
+          }
+          onClose={() => {
+            setInviteOpen(false);
+            setEditingInvitation(null);
+          }}
+          title={
+            editingInvitation
+              ? 'Change invitation email'
+              : 'Invite workspace member'
+          }
         >
           <InviteMemberForm
-            onCancel={() => setInviteOpen(false)}
+            key={editingInvitation?.id ?? 'new'}
+            {...(editingInvitation ? { invitation: editingInvitation } : {})}
+            onCancel={() => {
+              setInviteOpen(false);
+              setEditingInvitation(null);
+            }}
             onCompleted={(result) => {
               setInviteOpen(false);
-              setInvitationResult(result);
+              setInvitationResult({
+                ...result,
+                emailChanged: Boolean(editingInvitation),
+              });
+              setEditingInvitation(null);
               setCopied(false);
             }}
             workspaceId={activeWorkspaceId}
@@ -385,7 +423,11 @@ export function MembersPage() {
               : 'The invitation was stored securely and its one-time link is shown only now.'
           }
           onClose={() => setInvitationResult(null)}
-          title="Invitation created"
+          title={
+            invitationResult.emailChanged
+              ? 'Invitation email changed'
+              : 'Invitation created'
+          }
         >
           <div className="grid gap-4">
             <p className="text-sm leading-6 text-slate-300">

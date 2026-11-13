@@ -204,17 +204,17 @@ export function NotificationsPage() {
         ))}
       </div>
 
-      {!workspaceId ? (
-        <EmptyState
-          description="Create a workspace before configuring notification schedules."
-          title="No workspace available"
-        />
-      ) : activeTab === 'inbox' ? (
+      {activeTab === 'inbox' ? (
         <InboxPanel
           data={inbox.data}
           error={inbox.error}
           loading={inbox.loading}
           onRetry={() => void inbox.refetch()}
+        />
+      ) : !workspaceId ? (
+        <EmptyState
+          description="Create or join a workspace before configuring notification schedules."
+          title="No workspace available"
         />
       ) : activeTab === 'schedules' ? (
         schedules.loading || projects.loading || settings.loading ? (
