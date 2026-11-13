@@ -30,8 +30,10 @@ input {
   font: inherit;
 }
 
-a {
-  color: #9aabff;
+@layer base {
+  a {
+    color: #9aabff;
+  }
 }
 
 .auth-page,
